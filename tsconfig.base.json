@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ai-pm/core/*": ["packages/core/src/*"],
+      "@ai-pm/agents/*": ["packages/agents/src/*"],
+      "@ai-pm/mcp/*": ["packages/mcp/src/*"],
+      "@ai-pm/desktop/*": ["packages/desktop/src/*"],
+      "@ai-pm/mobile/*": ["packages/mobile/src/*"],
+      "@ai-pm/cli/*": ["packages/cli/src/*"],
+      "@ai-pm/shared/*": ["packages/shared/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", ".turbo"]
+}

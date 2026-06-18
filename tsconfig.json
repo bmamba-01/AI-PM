@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/agents" },
+    { "path": "./packages/mcp" },
+    { "path": "./packages/desktop" },
+    { "path": "./packages/mobile" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/shared" }
+  ]
+}

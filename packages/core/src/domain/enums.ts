@@ -1,0 +1,95 @@
+export enum ProjectType {
+  SOFTWARE = "SOFTWARE",
+  INFRASTRUCTURE = "INFRASTRUCTURE",
+  DATA = "DATA",
+  RESEARCH = "RESEARCH",
+  MAINTENANCE = "MAINTENANCE"
+}
+
+export enum Methodology {
+  WATERFALL = "WATERFALL",
+  SCRUM = "SCRUM",
+  KANBAN = "KANBAN",
+  HYBRID = "HYBRID"
+}
+
+export enum CostModel {
+  TIME_MATERIAL = "TIME_MATERIAL",
+  FIXED_COST = "FIXED_COST",
+  MILESTONE = "MILESTONE"
+}
+
+export enum Priority {
+  P0 = "P0",
+  P1 = "P1",
+  P2 = "P2",
+  P3 = "P3",
+  P4 = "P4"
+}
+
+export enum Status {
+  BACKLOG = "BACKLOG",
+  TODO = "TODO",
+  IN_PROGRESS = "IN_PROGRESS",
+  IN_REVIEW = "IN_REVIEW",
+  TESTING = "TESTING",
+  DONE = "DONE",
+  BLOCKED = "BLOCKED",
+  CANCELLED = "CANCELLED"
+}
+
+export enum RiskLevel {
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
+  CRITICAL = "CRITICAL"
+}
+
+export enum TaskType {
+  FEATURE = "FEATURE",
+  BUG = "BUG",
+  TECH_DEBT = "TECH_DEBT",
+  SPIKE = "SPIKE",
+  DOCUMENTATION = "DOCUMENTATION",
+  TESTING = "TESTING",
+  DEPLOYMENT = "DEPLOYMENT",
+  MEETING = "MEETING"
+}
+
+export enum RoleType {
+  PM = "PM",
+  TECH_LEAD = "TECH_LEAD",
+  DEVELOPER = "DEVELOPER",
+  QA = "QA",
+  BA = "BA",
+  DESIGNER = "DESIGNER",
+  DEVOPS = "DEVOPS",
+  STAKEHOLDER = "STAKEHOLDER"
+}
+
+export enum MeetingType {
+  DAILY_STANDUP = "DAILY_STANDUP",
+  SPRINT_PLANNING = "SPRINT_PLANNING",
+  SPRINT_REVIEW = "SPRINT_REVIEW",
+  RETROSPECTIVE = "RETROSPECTIVE",
+  GROOMING = "GROOMING",
+  STAKEHOLDER_SYNC = "STAKEHOLDER_SYNC",
+  ARCHITECTURE_REVIEW = "ARCHITECTURE_REVIEW",
+  CODE_REVIEW = "CODE_REVIEW",
+  INCIDENT_REVIEW = "INCIDENT_REVIEW",
+  AD_HOC = "AD_HOC"
+}
+
+export enum GateStatus {
+  PENDING = "PENDING",
+  IN_PROGRESS = "IN_PROGRESS",
+  PASSED = "PASSED",
+  FAILED = "FAILED",
+  WAIVED = "WAIVED"
+}
+
+export enum BudgetAlertLevel {
+  INFO = "INFO",
+  WARNING = "WARNING",
+  CRITICAL = "CRITICAL"
+}

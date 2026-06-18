@@ -1,0 +1,42 @@
+{
+  "name": "ai-pm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-PM Toolkit - AI-powered Project Management for Tech PMs",
+  "scripts": {
+    "dev": "pnpm --filter @ai-pm/desktop dev",
+    "build": "pnpm -r run build",
+    "build:desktop": "pnpm --filter @ai-pm/desktop build",
+    "build:mobile": "pnpm --filter @ai-pm/mobile build",
+    "build:cli": "pnpm --filter @ai-pm/cli build",
+    "lint": "pnpm -r run lint",
+    "lint:fix": "pnpm -r run lint:fix",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "test:watch": "pnpm -r run test:watch",
+    "db:migrate": "pnpm --filter @ai-pm/core db:migrate",
+    "db:studio": "pnpm --filter @ai-pm/core db:studio",
+    "sync:dev": "concurrently \"pnpm dev\" \"pnpm --filter @ai-pm/mobile dev\"",
+    "clean": "pnpm -r run clean && rm -rf node_modules .turbo dist",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^9.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.4.0"
+}

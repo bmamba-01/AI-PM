@@ -1,0 +1,1 @@
+export const ScrumDefinition = { name: "SCRUM", events: ["SPRINT_PLANNING", "DAILY_STANDUP", "SPRINT_REVIEW", "RETROSPECTIVE"], artifacts: ["PRODUCT_BACKLOG", "SPRINT_BACKLOG", "INCREMENT"] };

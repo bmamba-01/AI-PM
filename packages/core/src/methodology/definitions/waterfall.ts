@@ -1,0 +1,1 @@
+export const WaterfallDefinition = { name: "WATERFALL", phases: ["REQUIREMENTS", "DESIGN", "IMPLEMENTATION", "VERIFICATION", "MAINTENANCE"] };
