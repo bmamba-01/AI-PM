@@ -1,0 +1,101 @@
+version: 1
+name: project-mcp-profile
+description: "Example project-level MCP profile demonstrating enabled servers, workflow expectations, and degraded mode settings."
+
+enabled_servers:
+  - filesystem
+  - sqlite
+  - github
+  - jira
+  - linear
+
+optional_servers:
+  - google_gmail
+  - google_calendar
+  - google_drive
+  - confluence
+  - notion
+
+disabled_online_servers:
+  - slack
+  - teams
+
+workflow_expectations:
+  daily-briefing:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - google_gmail
+      - google_calendar
+      - jira
+      - github
+    degraded_sources:
+      - name: google_gmail
+        fallback: meeting notes and manual email summaries
+      - name: google_calendar
+        fallback: user-provided meeting list
+      - name: jira
+        fallback: local issue files or cached export
+      - name: github
+        fallback: local git status
+  meeting-intelligence:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - google_calendar
+      - google_drive
+      - jira
+    degraded_sources:
+      - name: google_calendar
+        fallback: manual meeting metadata
+      - name: jira
+        fallback: local action item file
+  scope-control:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - jira
+      - google_drive
+    degraded_sources:
+      - name: jira
+        fallback: local BRD and change request files
+      - name: google_drive
+        fallback: local docs repository
+  risk-control:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - jira
+    degraded_sources:
+      - name: jira
+        fallback: local risk register and issue tracker file
+  reporting:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - jira
+      - google_drive
+    degraded_sources:
+      - name: jira
+        fallback: local status summary file
+      - name: google_drive
+        fallback: local templates and reports folder
+  code-quality-guard:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - github
+      - jira
+    degraded_sources:
+      - name: github
+        fallback: local git diff and commit log
+      - name: jira
+        fallback: local requirements and acceptance criteria files
+
+connector_policies:
+  mutation_default: approval_required
+  read_policy: allowed_without_approval
+  local_mutation_policy: allowed_after_review
+  max_concurrent_requests: 4
+  retry_attempts: 2
+  timeout_seconds: 30
