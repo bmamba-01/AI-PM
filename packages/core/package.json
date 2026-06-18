@@ -49,6 +49,10 @@
     "./workflows": {
       "import": "./dist/workflows/index.js",
       "types": "./dist/workflows/index.d.ts"
+    },
+    "./runtime": {
+      "import": "./dist/runtime/index.js",
+      "types": "./dist/runtime/index.d.ts"
     }
   },
   "scripts": {

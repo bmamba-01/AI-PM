@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { CostModel, Methodology, ProjectType, RoleType, Status, type Project, type User, type Sprint, type Story, type Task, type Risk } from "@ai-pm/core";
+import { CostModel, Methodology, ProjectType, RoleType, Status, type Project, type User, type Sprint, type Story, type Task, type Risk } from "@ai-pm/core/domain";
 
 interface ProjectState {
   currentProject: Project | null;
