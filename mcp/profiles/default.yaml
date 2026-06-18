@@ -1,0 +1,43 @@
+version: 1
+name: default
+description: "Recommended online profile for complex software projects."
+
+enabled_servers:
+  - filesystem
+  - sqlite
+  - github
+  - jira
+  - linear
+  - google_gmail
+  - google_calendar
+  - google_drive
+
+optional_servers:
+  - confluence
+  - notion
+  - slack
+  - teams
+
+workflow_expectations:
+  daily-briefing:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - google_gmail
+      - google_calendar
+      - jira
+      - github
+  meeting-intelligence:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - google_calendar
+      - google_drive
+      - jira
+  code-quality-guard:
+    minimum_servers:
+      - filesystem
+    recommended_servers:
+      - github
+      - jira
+

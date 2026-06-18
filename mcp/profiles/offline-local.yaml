@@ -1,0 +1,31 @@
+version: 1
+name: offline-local
+description: "Offline-first profile for local files, local memory, and manual imports."
+
+enabled_servers:
+  - filesystem
+  - sqlite
+
+disabled_online_servers:
+  - github
+  - jira
+  - linear
+  - google_gmail
+  - google_calendar
+  - google_drive
+  - confluence
+  - notion
+  - slack
+  - teams
+
+workflow_behavior:
+  daily-briefing:
+    use_local_memory: true
+    mark_missing_online_sources: true
+  meeting-intelligence:
+    allow_manual_transcript_import: true
+  reporting:
+    use_cached_snapshots: true
+  code-quality-guard:
+    use_local_git_diff: true
+

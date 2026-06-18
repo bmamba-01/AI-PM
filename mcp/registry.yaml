@@ -1,0 +1,237 @@
+version: 1
+description: "Canonical MCP capability registry for AI-PM Toolkit."
+
+defaults:
+  access_mode: read_only
+  mutation_policy: approval_required
+  unavailable_behavior: degrade_gracefully
+
+servers:
+  github:
+    category: source_control
+    priority: 1
+    contracts:
+      - source-control
+      - work-tracker
+    required_for:
+      - code-quality-guard
+      - agent-supervision
+      - daily-briefing
+    read_capabilities:
+      - read_repositories
+      - read_branches
+      - read_commits
+      - read_pull_requests
+      - read_issues
+      - read_checks
+    mutation_capabilities:
+      - create_issue
+      - update_issue
+      - comment_on_pr
+      - approve_pr
+      - request_pr_changes
+      - merge_pr
+
+  jira:
+    category: work_tracking
+    priority: 1
+    contracts:
+      - work-tracker
+    required_for:
+      - daily-briefing
+      - scope-control
+      - risk-control
+      - reporting
+    read_capabilities:
+      - search_issues
+      - read_epics
+      - read_sprints
+      - read_boards
+      - read_versions
+    mutation_capabilities:
+      - create_issue
+      - update_issue
+      - transition_issue
+      - assign_issue
+      - comment_on_issue
+
+  linear:
+    category: work_tracking
+    priority: 1
+    contracts:
+      - work-tracker
+    required_for:
+      - daily-briefing
+      - scope-control
+      - risk-control
+      - reporting
+    read_capabilities:
+      - search_issues
+      - read_projects
+      - read_cycles
+      - read_teams
+    mutation_capabilities:
+      - create_issue
+      - update_issue
+      - assign_issue
+      - comment_on_issue
+
+  google_gmail:
+    category: communication
+    priority: 1
+    contracts:
+      - communication
+    required_for:
+      - daily-briefing
+      - meeting-intelligence
+      - reporting
+    read_capabilities:
+      - search_messages
+      - read_threads
+      - read_attachments
+    mutation_capabilities:
+      - send_email
+      - create_draft
+      - add_label
+
+  google_calendar:
+    category: calendar
+    priority: 1
+    contracts:
+      - calendar
+    required_for:
+      - daily-briefing
+      - meeting-intelligence
+    read_capabilities:
+      - list_events
+      - read_event
+      - read_attendees
+    mutation_capabilities:
+      - create_event
+      - update_event
+      - send_invite
+
+  google_drive:
+    category: documentation
+    priority: 1
+    contracts:
+      - documentation
+    required_for:
+      - meeting-intelligence
+      - scope-control
+      - reporting
+    read_capabilities:
+      - search_files
+      - read_document
+      - read_metadata
+    mutation_capabilities:
+      - create_document
+      - update_document
+      - share_document
+
+  filesystem:
+    category: local_memory
+    priority: 1
+    contracts:
+      - local-memory
+      - documentation
+    required_for:
+      - all_workflows
+    read_capabilities:
+      - read_files
+      - list_directories
+      - search_text
+    mutation_capabilities:
+      - write_file
+      - update_file
+      - create_directory
+
+  sqlite:
+    category: local_memory
+    priority: 1
+    contracts:
+      - local-memory
+    required_for:
+      - audit
+      - workflow_state
+    read_capabilities:
+      - read_project_state
+      - read_audit_log
+      - read_workflow_runs
+    mutation_capabilities:
+      - write_audit_log
+      - write_workflow_run
+      - update_project_state
+
+  confluence:
+    category: documentation
+    priority: 2
+    contracts:
+      - documentation
+    required_for:
+      - scope-control
+      - meeting-intelligence
+      - reporting
+    read_capabilities:
+      - search_pages
+      - read_page
+      - read_comments
+    mutation_capabilities:
+      - create_page
+      - update_page
+      - comment_on_page
+
+  notion:
+    category: documentation
+    priority: 2
+    contracts:
+      - documentation
+    required_for:
+      - scope-control
+      - reporting
+    read_capabilities:
+      - search_pages
+      - read_page
+      - query_database
+    mutation_capabilities:
+      - create_page
+      - update_page
+      - update_database_item
+
+  slack:
+    category: communication
+    priority: 2
+    contracts:
+      - communication
+    required_for:
+      - daily-briefing
+      - risk-control
+      - chat-gateway
+    read_capabilities:
+      - read_channels
+      - read_threads
+      - search_messages
+    mutation_capabilities:
+      - send_message
+      - update_message
+
+  teams:
+    category: communication
+    priority: 2
+    contracts:
+      - communication
+      - calendar
+    required_for:
+      - meeting-intelligence
+      - chat-gateway
+    read_capabilities:
+      - read_chats
+      - read_channels
+      - read_meetings
+    mutation_capabilities:
+      - send_message
+      - update_message
+      - create_meeting
+
+approval_required_for_all_mutations: true
+
