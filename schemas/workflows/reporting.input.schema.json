@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/reporting.input.schema.json",
+  "title": "Reporting Workflow Input",
+  "description": "Input contract for the Reporting workflow. Defines all data sources required for PM report generation.",
+  "type": "object",
+  "required": ["project_id", "report_type", "audience"],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier."
+    },
+    "report_type": {
+      "type": "string",
+      "enum": ["daily", "weekly", "client", "steering", "sprint", "release", "budget"],
+      "description": "Type of report to generate."
+    },
+    "audience": {
+      "type": "string",
+      "enum": ["internal", "client", "executive", "team", "steering_committee"],
+      "description": "Target audience for the report."
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Reporting period start date."
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Reporting period end date."
+    },
+    "issue_tracker_data": {
+      "type": "object",
+      "description": "Issue tracker status summary.",
+      "properties": {
+        "total_items": { "type": "integer" },
+        "completed_items": { "type": "integer" },
+        "in_progress_items": { "type": "integer" },
+        "blocked_items": { "type": "integer" },
+        "overdue_items": { "type": "integer" }
+      }
+    },
+    "milestones": {
+      "type": "array",
+      "description": "Milestone plan and status.",
+      "items": {
+        "type": "object",
+        "required": ["title", "date", "status"],
+        "properties": {
+          "title": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "status": { "type": "string", "enum": ["on_track", "at_risk", "delayed", "completed"] },
+          "completion_percentage": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      }
+    },
+    "risk_register": {
+      "type": "array",
+      "description": "Current risk register summary.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "level"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "level": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "scope_changes": {
+      "type": "array",
+      "description": "Recent scope changes.",
+      "items": {
+        "type": "object",
+        "required": ["title", "date"],
+        "properties": {
+          "title": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "impact": { "type": "string" }
+        }
+      }
+    },
+    "budget_data": {
+      "type": "object",
+      "description": "Budget or burn data.",
+      "properties": {
+        "total_budget": { "type": "number" },
+        "spent": { "type": "number" },
+        "remaining": { "type": "number" },
+        "forecast_at_completion": { "type": "number" }
+      }
+    },
+    "key_decisions": {
+      "type": "array",
+      "description": "Recent meeting decisions.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "quality_metrics": {
+      "type": "object",
+      "description": "Quality reports and metrics.",
+      "properties": {
+        "test_coverage": { "type": "number" },
+        "defect_count": { "type": "integer" },
+        "critical_defects": { "type": "integer" }
+      }
+    },
+    "pending_approvals": {
+      "type": "array",
+      "description": "Items awaiting approval.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

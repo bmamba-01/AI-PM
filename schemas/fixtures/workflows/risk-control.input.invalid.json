@@ -1,0 +1,14 @@
+{
+  "_violation": "Invalid enum value for probability in risk_register item",
+  "project_id": "PRJ-2026-001",
+  "risk_register": [
+    {
+      "id": "RISK-001",
+      "title": "Sample risk",
+      "probability": "very_high",
+      "impact": "low",
+      "status": "active",
+      "owner": "pm"
+    }
+  ]
+}

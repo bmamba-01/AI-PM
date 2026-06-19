@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/meeting-intelligence.output.schema.json",
+  "title": "Meeting Intelligence Workflow Output",
+  "description": "Output contract for the Meeting Intelligence workflow.",
+  "type": "object",
+  "required": [
+    "meeting_id",
+    "summary",
+    "decisions",
+    "action_items",
+    "risks",
+    "open_questions",
+    "publish_recommendation",
+    "confidence"
+  ],
+  "properties": {
+    "meeting_id": {
+      "type": "string",
+      "description": "Unique meeting identifier."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Meeting summary covering facts, key discussion points, and outcomes."
+    },
+    "decisions": {
+      "type": "array",
+      "description": "Decisions made during the meeting.",
+      "items": {
+        "type": "object",
+        "required": ["decision", "owner"],
+        "properties": {
+          "decision": { "type": "string" },
+          "owner": { "type": "string" },
+          "source_ref": { "type": "string", "description": "Reference to transcript/source location." }
+        },
+        "additionalProperties": false
+      }
+    },
+    "action_items": {
+      "type": "array",
+      "description": "Action items extracted from the meeting.",
+      "items": {
+        "type": "object",
+        "required": ["action", "owner", "due_date"],
+        "properties": {
+          "action": { "type": "string" },
+          "owner": { "type": "string" },
+          "due_date": { "type": "string", "format": "date-time" },
+          "target_system": { "type": "string", "enum": ["jira", "linear", "github", "notion", "confluence", "local_memory", "none"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Risks identified during the meeting.",
+      "items": { "type": "string" }
+    },
+    "open_questions": {
+      "type": "array",
+      "description": "Unresolved questions to carry forward.",
+      "items": { "type": "string" }
+    },
+    "publish_recommendation": {
+      "type": "string",
+      "description": "Recommended publish target (e.g. Confluence, Notion, Drive, email, local only)."
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in the meeting output completeness (0-100)."
+    },
+    "proposed_external_mutations": {
+      "type": "array",
+      "description": "External mutations proposed but not yet executed (require approval).",
+      "items": {
+        "type": "object",
+        "required": ["action", "target_system"],
+        "properties": {
+          "action": { "type": "string" },
+          "target_system": { "type": "string" },
+          "approval_required": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false
+      }
+    },
+    "audit": {
+      "type": "object",
+      "description": "Audit trail for the meeting workflow run.",
+      "properties": {
+        "meeting_source": { "type": "string", "description": "Source of meeting data (calendar, transcript, notes)." },
+        "transcript_source": { "type": "string", "description": "Path or reference to transcript/notes." },
+        "generated_mom_path": { "type": "string", "description": "Path to generated MoM file." },
+        "sources_used": { "type": "array", "items": { "type": "string" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

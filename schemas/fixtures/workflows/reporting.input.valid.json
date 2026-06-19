@@ -1,0 +1,80 @@
+{
+  "project_id": "PRJ-2026-001",
+  "report_type": "weekly",
+  "audience": "steering_committee",
+  "period_start": "2026-06-12T00:00:00Z",
+  "period_end": "2026-06-18T23:59:59Z",
+  "issue_tracker_data": {
+    "total_items": 45,
+    "completed_items": 12,
+    "in_progress_items": 18,
+    "blocked_items": 3,
+    "overdue_items": 2
+  },
+  "milestones": [
+    {
+      "title": "Sprint 12 Demo",
+      "date": "2026-06-21T10:00:00Z",
+      "status": "on_track",
+      "completion_percentage": 75
+    },
+    {
+      "title": "Production Release v2.5",
+      "date": "2026-06-28T17:00:00Z",
+      "status": "at_risk",
+      "completion_percentage": 60
+    },
+    {
+      "title": "Security Audit Completion",
+      "date": "2026-06-30T23:59:59Z",
+      "status": "on_track",
+      "completion_percentage": 40
+    }
+  ],
+  "risk_register": [
+    {
+      "id": "RISK-015",
+      "title": "Third-party API rate limits may impact launch",
+      "level": "high",
+      "status": "active"
+    },
+    {
+      "id": "RISK-022",
+      "title": "Database migration delayed",
+      "level": "medium",
+      "status": "worsening"
+    }
+  ],
+  "scope_changes": [
+    {
+      "title": "Added advanced filtering to dashboard",
+      "date": "2026-06-15T14:00:00Z",
+      "impact": "Timeline extended by 3 days, budget impact: $5K"
+    },
+    {
+      "title": "Security review gate added before production",
+      "date": "2026-06-13T09:00:00Z",
+      "impact": "1 additional sprint required"
+    }
+  ],
+  "budget_data": {
+    "total_budget": 200000,
+    "spent": 155000,
+    "remaining": 45000,
+    "forecast_at_completion": 205000
+  },
+  "key_decisions": [
+    "Approved 2-week timeline for API integration",
+    "Added mandatory security review before production deployment",
+    "Deferred mobile app features to phase 2"
+  ],
+  "quality_metrics": {
+    "test_coverage": 78.5,
+    "defect_count": 12,
+    "critical_defects": 2
+  },
+  "pending_approvals": [
+    "CR-007: Additional reporting column",
+    "Budget increase request for extended timeline"
+  ]
+}

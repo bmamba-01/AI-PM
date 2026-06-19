@@ -1,0 +1,18 @@
+{
+  "_violation": "Missing required field 'confidence'",
+  "date": "2026-06-19T09:00:00Z",
+  "project_id": "PRJ-2026-001",
+  "top_priorities": [
+    "Fix CI pipeline"
+  ],
+  "meetings_to_prepare": [],
+  "urgent_blockers": [],
+  "risks_to_review": [],
+  "pending_approvals": [],
+  "suggested_followups": [],
+  "source_coverage": [
+    "jira"
+  ],
+  "assumptions": [],
+  "proposed_external_actions": []
+}

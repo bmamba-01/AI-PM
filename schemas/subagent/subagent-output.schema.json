@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/subagent/subagent-output.schema.json",
+  "title": "Subagent Output Contract",
+  "description": "Schema for a subagent output contract. Based on the YAML output contract in docs/operating-model/subagent-protocol.md.",
+  "type": "object",
+  "required": [
+    "task_id",
+    "status",
+    "summary",
+    "findings",
+    "recommendations",
+    "confidence"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Task identifier this output corresponds to."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "blocked", "failed", "needs_human_input"],
+      "description": "Final status of the task execution."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief summary of the task execution and results."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Findings from the task execution.",
+      "items": {
+        "type": "object",
+        "required": ["severity", "title", "detail"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"],
+            "description": "Severity level of this finding."
+          },
+          "title": {
+            "type": "string",
+            "description": "Short title of the finding."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Detailed description of the finding."
+          },
+          "source_ref": {
+            "type": "string",
+            "description": "Reference to the source data that supports this finding."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "description": "Recommendations for next actions.",
+      "items": {
+        "type": "object",
+        "required": ["action", "owner", "priority"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Recommended action to take."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Who should own this action."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"],
+            "description": "Priority level of this recommendation."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence level in the task output (0-100). Below 70 requires explicit assumptions."
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "Artifacts produced during task execution.",
+      "items": {
+        "type": "object",
+        "required": ["path_or_url", "type"],
+        "properties": {
+          "path_or_url": {
+            "type": "string",
+            "description": "Path or URL to the artifact."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "report",
+              "template",
+              "issue",
+              "pr",
+              "note",
+              "test_plan",
+              "risk_register",
+              "review",
+              "diff"
+            ],
+            "description": "Type of artifact."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "description": "Open questions that require further clarification.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "audit": {
+      "type": "object",
+      "description": "Audit trail for the task execution.",
+      "properties": {
+        "sources_used": {
+          "type": "array",
+          "description": "Data sources used during task execution.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "description": "Assumptions made during task execution.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "approvals_required": {
+          "type": "array",
+          "description": "Approvals required before acting on this output.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_agent_suggested": {
+          "type": "string",
+          "description": "Suggested next agent to handle follow-up work."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

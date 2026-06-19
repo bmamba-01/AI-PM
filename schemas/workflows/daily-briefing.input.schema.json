@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/daily-briefing.input.schema.json",
+  "title": "Daily Briefing Workflow Input",
+  "description": "Input contract for the Daily PM Briefing workflow. Defines all data sources required to generate a morning command view.",
+  "type": "object",
+  "required": ["date", "project_id"],
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 date/time the briefing is generated for."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier."
+    },
+    "calendar_events": {
+      "type": "array",
+      "description": "Calendar events for today and the next 7 days.",
+      "items": {
+        "type": "object",
+        "required": ["title", "start"],
+        "properties": {
+          "title": { "type": "string" },
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" },
+          "attendees": { "type": "array", "items": { "type": "string" } },
+          "location": { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "emails": {
+      "type": "array",
+      "description": "Unread or important emails since the last briefing.",
+      "items": {
+        "type": "object",
+        "required": ["subject"],
+        "properties": {
+          "id": { "type": "string" },
+          "subject": { "type": "string" },
+          "from": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "is_urgent": { "type": "boolean", "default": false },
+          "has_attachments": { "type": "boolean", "default": false },
+          "snippet": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "issues": {
+      "type": "array",
+      "description": "Changed issues, PRs, bugs, and blockers since last briefing.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "type": { "type": "string", "enum": ["issue", "bug", "task", "epic", "story", "pr"] },
+          "status": { "type": "string" },
+          "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "assignee": { "type": "string" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "source": { "type": "string", "enum": ["jira", "linear", "github", "gitlab", "local"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Active risks from the risk register.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "level"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "level": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+          "status": { "type": "string" },
+          "owner": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "pending_approvals": {
+      "type": "array",
+      "description": "Items awaiting PM approval.",
+      "items": {
+        "type": "object",
+        "required": ["title", "type"],
+        "properties": {
+          "title": { "type": "string" },
+          "type": { "type": "string", "enum": ["change_request", "scope_change", "pr_merge", "report_publish", "risk_closure", "budget_update"] },
+          "requested_at": { "type": "string", "format": "date-time" },
+          "requested_by": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "report_schedule": {
+      "type": "array",
+      "description": "Upcoming report deadlines.",
+      "items": {
+        "type": "object",
+        "required": ["report_type", "due_date"],
+        "properties": {
+          "report_type": { "type": "string", "enum": ["daily", "weekly", "client", "steering", "sprint", "release", "budget"] },
+          "due_date": { "type": "string", "format": "date-time" },
+          "audience": { "type": "string", "enum": ["internal", "client", "executive", "team"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "local_memory": {
+      "type": "object",
+      "description": "Local project memory snapshot for context enrichment.",
+      "properties": {
+        "decisions": { "type": "array", "items": { "type": "string" } },
+        "open_questions": { "type": "array", "items": { "type": "string" } },
+        "context_notes": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "methodology": {
+      "type": "string",
+      "enum": ["scrum", "kanban", "waterfall", "hybrid", "unknown"],
+      "description": "Project methodology for playbook selection."
+    },
+    "project_type": {
+      "type": "string",
+      "enum": ["tm", "fixed_cost", "maintenance", "product_delivery", "unknown"],
+      "description": "Project type for governance rules."
+    }
+  },
+  "additionalProperties": false
+}

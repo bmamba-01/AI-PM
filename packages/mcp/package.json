@@ -18,6 +18,14 @@
       "import": "./dist/wrappers/index.js",
       "types": "./dist/wrappers/index.d.ts"
     },
+    "./registry/configLoader": {
+      "import": "./dist/registry/configLoader.js",
+      "types": "./dist/registry/configLoader.d.ts"
+    },
+    "./registry/configValidator": {
+      "import": "./dist/registry/configValidator.js",
+      "types": "./dist/registry/configValidator.d.ts"
+    },
     "./connectionManager": {
       "import": "./dist/connectionManager.js",
       "types": "./dist/connectionManager.d.ts"
@@ -37,13 +45,15 @@
     "@ai-pm/core": "workspace:*",
     "@ai-pm/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "zod": "^3.23.0",
-    "uuid": "^10.0.0"
+    "yaml": "^2.9.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/uuid": "^10.0.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "yaml": "^2.9.0"
   }
 }

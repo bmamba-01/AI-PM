@@ -2,11 +2,18 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { CostModel, Methodology, ProjectType, RoleType, Status, type Project, type User, type Sprint, type Story, type Task, type Risk } from "@ai-pm/core/domain";
 
+export type ActiveView =
+  | "dashboard" | "daily-brief" | "sprint" | "meeting"
+  | "backlog" | "timeline" | "risks"
+  | "code-review" | "reports"
+  | "mcp-servers" | "agents" | "settings";
+
 interface ProjectState {
   currentProject: Project | null;
   projects: Project[];
   currentUser: User | null;
   currentSprint: Sprint | null;
+  activeView: ActiveView;
   sidebarOpen: boolean;
   agentPanelOpen: boolean;
   isOnline: boolean;
@@ -17,6 +24,7 @@ interface ProjectState {
   setProjects: (projects: Project[]) => void;
   setCurrentUser: (user: User | null) => void;
   setCurrentSprint: (sprint: Sprint | null) => void;
+  setActiveView: (view: ActiveView) => void;
   toggleSidebar: () => void;
   toggleAgentPanel: () => void;
   setOnlineStatus: (online: boolean) => void;
@@ -30,6 +38,7 @@ export const useProjectStore = create<ProjectState>()(
       projects: [],
       currentUser: null,
       currentSprint: null,
+      activeView: "dashboard",
       sidebarOpen: true,
       agentPanelOpen: false,
       isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
@@ -112,6 +121,7 @@ export const useProjectStore = create<ProjectState>()(
         if (user) localStorage.setItem("ai-pm-user", JSON.stringify(user));
       },
       setCurrentSprint: (sprint) => set({ currentSprint: sprint }),
+      setActiveView: (view) => set({ activeView: view }),
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       toggleAgentPanel: () => set((state) => ({ agentPanelOpen: !state.agentPanelOpen })),
       setOnlineStatus: (online) => set({ isOnline: online }),

@@ -6,7 +6,8 @@ import {
   Heart, DollarSign, AlertTriangle, TrendingUp,
   Clock, Users, ArrowUpRight, ArrowDownRight, Minus,
   Activity, Calendar, CheckCircle2, GitPullRequest,
-  Rocket, MessageSquare
+  Rocket, MessageSquare, List, Loader, Check,
+  Eye, Settings, Box
 } from "lucide-react";
 
 interface DashboardTabProps {
@@ -29,7 +30,7 @@ export function DashboardTab({ project }: DashboardTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" /> Sprint Progress
+              <Activity className="w-4 h-4 text-[#007AFF]" /> Sprint Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -49,7 +50,7 @@ export function DashboardTab({ project }: DashboardTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-amber-400" /> Budget Burn
+              <DollarSign className="w-4 h-4 text-[#FF9500]" /> Budget Burn
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -59,7 +60,7 @@ export function DashboardTab({ project }: DashboardTabProps) {
                 <span className="font-medium text-foreground">$127,500 / $200,000</span>
               </div>
               <div className="h-2.5 rounded-full bg-secondary/50 overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-400" style={{ width: "64%" }} />
+                <div className="h-full rounded-full bg-gradient-to-r from-[#FF9500] to-[#FFCC00]" style={{ width: "64%" }} />
               </div>
               <p className="text-xs text-muted-foreground">On track for Fixed Cost model</p>
             </div>
@@ -72,7 +73,7 @@ export function DashboardTab({ project }: DashboardTabProps) {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-cyan-400" /> Recent Activity
+              <Clock className="w-4 h-4 text-[#5AC8FA]" /> Recent Activity
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -83,7 +84,7 @@ export function DashboardTab({ project }: DashboardTabProps) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-purple-400" /> Upcoming
+              <Calendar className="w-4 h-4 text-[#AF52DE]" /> Upcoming
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -91,6 +92,118 @@ export function DashboardTab({ project }: DashboardTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Daily Briefing Panel */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <List className="w-4 h-4 text-[#5AC8FA]" /> Daily Briefing
+          </CardTitle>
+          <Badge variant="secondary" className="text-[9px]">Sample Data</Badge>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Top Priorities</p>
+            <div className="space-y-1">
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Check className="w-4 h-4 text-[#34C759]" />
+                <div>
+                  <p className="text-sm font-medium">Review project status and blockers</p>
+                  <p className="text-xs text-muted-foreground">Due today</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Check className="w-4 h-4 text-[#34C759]" />
+                <div>
+                  <p className="text-sm font-medium">Prepare sprint planning agenda</p>
+                  <p className="text-xs text-muted-foreground">Due tomorrow</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Check className="w-4 h-4 text-[#34C759]" />
+                <div>
+                  <p className="text-sm font-medium">Update stakeholder communication plan</p>
+                  <p className="text-xs text-muted-foreground">Due in 2 days</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Urgent Blockers</p>
+            <div className="space-y-1">
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <AlertTriangle className="w-4 h-4 text-[#FF3B30]" />
+                <div>
+                  <p className="text-sm font-medium">Dependency on external API delayed</p>
+                  <p className="text-xs text-muted-foreground">Blocking feature X</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <AlertTriangle className="w-4 h-4 text-[#FF3B30]" />
+                <div>
+                  <p className="text-sm font-medium">Performance issue in database query</p>
+                  <p className="text-xs text-muted-foreground">Affects reporting module</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Risks to Review</p>
+            <div className="space-y-1">
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Eye className="w-4 h-4 text-[#AF52DE]" />
+                <div>
+                  <p className="text-sm font-medium">Potential scope creep from new requirements</p>
+                  <p className="text-xs text-muted-foreground">Medium probability, high impact</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Eye className="w-4 h-4 text-[#AF52DE]" />
+                <div>
+                  <p className="text-sm font-medium">Third-party service license renewal pending</p>
+                  <p className="text-xs text-muted-foreground">Low probability, but could affect budget</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Meetings Today</p>
+            <div className="space-y-1">
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Clock className="w-4 h-4 text-[#5AC8FA]" />
+                <div>
+                  <p className="text-sm font-medium">Daily Standup</p>
+                  <p className="text-xs text-muted-foreground">10:00 AM</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                <Clock className="w-4 h-4 text-[#5AC8FA]" />
+                <div>
+                  <p className="text-sm font-medium">Sprint Planning</p>
+                  <p className="text-xs text-muted-foreground">2:00 PM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Source Coverage</p>
+            <p className="text-xs text-muted-foreground">
+              Local project memory • GitHub (issues) • Google Calendar
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Confidence</p>
+            <div className="flex items-center gap-2">
+              <Badge variant="success" className="px-2 py-1 text-xs">85%</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -103,27 +216,27 @@ function StatCard({ title, value, icon: Icon, trend, color }: {
   color: string;
 }) {
   const colorMap: Record<string, string> = {
-    emerald: "text-emerald-400",
-    amber: "text-amber-400",
-    red: "text-red-400",
-    cyan: "text-cyan-400",
+    emerald: "text-[#34C759]",
+    amber: "text-[#FF9500]",
+    red: "text-[#FF3B30]",
+    cyan: "text-[#5AC8FA]",
   };
   const trendConfig = {
-    up: { icon: ArrowUpRight, color: "text-emerald-400", label: "+12%" },
-    down: { icon: ArrowDownRight, color: "text-red-400", label: "-3%" },
+    up: { icon: ArrowUpRight, color: "text-[#34C759]", label: "+12%" },
+    down: { icon: ArrowDownRight, color: "text-[#FF3B30]", label: "-3%" },
     neutral: { icon: Minus, color: "text-muted-foreground", label: "0%" },
   };
   const t = trendConfig[trend];
   const TrendIcon = t.icon;
 
   return (
-    <Card className="liquid-border group hover:scale-[1.02] transition-transform duration-300">
+    <Card className="liquid-border group hover:scale-[1.02] transition-all duration-300">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-muted-foreground font-medium">{title}</p>
           <p className="text-2xl font-bold text-foreground mt-1 glow-text">{value}</p>
         </div>
-        <div className={`p-2 rounded-xl glass-card ${colorMap[color]}`}>
+        <div className={`p-2 rounded-xl glass-card ${colorMap[color]} group-hover:shadow-lg transition-shadow duration-300`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
@@ -138,10 +251,10 @@ function StatCard({ title, value, icon: Icon, trend, color }: {
 
 function ActivityFeed() {
   const activities = [
-    { time: "2h ago", user: "Alex Chen", action: "completed", target: "API authentication refactor", type: "task", icon: CheckCircle2, iconColor: "text-emerald-400" },
-    { time: "4h ago", user: "Maria Santos", action: "opened PR", target: "Payment integration", type: "pr", icon: GitPullRequest, iconColor: "text-cyan-400" },
-    { time: "6h ago", user: "System", action: "deployed", target: "v2.1.0 to staging", type: "deploy", icon: Rocket, iconColor: "text-purple-400" },
-    { time: "1d ago", user: "James Wilson", action: "commented on", target: "Risk: Database migration", type: "risk", icon: MessageSquare, iconColor: "text-amber-400" }
+    { time: "2h ago", user: "Alex Chen", action: "completed", target: "API authentication refactor", type: "task", icon: CheckCircle2, iconColor: "text-[#34C759]" },
+    { time: "4h ago", user: "Maria Santos", action: "opened PR", target: "Payment integration", type: "pr", icon: GitPullRequest, iconColor: "text-[#5AC8FA]" },
+    { time: "6h ago", user: "System", action: "deployed", target: "v2.1.0 to staging", type: "deploy", icon: Rocket, iconColor: "text-[#AF52DE]" },
+    { time: "1d ago", user: "James Wilson", action: "commented on", target: "Risk: Database migration", type: "risk", icon: MessageSquare, iconColor: "text-[#FF9500]" }
   ];
 
   return (
@@ -157,7 +270,7 @@ function ActivityFeed() {
               <p className="text-sm text-foreground">
                 <span className="font-medium">{a.user}</span>{" "}
                 <span className="text-muted-foreground">{a.action}</span>{" "}
-                <span className="font-medium text-primary">{a.target}</span>
+                <span className="font-medium text-primary">{a.target}</p>
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">{a.time}</p>
             </div>

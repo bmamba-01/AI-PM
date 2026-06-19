@@ -1,0 +1,20 @@
+{
+  "_violation": "Invalid enum value for assigned_agent",
+  "task_id": "TASK-2026-06-19-043",
+  "project_id": "PRJ-2026-001",
+  "requested_by": "cli",
+  "assigned_agent": "junior_developer",
+  "objective": "Review code",
+  "constraints": [],
+  "required_outputs": [
+    {
+      "name": "report",
+      "format": "json"
+    }
+  ],
+  "quality_gate": {
+    "checklist_id": "basic-checklist",
+    "approval_required": false
+  },
+  "deadline": "2026-06-20T12:00:00Z"
+}

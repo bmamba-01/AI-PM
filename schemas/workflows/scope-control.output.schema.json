@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/scope-control.output.schema.json",
+  "title": "Scope Control Workflow Output",
+  "description": "Output contract for the Scope & Requirement Control workflow.",
+  "type": "object",
+  "required": [
+    "scope_item",
+    "classification",
+    "source_ref",
+    "baseline_impact",
+    "timeline_impact",
+    "budget_impact",
+    "acceptance_criteria_status",
+    "recommended_action",
+    "approval_required"
+  ],
+  "properties": {
+    "scope_item": {
+      "type": "string",
+      "description": "Description of the scope item or change being evaluated."
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["clarification", "backlog_refinement", "scope_change", "defect", "unknown"],
+      "description": "Classification of the scope item."
+    },
+    "source_ref": {
+      "type": "string",
+      "description": "Reference to the source (email, meeting, issue, change request)."
+    },
+    "baseline_impact": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high"],
+      "description": "Impact on the approved scope baseline."
+    },
+    "timeline_impact": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high"],
+      "description": "Impact on delivery timeline."
+    },
+    "budget_impact": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high"],
+      "description": "Impact on project budget."
+    },
+    "acceptance_criteria_status": {
+      "type": "string",
+      "enum": ["clear", "missing", "ambiguous"],
+      "description": "Status of acceptance criteria for the scope item."
+    },
+    "recommended_action": {
+      "type": "string",
+      "description": "Recommended action (e.g. approve, create change request, refine acceptance criteria, reject)."
+    },
+    "approval_required": {
+      "type": "boolean",
+      "description": "Whether approval is required before proceeding."
+    },
+    "change_request_recommendation": {
+      "type": "object",
+      "description": "Change request details (required for scope changes on fixed-cost projects).",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "cost_impact": { "type": "string" },
+        "timeline_impact_days": { "type": "integer" },
+        "risk_level": { "type": "string", "enum": ["low", "medium", "high"] }
+      },
+      "additionalProperties": false
+    },
+    "backlog_impact": {
+      "type": "object",
+      "description": "Backlog and priority impact (required for T&M projects).",
+      "properties": {
+        "priority_change": { "type": "string" },
+        "affected_items": { "type": "array", "items": { "type": "string" } },
+        "capacity_note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "traceability": {
+      "type": "object",
+      "description": "Traceability information linking the scope item to requirements.",
+      "properties": {
+        "related_requirements": { "type": "array", "items": { "type": "string" } },
+        "related_issues": { "type": "array", "items": { "type": "string" } },
+        "related_meetings": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in the scope assessment (0-100)."
+    },
+    "audit": {
+      "type": "object",
+      "description": "Audit trail for the scope control workflow run.",
+      "properties": {
+        "baseline_compared": { "type": "string", "description": "Reference to the baseline version compared." },
+        "project_type_rules_applied": { "type": "string", "description": "Project type playbook rules used." },
+        "sources_used": { "type": "array", "items": { "type": "string" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

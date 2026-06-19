@@ -9,17 +9,17 @@ export function ReportsTab({ project }: { project: Project }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Reports & Exports</h2>
-          <p className="text-slate-400">Generate and schedule automated reports</p>
+          <p className="text-muted-foreground">Generate and schedule automated reports</p>
         </div>
         <div className="flex gap-2">
-          <select value={period} onChange={e => setPeriod(e.target.value)} className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm">
+          <select value={period} onChange={e => setPeriod(e.target.value)} className="px-3 py-2 glass-input rounded-lg text-foreground text-sm">
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="sprint">Sprint</option>
             <option value="monthly">Monthly</option>
             <option value="quarterly">Quarterly</option>
           </select>
-          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm font-medium">Generate Report</button>
+          <button className="px-4 py-2 bg-[#007AFF] hover:bg-[#007AFF]/80 rounded-lg text-sm font-medium text-white">Generate Report</button>
         </div>
       </div>
 
@@ -31,18 +31,18 @@ export function ReportsTab({ project }: { project: Project }) {
 
       <Card title="Scheduled Reports">
         <table className="w-full">
-          <thead className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <thead className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <tr><th className="p-4">Report</th><th className="p-4">Frequency</th><th className="p-4">Recipients</th><th className="p-4">Last Sent</th><th className="p-4">Next Run</th><th className="p-4">Actions</th></tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-white/5">
             {scheduledReports.map(r => (
-              <tr key={r.id} className="hover:bg-slate-800/50">
-                <td className="p-4 text-sm font-medium text-white">{r.name}</td>
-                <td className="p-4 text-sm text-slate-400">{r.frequency}</td>
-                <td className="p-4 text-sm text-slate-300">{r.recipients.join(", ")}</td>
-                <td className="p-4 text-sm text-slate-400">{r.lastSent}</td>
-                <td className="p-4 text-sm text-slate-400">{r.nextRun}</td>
-                <td className="p-4"><button className="px-2 py-1 text-xs bg-slate-800 hover:bg-slate-700 rounded">Edit</button></td>
+              <tr key={r.id} className="hover:bg-white/5">
+                <td className="p-4 text-sm font-medium text-foreground">{r.name}</td>
+                <td className="p-4 text-sm text-muted-foreground">{r.frequency}</td>
+                <td className="p-4 text-sm text-muted-foreground">{r.recipients.join(", ")}</td>
+                <td className="p-4 text-sm text-muted-foreground">{r.lastSent}</td>
+                <td className="p-4 text-sm text-muted-foreground">{r.nextRun}</td>
+                <td className="p-4"><button className="px-2 py-1 text-xs glass hover:bg-white/5 rounded">Edit</button></td>
               </tr>
             ))}
           </tbody>
@@ -64,16 +64,16 @@ function ReportCard({ template }: ReportCardProps) {
   };
 
   return (
-    <Card className="p-5 hover:border-indigo-500/50 transition-colors cursor-pointer">
+    <Card className="p-5 hover:border-white/14 transition-colors cursor-pointer">
       <div className="flex items-start justify-between mb-4">
-        <div className="p-3 bg-indigo-600/20 rounded-lg text-indigo-500">{icons[template.icon]}</div>
-        <span className="px-2 py-0.5 text-xs bg-slate-800 rounded text-slate-400">{template.format.join(", ")}</span>
+        <div className="p-3 bg-[#007AFF]/15 rounded-lg text-[#007AFF]">{icons[template.icon]}</div>
+        <span className="px-2 py-0.5 text-xs glass rounded text-muted-foreground">{template.format.join(", ")}</span>
       </div>
-      <h3 className="font-medium text-white mb-1">{template.name}</h3>
-      <p className="text-sm text-slate-400">{template.description}</p>
-      <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
-        <span className="text-xs text-slate-500">Updated 2 days ago</span>
-        <button className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 rounded-lg">Generate</button>
+      <h3 className="font-medium text-foreground mb-1">{template.name}</h3>
+      <p className="text-sm text-muted-foreground">{template.description}</p>
+      <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">Updated 2 days ago</span>
+        <button className="px-3 py-1.5 text-sm bg-[#007AFF] hover:bg-[#007AFF]/80 rounded-lg text-white">Generate</button>
       </div>
     </Card>
   );
@@ -81,8 +81,8 @@ function ReportCard({ template }: ReportCardProps) {
 
 function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-slate-900 border border-slate-800 rounded-xl p-5 ${className}`}>
-      {title && <h3 className="font-medium text-white mb-4">{title}</h3>}
+    <div className={`glass-card rounded-xl p-5 ${className}`}>
+      {title && <h3 className="font-medium text-foreground mb-4">{title}</h3>}
       {children}
     </div>
   );

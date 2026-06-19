@@ -1,0 +1,49 @@
+{
+  "meeting_id": "MTG-2026-042",
+  "summary": "Sprint 12 Planning - Discussed API integration timeline and resource allocation for payment module",
+  "key_decisions": [
+    {
+      "decision": "Approved 2-week timeline for API integration phase",
+      "owner": "tech_lead",
+      "rationale": "Based on complexity analysis and team availability"
+    },
+    {
+      "decision": "Added security review gate before production deployment",
+      "owner": "security_lead",
+      "rationale": "Payment processing requires SOC2 compliance verification"
+    }
+  ],
+  "action_items": [
+    {
+      "action": "Create technical design document for payment API integration",
+      "owner": "senior_developer",
+      "due_date": "2026-06-21T17:00:00Z",
+      "priority": "high"
+    },
+    {
+      "action": "Schedule security review session with InfoSec team",
+      "owner": "tech_lead",
+      "due_date": "2026-06-22T10:00:00Z",
+      "priority": "high"
+    }
+  ],
+  "risks_identified": [
+    "Third-party API rate limits may require caching strategy",
+    "PCI DSS compliance requirements not fully defined"
+  ],
+  "next_meeting": "2026-06-26T14:00:00Z",
+  "attendees": [
+    "tech_lead",
+    "senior_developer",
+    "product_manager",
+    "security_lead"
+  ],
+  "confidence": 90,
+  "proposed_external_actions": [
+    {
+      "action": "Create Jira tickets for action items",
+      "target_system": "jira",
+      "approval_required": false
+    }
+  ]
+}

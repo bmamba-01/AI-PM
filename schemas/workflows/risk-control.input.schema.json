@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/risk-control.input.schema.json",
+  "title": "Risk Control Workflow Input",
+  "description": "Input contract for the Risk Control workflow. Defines all data sources required for risk detection and management.",
+  "type": "object",
+  "required": ["project_id"],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier."
+    },
+    "risk_register": {
+      "type": "array",
+      "description": "Existing risk register entries.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "probability", "impact"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "probability": { "type": "string", "enum": ["low", "medium", "high"] },
+          "impact": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "status": { "type": "string" },
+          "owner": { "type": "string" },
+          "mitigation": { "type": "string" },
+          "last_review_date": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "description": "Issue tracker items that may indicate risks.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string" },
+          "priority": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "description": "Current blockers from various sources.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "meeting_notes": {
+      "type": "array",
+      "description": "Recent meeting notes that may mention risks.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "meeting_id": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "risks_mentioned": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "delivery_metrics": {
+      "type": "object",
+      "description": "Delivery metrics that may signal risk.",
+      "properties": {
+        "velocity_trend": { "type": "string" },
+        "milestone_status": { "type": "string" },
+        "overdue_items_count": { "type": "integer" }
+      }
+    },
+    "budget_data": {
+      "type": "object",
+      "description": "Budget or burn data.",
+      "properties": {
+        "budget_remaining": { "type": "number" },
+        "burn_rate": { "type": "number" },
+        "forecast_variance": { "type": "number" }
+      }
+    },
+    "ci_status": {
+      "type": "object",
+      "description": "CI and quality failure data.",
+      "properties": {
+        "failed_builds_count": { "type": "integer" },
+        "test_failure_rate": { "type": "number" },
+        "recent_failures": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -2,15 +2,10 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import ora from 'ora';
-import {
-  loadMcpConfig,
-  saveMcpConfig,
-  upsertMcpServer,
-  removeMcpServer,
-  setMcpServerEnabled,
-  MCPServerConfig
-} from '@ai-pm/mcp/connectionManager';
+import { loadMcpConfig, MCPServerConfig, removeMcpServer, setMcpServerEnabled, upsertMcpServer } from '@ai-pm/mcp/connectionManager';
 import { table } from 'table';
+import { loadRegistry, loadProfile, loadBuiltinProfiles } from '@ai-pm/mcp/registry/configLoader';
+import { validateConfigs } from '@ai-pm/mcp/registry/configValidator';
 
 // Bilingual messages
 const msgs = {
@@ -29,7 +24,7 @@ const msgs = {
     toggleOn: 'Server enabled.',
     toggleOff: 'Server disabled.',
     chooseAction: 'Choose action:',
-    actions: { list: 'List servers', add: 'Add server', remove: 'Remove server', toggle: 'Enable/Disable server' },
+    actions: { list: 'List servers', add: 'Add server', remove: 'Remove server', toggle: 'Enable/Disable server', validate: 'Validate config' },
     serverTypes: { github: 'GitHub', jira: 'Jira', linear: 'Linear', notion: 'Notion', slack: 'Slack', google: 'Google Workspace', custom: 'Custom' }
   },
   vi: {
@@ -47,13 +42,12 @@ const msgs = {
     toggleOn: 'Server đã bật.',
     toggleOff: 'Server đã tắt.',
     chooseAction: 'Chọn hành động:',
-    actions: { list: 'Liệt kê server', add: 'Thêm server', remove: 'Xóa server', toggle: 'Bật/tắt server' },
+    actions: { list: 'Liệt kê server', add: 'Thêm server', remove: 'Xóa server', toggle: 'Bật/tắt server', validate: 'Kiểm tra cấu hình' },
     serverTypes: { github: 'GitHub', jira: 'Jira', linear: 'Linear', notion: 'Notion', slack: 'Slack', google: 'Google Workspace', custom: 'Tùy chỉnh' }
   }
 };
 
 function getLang(): keyof typeof msgs {
-  // For now default to English; later read from project config
   return 'en';
 }
 
@@ -148,4 +142,52 @@ mcpCommand
         setMcpServerEnabled(process.cwd(), id, enabled);
         console.log(chalk.green(enabled ? msgsLang.toggleOn : msgsLang.toggleOff));
       })
+  )
+  .addCommand(
+    new Command('validate')
+      .description('Validate MCP configuration against registry contracts')
+      .option('--json', 'Output as JSON')
+      .option('--profile <path>', 'Optional project profile to validate')
+      .action(async (opts) => {
+        const lang = getLang();
+        const msgsLang = msgs[lang];
+
+        try {
+          const registry = loadRegistry();
+          const builtin = loadBuiltinProfiles();
+          const profiles = [builtin.defaultProfile, builtin.offlineProfile];
+
+          if (opts.profile) {
+            profiles.push(loadProfile(opts.profile));
+          }
+
+          const validation = validateConfigs(registry, profiles);
+
+          if (opts.json) {
+            console.log(JSON.stringify(validation, null, 2));
+            return;
+          }
+
+          if (validation.valid) {
+            console.log(chalk.green('MCP configuration is valid.'));
+            console.log(validation.summary);
+            return;
+          }
+
+          console.log(chalk.red('MCP configuration validation failed.'));
+          console.log(validation.summary);
+          console.log('\nFailures:');
+          for (const issue of validation.issues) {
+            const prefix = issue.severity === 'error' ? chalk.red('[ERROR]') : chalk.yellow('[WARN]');
+            console.log(`${prefix} ${issue.code}: ${issue.message}`);
+            if (issue.context) {
+              console.log(`  context: ${JSON.stringify(issue.context)}`);
+            }
+          }
+        } catch (error) {
+          console.error(chalk.red('Validation failed with error:'), error);
+        }
+      })
   );
+
+export default mcpCommand;

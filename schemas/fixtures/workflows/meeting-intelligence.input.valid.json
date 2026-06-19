@@ -1,0 +1,45 @@
+{
+  "meeting_id": "MTG-2026-042",
+  "project_id": "PRJ-2026-001",
+  "meeting_type": "planning",
+  "calendar_event": {
+    "title": "Sprint 12 Planning Meeting",
+    "start": "2026-06-19T10:00:00Z",
+    "end": "2026-06-19T12:00:00Z",
+    "location": "Conference Room A / Zoom",
+    "attendees": [
+      "tech_lead@company.com",
+      "senior_developer@company.com",
+      "product_manager@company.com",
+      "scrum_master@company.com"
+    ]
+  },
+  "agenda": "Plan Sprint 12 deliverables: payment module implementation, API integration timeline, security review requirements",
+  "previous_meeting_notes": [
+    {
+      "meeting_id": "MTG-2026-038",
+      "date": "2026-06-12T10:00:00Z",
+      "summary": "Sprint 11 retrospective - team identified need for better security review process"
+    }
+  ],
+  "related_issues": [
+    {
+      "id": "EPIC-045",
+      "title": "Payment Module Implementation",
+      "status": "in_progress",
+      "source": "jira"
+    },
+    {
+      "id": "STORY-234",
+      "title": "Implement payment API integration",
+      "status": "ready",
+      "source": "jira"
+    }
+  ],
+  "attendee_list": [
+    "tech_lead",
+    "senior_developer",
+    "product_manager",
+    "scrum_master"
+  ]
+}

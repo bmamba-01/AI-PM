@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/scope-control.input.schema.json",
+  "title": "Scope Control Workflow Input",
+  "description": "Input contract for the Scope Control workflow. Defines all data sources required for scope and requirement analysis.",
+  "type": "object",
+  "required": ["project_id", "scope_item"],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier."
+    },
+    "scope_item": {
+      "type": "string",
+      "description": "The requirement or change being analyzed."
+    },
+    "source_ref": {
+      "type": "string",
+      "description": "Reference to the source (email, meeting, change request, etc.)."
+    },
+    "requirements_documents": {
+      "type": "array",
+      "description": "BRD, PRD, SRS, FRD documents.",
+      "items": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": { "type": "string", "enum": ["BRD", "PRD", "SRS", "FRD", "other"] },
+          "path": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      }
+    },
+    "user_stories": {
+      "type": "array",
+      "description": "Related user stories and acceptance criteria.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "change_requests": {
+      "type": "array",
+      "description": "Existing change requests for context.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string" },
+          "impact": { "type": "string" }
+        }
+      }
+    },
+    "current_backlog": {
+      "type": "array",
+      "description": "Current backlog items for comparison.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "priority": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "project_type": {
+      "type": "string",
+      "enum": ["tm", "fixed_cost", "maintenance", "product_delivery", "unknown"],
+      "description": "Project commercial model."
+    },
+    "methodology": {
+      "type": "string",
+      "enum": ["scrum", "kanban", "waterfall", "hybrid", "unknown"],
+      "description": "Project methodology."
+    },
+    "baseline_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Current scope baseline date."
+    }
+  },
+  "additionalProperties": false
+}

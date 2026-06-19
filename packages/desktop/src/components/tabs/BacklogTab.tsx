@@ -38,12 +38,12 @@ export function BacklogTab({ project }: { project: Project }) {
             placeholder="Search backlog..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 w-64"
+            className="px-4 py-2 glass-input rounded-lg text-white placeholder-muted-foreground w-64"
           />
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+            className="px-4 py-2 glass-input rounded-lg text-white"
           >
             <option value="all">All Status</option>
             <option value="READY">Ready</option>
@@ -57,10 +57,10 @@ export function BacklogTab({ project }: { project: Project }) {
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <table className="w-full">
-          <thead className="bg-slate-800/50">
-            <tr className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+          <thead className="bg-white/5">
+            <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <th className="p-4">Priority</th>
               <th className="p-4">Type</th>
               <th className="p-4">Title</th>
@@ -70,9 +70,9 @@ export function BacklogTab({ project }: { project: Project }) {
               <th className="p-4 w-24">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-white/5">
             {filtered.map(item => (
-              <tr key={item.id} className="hover:bg-slate-800/50 transition-colors cursor-pointer">
+              <tr key={item.id} className="hover:bg-white/5 transition-colors cursor-pointer">
                 <td className="p-4">
                   <span className={`px-2 py-0.5 text-xs rounded font-medium ${priorityColors[item.priority as keyof typeof priorityColors]}`}>{item.priority}</span>
                 </td>
@@ -82,17 +82,17 @@ export function BacklogTab({ project }: { project: Project }) {
                 <td className="p-4">
                   <p className="font-medium text-white">{item.title}</p>
                 </td>
-                <td className="p-4 text-indigo-400 font-medium">{item.points} pts</td>
+                <td className="p-4 text-primary font-medium">{item.points} pts</td>
                 <td className="p-4">
-                  <span className={`px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-300 capitalize`}>{item.status.toLowerCase()}</span>
+                  <span className={`px-2 py-0.5 text-xs rounded bg-white/5 text-muted-foreground capitalize`}>{item.status.toLowerCase()}</span>
                 </td>
-                <td className="p-4 text-slate-400">{item.assignee}</td>
+                <td className="p-4 text-muted-foreground">{item.assignee}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-1">
-                    <button className="p-1.5 hover:bg-slate-700 rounded" title="Estimate"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></button>
-                    <button className="p-1.5 hover:bg-slate-700 rounded" title="Split"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>
-                    <button className="p-1.5 hover:bg-slate-700 rounded" title="AI Refine"><svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg></button>
-                    <button className="p-1.5 hover:bg-slate-700 rounded" title="More"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg></button>
+                    <button className="p-1.5 hover:bg-white/10 rounded" title="Estimate"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></button>
+                    <button className="p-1.5 hover:bg-white/10 rounded" title="Split"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>
+                    <button className="p-1.5 hover:bg-white/10 rounded" title="AI Refine"><svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg></button>
+                    <button className="p-1.5 hover:bg-white/10 rounded" title="More"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg></button>
                   </div>
                 </td>
               </tr>

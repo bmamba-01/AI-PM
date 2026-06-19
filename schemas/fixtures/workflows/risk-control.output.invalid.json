@@ -1,0 +1,18 @@
+{
+  "_violation": "Missing required field 'owner' in new_risks item",
+  "new_risks": [
+    {
+      "title": "Server capacity concerns",
+      "probability": "low",
+      "impact": "medium",
+      "mitigation": "Monitor usage patterns"
+    }
+  ],
+  "worsening_risks": [],
+  "improving_risks": [],
+  "closure_recommendations": [],
+  "escalations": [],
+  "risk_summary": "No critical risks",
+  "confidence": 70,
+  "proposed_external_actions": []
+}

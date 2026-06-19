@@ -1,0 +1,49 @@
+{
+  "report_type": "weekly_status",
+  "audience": "steering_committee",
+  "period_start": "2026-06-12T00:00:00Z",
+  "period_end": "2026-06-18T23:59:59Z",
+  "rag_status": {
+    "scope": "green",
+    "timeline": "amber",
+    "risk": "amber",
+    "budget": "green",
+    "quality": "green"
+  },
+  "executive_summary": "Sprint 12 is progressing well with all major features on track. Timeline shows amber due to 2-day delay in API integration, but mitigation plan is in place. Two medium-level risks require monitoring.",
+  "key_achievements": [
+    "Payment module UI completed and approved by product team",
+    "Security review completed with no critical findings",
+    "Database migration testing completed successfully"
+  ],
+  "blockers_and_issues": [
+    "API integration delayed by 2 days due to third-party documentation gaps",
+    "Waiting for client approval on reporting dashboard design"
+  ],
+  "upcoming_milestones": [
+    {
+      "title": "Sprint 12 Demo",
+      "date": "2026-06-21T10:00:00Z",
+      "status": "on_track"
+    },
+    {
+      "title": "Production Release v2.5",
+      "date": "2026-06-28T17:00:00Z",
+      "status": "at_risk"
+    }
+  ],
+  "action_items": [
+    {
+      "owner": "tech_lead",
+      "action": "Finalize API integration recovery plan"
+    }
+  ],
+  "confidence": 85,
+  "proposed_external_actions": [
+    {
+      "action": "Email weekly status report to steering committee",
+      "target_system": "email",
+      "approval_required": true
+    }
+  ]
+}

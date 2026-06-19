@@ -1,0 +1,21 @@
+{
+  "_violation": "Invalid enum value for rag_status.timeline",
+  "report_type": "daily",
+  "audience": "team",
+  "period_start": "2026-06-19T00:00:00Z",
+  "period_end": "2026-06-19T23:59:59Z",
+  "rag_status": {
+    "scope": "green",
+    "timeline": "yellow",
+    "risk": "green",
+    "budget": "green",
+    "quality": "green"
+  },
+  "executive_summary": "All good",
+  "key_achievements": [],
+  "blockers_and_issues": [],
+  "upcoming_milestones": [],
+  "action_items": [],
+  "confidence": 75,
+  "proposed_external_actions": []
+}

@@ -1,0 +1,6 @@
+{
+  "_violation": "Invalid enum value for meeting_type",
+  "meeting_id": "MTG-2026-043",
+  "project_id": "PRJ-2026-001",
+  "meeting_type": "casual"
+}

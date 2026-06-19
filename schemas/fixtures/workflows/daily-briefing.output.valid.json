@@ -1,0 +1,45 @@
+{
+  "date": "2026-06-19T09:00:00Z",
+  "project_id": "PRJ-2026-001",
+  "top_priorities": [
+    "Finalize API integration for Sprint 12 deliverable",
+    "Review and approve change request CR-007 for scope adjustment"
+  ],
+  "meetings_to_prepare": [
+    "10:00 Sprint Review — prepare demo of payment module",
+    "14:00 Stakeholder sync — bring risk escalation for data migration"
+  ],
+  "urgent_blockers": [
+    "CI pipeline broken on main since 06:30 — blocks all merges"
+  ],
+  "risks_to_review": [
+    "RISK-015: Third-party API rate limit may impact launch timeline"
+  ],
+  "pending_approvals": [
+    "CR-007: Scope change for additional reporting column"
+  ],
+  "suggested_followups": [
+    "Send Slack message to DevOps re: CI pipeline status",
+    "Prepare risk escalation draft for stakeholder meeting"
+  ],
+  "source_coverage": [
+    "jira",
+    "github",
+    "calendar",
+    "local_memory"
+  ],
+  "unavailable_sources": [
+    "slack"
+  ],
+  "assumptions": [
+    "Assumed Sprint 12 scope unchanged from last planning session"
+  ],
+  "confidence": 85,
+  "proposed_external_actions": [
+    {
+      "action": "Post CI status update to team Slack channel",
+      "target_system": "slack",
+      "approval_required": true
+    }
+  ]
+}

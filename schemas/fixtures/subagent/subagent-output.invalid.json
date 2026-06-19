@@ -1,0 +1,9 @@
+{
+  "_violation": "Confidence value exceeds maximum of 100",
+  "task_id": "TASK-2026-06-19-043",
+  "status": "completed",
+  "summary": "Task completed successfully",
+  "findings": [],
+  "recommendations": [],
+  "confidence": 105
+}

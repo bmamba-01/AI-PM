@@ -1,0 +1,44 @@
+{
+  "task_id": "TASK-2026-06-19-042",
+  "project_id": "PRJ-2026-001",
+  "requested_by": "pm_commander",
+  "assigned_agent": "code_quality_guard",
+  "objective": "Review PR-234 for security issues, test coverage, and requirement compliance before merge approval",
+  "context": {
+    "methodology": "scrum",
+    "project_type": "product_delivery",
+    "source_refs": [
+      {
+        "type": "github",
+        "id": "PR-234",
+        "description": "Payment module implementation PR"
+      },
+      {
+        "type": "jira",
+        "id": "EPIC-045",
+        "description": "Payment processing epic with acceptance criteria"
+      }
+    ]
+  },
+  "constraints": [
+    "Must check for PCI DSS compliance issues",
+    "Must verify all acceptance criteria from EPIC-045 are met",
+    "Do not approve merge if critical or high severity issues found"
+  ],
+  "required_outputs": [
+    {
+      "name": "code_review_report",
+      "format": "json"
+    },
+    {
+      "name": "merge_recommendation",
+      "format": "markdown"
+    }
+  ],
+  "quality_gate": {
+    "checklist_id": "code-review-security-checklist",
+    "approval_required": true
+  },
+  "deadline": "2026-06-19T17:00:00Z",
+  "priority": "high"
+}

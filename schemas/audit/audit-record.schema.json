@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/audit/audit-record.schema.json",
+  "title": "Audit Record",
+  "description": "Schema for a single audit record. Every meaningful agent action must produce one of these.",
+  "type": "object",
+  "required": [
+    "run_id",
+    "workflow_id",
+    "project_id",
+    "status",
+    "started_at",
+    "completed_at",
+    "confidence",
+    "sources_used",
+    "assumptions",
+    "proposed_external_actions"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for this workflow run."
+    },
+    "workflow_id": {
+      "type": "string",
+      "enum": [
+        "daily-briefing",
+        "meeting-intelligence",
+        "scope-control",
+        "risk-control",
+        "reporting",
+        "code-quality-guard",
+        "agent-supervision",
+        "audit",
+        "workflow_state",
+        "chat-gateway"
+      ],
+      "description": "Identifier of the workflow that generated this audit record."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier this workflow run applies to."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed", "partial", "cancelled"],
+      "description": "Final status of the workflow run."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the workflow run started."
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the workflow run completed."
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["cli", "desktop", "chat", "scheduler", "api", "manual"],
+      "description": "What triggered this workflow run."
+    },
+    "triggered_by": {
+      "type": "string",
+      "description": "Description of who or what triggered the run (user ID, scheduler job, etc.)."
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence level in the workflow output (0-100). Below 70 requires explicit assumptions."
+    },
+    "sources_used": {
+      "type": "array",
+      "description": "List of data sources successfully used during the workflow run.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 0
+    },
+    "unavailable_sources": {
+      "type": "array",
+      "description": "List of data sources that were unavailable or failed during the run.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Assumptions made during the workflow run.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 0
+    },
+    "proposed_external_actions": {
+      "type": "array",
+      "description": "External actions proposed but not yet executed (require approval).",
+      "items": {
+        "type": "object",
+        "required": ["action", "target_system", "approval_required"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "Description of the proposed action."
+          },
+          "target_system": {
+            "type": "string",
+            "description": "System the action would target (jira, github, email, slack, etc.)."
+          },
+          "approval_required": {
+            "type": "boolean",
+            "description": "Whether this action requires human approval."
+          },
+          "approval_id": {
+            "type": "string",
+            "description": "Reference to approval record if approval was requested."
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": ["not_required", "pending", "approved", "rejected"],
+      "description": "Approval status for this workflow run if external mutations were proposed."
+    },
+    "output_path": {
+      "type": "string",
+      "description": "Filesystem path or reference to the generated output file."
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message if status is failed."
+    }
+  },
+  "additionalProperties": false
+}

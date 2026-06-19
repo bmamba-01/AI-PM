@@ -1,0 +1,36 @@
+id: google-workspace
+name: Google Workspace
+category: communication
+description: Google Workspace integration for Gmail, Calendar, Drive, and other services
+enabled: true
+auth:
+  type: oauth2
+  clientId: ${GOOGLE_CLIENT_ID}
+  clientSecret: ${GOOGLE_CLIENT_SECRET}
+  scopes:
+    - https://www.googleapis.com/auth/gmail.readonly
+    - https://www.googleapis.com/auth/calendar.readonly
+    - https://www.googleapis.com/auth/drive.readonly
+    - https://www.googleapis.com/auth/calendar.events
+  config:
+    baseUrl: "https://www.googleapis.com"
+    healthCheck: "https://www.googleapis.com/health"
+    timeout: 30000
+    retries: 3
+  capabilities:
+    - read_emails
+    - read_calendar
+    - read_drive
+    - send_emails
+    - create_events
+  healthCheck:
+    endpoint: "https://www.googleapis.com/health"
+    schedule: "0 */15 * * *"
+    threshold: 200
+  metadata:
+    description: "Google Workspace integration for Gmail, Calendar, Drive"
+    version: "1.0.0"
+    author: "Claude AI"
+    documentation: "https://developers.google.com/workspace"
+    exampleUrl: "https://workspace.google.com/"
+    enabled: true

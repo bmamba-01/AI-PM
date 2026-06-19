@@ -1,16 +1,20 @@
 import { useProjectStore } from "../state";
-import { Tabs, TabList, Tab, TabPanel } from "./Tabs";
 import { DashboardTab } from "./tabs/DashboardTab";
+import { DailyBriefTab } from "./tabs/DailyBriefTab";
 import { SprintTab } from "./tabs/SprintTab";
+import { MeetingTab } from "./tabs/MeetingTab";
 import { BacklogTab } from "./tabs/BacklogTab";
 import { GanttTab } from "./tabs/GanttTab";
 import { RisksTab } from "./tabs/RisksTab";
-import { BudgetTab } from "./tabs/BudgetTab";
+import { CodeReviewTab } from "./tabs/CodeReviewTab";
 import { ReportsTab } from "./tabs/ReportsTab";
+import { McpServersTab } from "./tabs/McpServersTab";
+import { AgentsTab } from "./tabs/AgentsTab";
+import { SettingsTab } from "./tabs/SettingsTab";
 import { FolderOpen } from "lucide-react";
 
 export function ProjectView() {
-  const { currentProject } = useProjectStore();
+  const { currentProject, activeView } = useProjectStore();
 
   if (!currentProject) {
     return (
@@ -24,27 +28,27 @@ export function ProjectView() {
     );
   }
 
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <Tabs defaultValue="dashboard">
-        <TabList>
-          <Tab value="dashboard">Dashboard</Tab>
-          <Tab value="sprint">Sprint</Tab>
-          <Tab value="backlog">Backlog</Tab>
-          <Tab value="gantt">Gantt</Tab>
-          <Tab value="risks">Risks</Tab>
-          <Tab value="budget">Budget</Tab>
-          <Tab value="reports">Reports</Tab>
-        </TabList>
+  // System views don't need a project
+  if (activeView === "mcp-servers") return <McpServersTab />;
+  if (activeView === "agents") return <AgentsTab />;
+  if (activeView === "settings") return <SettingsTab />;
 
-        <TabPanel value="dashboard"><DashboardTab project={currentProject} /></TabPanel>
-        <TabPanel value="sprint"><SprintTab project={currentProject} /></TabPanel>
-        <TabPanel value="backlog"><BacklogTab project={currentProject} /></TabPanel>
-        <TabPanel value="gantt"><GanttTab project={currentProject} /></TabPanel>
-        <TabPanel value="risks"><RisksTab project={currentProject} /></TabPanel>
-        <TabPanel value="budget"><BudgetTab project={currentProject} /></TabPanel>
-        <TabPanel value="reports"><ReportsTab project={currentProject} /></TabPanel>
-      </Tabs>
+  // Project views
+  const views: Record<string, React.ReactNode> = {
+    "dashboard": <DashboardTab project={currentProject} />,
+    "daily-brief": <DailyBriefTab project={currentProject} />,
+    "sprint": <SprintTab project={currentProject} />,
+    "meeting": <MeetingTab project={currentProject} />,
+    "backlog": <BacklogTab project={currentProject} />,
+    "timeline": <GanttTab project={currentProject} />,
+    "risks": <RisksTab project={currentProject} />,
+    "code-review": <CodeReviewTab project={currentProject} />,
+    "reports": <ReportsTab project={currentProject} />,
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden p-4">
+      {views[activeView] || <DashboardTab project={currentProject} />}
     </div>
   );
 }

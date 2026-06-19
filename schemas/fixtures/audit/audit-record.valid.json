@@ -1,0 +1,34 @@
+{
+  "run_id": "RUN-2026-06-19-001",
+  "workflow_id": "daily-briefing",
+  "project_id": "PRJ-2026-001",
+  "status": "completed",
+  "started_at": "2026-06-19T08:55:00Z",
+  "completed_at": "2026-06-19T08:57:32Z",
+  "trigger": "scheduler",
+  "triggered_by": "daily_scheduler_job",
+  "confidence": 85,
+  "sources_used": [
+    "jira",
+    "github",
+    "calendar",
+    "local_memory"
+  ],
+  "unavailable_sources": [
+    "slack"
+  ],
+  "assumptions": [
+    "Sprint 12 scope unchanged from last planning session",
+    "All critical PRs visible in GitHub API response"
+  ],
+  "proposed_external_actions": [
+    {
+      "action": "Post CI status update to team Slack channel",
+      "target_system": "slack",
+      "approval_required": true,
+      "approval_id": "APR-2026-06-19-005"
+    }
+  ],
+  "approval_status": "pending",
+  "output_path": ".ai-pm/audit/workflows/2026-06-19-daily-briefing-001.json"
+}

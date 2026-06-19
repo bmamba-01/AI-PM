@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/reporting.output.schema.json",
+  "title": "Reporting Workflow Output",
+  "description": "Output contract for the Reporting workflow.",
+  "type": "object",
+  "required": [
+    "report_type",
+    "audience",
+    "rag",
+    "summary",
+    "decisions_needed",
+    "next_actions",
+    "source_coverage",
+    "confidence"
+  ],
+  "properties": {
+    "report_type": {
+      "type": "string",
+      "enum": ["daily", "weekly", "client", "steering", "sprint", "release", "budget"],
+      "description": "Type of report generated."
+    },
+    "audience": {
+      "type": "string",
+      "enum": ["internal", "client", "executive", "team"],
+      "description": "Intended audience for the report."
+    },
+    "rag": {
+      "type": "object",
+      "description": "RAG (Red/Amber/Green) status across project dimensions.",
+      "required": ["scope", "timeline", "risk", "budget", "quality"],
+      "properties": {
+        "scope": { "type": "string", "enum": ["red", "amber", "green", "unknown"] },
+        "timeline": { "type": "string", "enum": ["red", "amber", "green", "unknown"] },
+        "risk": { "type": "string", "enum": ["red", "amber", "green", "unknown"] },
+        "budget": { "type": "string", "enum": ["red", "amber", "green", "unknown"] },
+        "quality": { "type": "string", "enum": ["red", "amber", "green", "unknown"] }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "string",
+      "description": "Report summary covering timeline, scope, risk, budget, and quality status."
+    },
+    "scope_status": {
+      "type": "string",
+      "description": "Detailed scope status narrative."
+    },
+    "timeline_status": {
+      "type": "string",
+      "description": "Detailed timeline status narrative."
+    },
+    "risk_status": {
+      "type": "string",
+      "description": "Detailed risk status narrative."
+    },
+    "budget_status": {
+      "type": "string",
+      "description": "Detailed budget status narrative."
+    },
+    "quality_status": {
+      "type": "string",
+      "description": "Detailed quality status narrative."
+    },
+    "decisions_needed": {
+      "type": "array",
+      "description": "Decisions required from the audience.",
+      "items": { "type": "string" }
+    },
+    "next_actions": {
+      "type": "array",
+      "description": "Next actions with owners.",
+      "items": {
+        "type": "object",
+        "required": ["owner", "action"],
+        "properties": {
+          "owner": { "type": "string" },
+          "action": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "source_coverage": {
+      "type": "array",
+      "description": "Data sources used to generate the report.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "unavailable_sources": {
+      "type": "array",
+      "description": "Data sources that were unavailable.",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in the report accuracy (0-100)."
+    },
+    "redactions": {
+      "type": "array",
+      "description": "Items redacted from client/external-facing reports.",
+      "items": { "type": "string" }
+    },
+    "audit": {
+      "type": "object",
+      "description": "Audit trail for the reporting workflow run.",
+      "properties": {
+        "audience": { "type": "string" },
+        "source_systems": { "type": "array", "items": { "type": "string" } },
+        "generated_report_path": { "type": "string" },
+        "approval_status": { "type": "string", "enum": ["pending", "approved", "rejected", "not_required"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

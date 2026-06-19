@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/subagent/subagent-task.schema.json",
+  "title": "Subagent Task Contract",
+  "description": "Schema for a subagent task contract. Based on the YAML contract in docs/operating-model/subagent-protocol.md.",
+  "type": "object",
+  "required": [
+    "task_id",
+    "project_id",
+    "requested_by",
+    "assigned_agent",
+    "objective",
+    "constraints",
+    "required_outputs",
+    "quality_gate",
+    "deadline"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Unique identifier for this task."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier this task applies to."
+    },
+    "requested_by": {
+      "type": "string",
+      "enum": ["pm_commander", "human_pm", "scheduler", "chat_gateway", "cli", "desktop"],
+      "description": "Who or what requested this task."
+    },
+    "assigned_agent": {
+      "type": "string",
+      "enum": [
+        "pm",
+        "ba",
+        "qa",
+        "developer",
+        "tech_lead",
+        "stakeholder",
+        "delivery_control",
+        "risk_issue",
+        "meeting",
+        "reporting",
+        "code_quality_guard"
+      ],
+      "description": "Agent role assigned to execute this task."
+    },
+    "objective": {
+      "type": "string",
+      "description": "Clear description of the task objective."
+    },
+    "context": {
+      "type": "object",
+      "description": "Contextual information for task execution.",
+      "properties": {
+        "methodology": {
+          "type": "string",
+          "enum": ["scrum", "kanban", "waterfall", "hybrid", "unknown"],
+          "description": "Project methodology context."
+        },
+        "project_type": {
+          "type": "string",
+          "enum": ["tm", "fixed_cost", "maintenance", "product_delivery", "unknown"],
+          "description": "Project commercial model."
+        },
+        "source_refs": {
+          "type": "array",
+          "description": "Source references for the task.",
+          "items": {
+            "type": "object",
+            "required": ["type", "id"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "jira",
+                  "linear",
+                  "github",
+                  "gitlab",
+                  "confluence",
+                  "notion",
+                  "file",
+                  "email",
+                  "calendar",
+                  "chat",
+                  "transcript",
+                  "local_db"
+                ],
+                "description": "Type of source reference."
+              },
+              "id": {
+                "type": "string",
+                "description": "Identifier for the source item."
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable description of the source."
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Constraints the agent must respect during task execution.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_outputs": {
+      "type": "array",
+      "description": "Required outputs from this task.",
+      "items": {
+        "type": "object",
+        "required": ["name", "format"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the required output."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["markdown", "json", "yaml", "table", "diff", "checklist"],
+            "description": "Expected format of the output."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "quality_gate": {
+      "type": "object",
+      "description": "Quality gate requirements for task completion.",
+      "required": ["checklist_id", "approval_required"],
+      "properties": {
+        "checklist_id": {
+          "type": "string",
+          "description": "Identifier of the quality checklist to apply."
+        },
+        "approval_required": {
+          "type": "boolean",
+          "description": "Whether human approval is required for task completion."
+        }
+      },
+      "additionalProperties": false
+    },
+    "deadline": {
+      "type": "string",
+      "description": "Task deadline (ISO-8601 or descriptive string)."
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"],
+      "description": "Task priority level."
+    }
+  },
+  "additionalProperties": false
+}

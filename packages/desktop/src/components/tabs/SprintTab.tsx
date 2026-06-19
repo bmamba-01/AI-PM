@@ -37,8 +37,8 @@ interface SprintColumnProps {
 
 function SprintColumn({ title, status, color, items }: SprintColumnProps) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-[600px]">
-      <div className="p-4 border-b border-slate-800">
+    <div className="glass-card flex flex-col h-[600px]">
+      <div className="p-4 border-b border-white/5">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-white capitalize">{title.toLowerCase()}</h3>
           <span className={`px-2 py-0.5 text-xs rounded-full bg-${color}-600/20 text-${color}-300`}>{items.length}</span>
@@ -48,7 +48,7 @@ function SprintColumn({ title, status, color, items }: SprintColumnProps) {
         {items.map((item, i) => (
           <SprintTaskCard key={i} item={item} color={color} />
         ))}
-        <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 text-center text-slate-500">
+        <div className="border-2 border-dashed border-white/10 rounded-lg p-4 text-center text-muted-foreground">
           Drop tasks here
         </div>
       </div>
@@ -58,14 +58,14 @@ function SprintColumn({ title, status, color, items }: SprintColumnProps) {
 
 function SprintTaskCard({ item, color }: { item: any; color: string }) {
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 hover:border-indigo-500/50 transition-colors cursor-pointer">
+    <div className="glass p-3 hover:border-primary/30 transition-all duration-200 cursor-pointer rounded-lg">
       <div className="flex items-start gap-2">
         <span className={`w-2 h-2 rounded mt-2 bg-${color}-500 flex-shrink-0`} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{item.title}</p>
-          <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-            <span className="px-1.5 py-0.5 bg-slate-700 rounded">{item.type}</span>
-            {item.points && <span className="text-indigo-400">{item.points} pts</span>}
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+            <span className="px-1.5 py-0.5 bg-white/5 rounded">{item.type}</span>
+            {item.points && <span className="text-primary">{item.points} pts</span>}
             {item.assignee && <span>{item.assignee}</span>}
           </div>
         </div>

@@ -1,0 +1,68 @@
+{
+  "merge_readiness": "not_ready",
+  "summary": "PR contains 2 critical security issues and missing test coverage for new payment validation logic",
+  "critical_findings": [
+    {
+      "description": "SQL injection vulnerability in payment query builder",
+      "file": "src/api/payments/queryBuilder.ts",
+      "line": 145,
+      "category": "security",
+      "suggested_fix": "Use parameterized queries instead of string concatenation"
+    },
+    {
+      "description": "Sensitive payment data logged in plain text",
+      "file": "src/api/payments/processor.ts",
+      "line": 67,
+      "category": "security",
+      "suggested_fix": "Remove logging or redact sensitive fields (card number, CVV)"
+    }
+  ],
+  "high_findings": [
+    {
+      "description": "Error handling may cause transaction to proceed despite validation failure",
+      "file": "src/api/payments/validator.ts",
+      "line": 89,
+      "category": "bug",
+      "suggested_fix": "Add explicit return after validation error"
+    }
+  ],
+  "medium_findings": [
+    {
+      "description": "Magic numbers used for payment limits without constants",
+      "file": "src/api/payments/validator.ts",
+      "line": 34,
+      "category": "maintainability",
+      "suggested_fix": "Extract to named constants"
+    }
+  ],
+  "missing_tests": [
+    {
+      "description": "No tests for payment amount validation edge cases",
+      "file": "src/api/payments/validator.ts",
+      "test_type_needed": "unit"
+    },
+    {
+      "description": "No integration tests for complete payment flow",
+      "file": "src/api/payments/processor.ts",
+      "test_type_needed": "integration"
+    }
+  ],
+  "requirement_gaps": [
+    {
+      "description": "PR does not implement currency conversion requirement",
+      "requirement_ref": "REQ-042",
+      "acceptance_criteria": "System must support USD, EUR, GBP conversions"
+    }
+  ],
+  "verification_seen": [
+    "Unit tests for payment model",
+    "Linter passed",
+    "TypeScript compilation successful"
+  ],
+  "approval_required": [
+    "Security team review before merge",
+    "Add missing test coverage",
+    "Fix critical security issues"
+  ],
+  "confidence": 95
+}

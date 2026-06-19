@@ -1,0 +1,58 @@
+{
+  "project_id": "PRJ-2026-001",
+  "scope_item": "Add advanced filtering capability to user report dashboard",
+  "source_ref": "EMAIL-2026-06-18-client-request",
+  "requirements_documents": [
+    {
+      "type": "PRD",
+      "path": "docs/requirements/reporting-module-prd.md",
+      "version": "2.1"
+    },
+    {
+      "type": "FRD",
+      "path": "docs/requirements/reporting-functional-spec.md",
+      "version": "1.5"
+    }
+  ],
+  "user_stories": [
+    {
+      "id": "STORY-156",
+      "title": "As a user, I can filter reports by date range",
+      "acceptance_criteria": [
+        "Date range picker visible on dashboard",
+        "Reports refresh when date range changes",
+        "Default to last 30 days"
+      ],
+      "status": "completed"
+    },
+    {
+      "id": "STORY-234",
+      "title": "As a user, I can filter reports by multiple dimensions",
+      "acceptance_criteria": [
+        "Support filtering by status, priority, assignee",
+        "Filters can be combined",
+        "Filter state persists across sessions"
+      ],
+      "status": "in_backlog"
+    }
+  ],
+  "change_requests": [
+    {
+      "id": "CR-007",
+      "title": "Add export to Excel functionality",
+      "status": "approved",
+      "impact": "medium"
+    }
+  ],
+  "current_backlog": [
+    {
+      "id": "STORY-235",
+      "title": "Dashboard performance optimization",
+      "priority": "high",
+      "status": "in_progress"
+    }
+  ],
+  "project_type": "fixed_cost",
+  "methodology": "scrum",
+  "baseline_date": "2026-05-01T00:00:00Z"
+}

@@ -1,0 +1,13 @@
+{
+  "_violation": "Invalid enum value for merge_readiness",
+  "merge_readiness": "maybe",
+  "summary": "Some issues found",
+  "critical_findings": [],
+  "high_findings": [],
+  "medium_findings": [],
+  "missing_tests": [],
+  "requirement_gaps": [],
+  "verification_seen": [],
+  "approval_required": [],
+  "confidence": 60
+}

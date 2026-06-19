@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/code-quality-guard.input.schema.json",
+  "title": "Code Quality Guard Workflow Input",
+  "description": "Input contract for the Code Quality Guard workflow. Defines all data sources required for code review and quality analysis.",
+  "type": "object",
+  "required": ["project_id", "review_target"],
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier."
+    },
+    "review_target": {
+      "type": "object",
+      "description": "PR or diff to review.",
+      "required": ["type", "reference"],
+      "properties": {
+        "type": { "type": "string", "enum": ["pr", "local_diff", "commit"] },
+        "reference": { "type": "string", "description": "PR number, commit hash, or diff path" },
+        "source_system": { "type": "string", "description": "github, gitlab, local, etc." }
+      }
+    },
+    "changed_files": {
+      "type": "array",
+      "description": "List of changed files.",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string" },
+          "additions": { "type": "integer" },
+          "deletions": { "type": "integer" },
+          "status": { "type": "string", "enum": ["added", "modified", "deleted", "renamed"] }
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "description": "Requirements and acceptance criteria for this change.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "test_results": {
+      "type": "object",
+      "description": "Test execution results.",
+      "properties": {
+        "passed": { "type": "integer" },
+        "failed": { "type": "integer" },
+        "skipped": { "type": "integer" },
+        "test_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "coverage_report": {
+      "type": "object",
+      "description": "Code coverage data.",
+      "properties": {
+        "overall_coverage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "line_coverage": { "type": "number" },
+        "branch_coverage": { "type": "number" },
+        "uncovered_files": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "ci_logs": {
+      "type": "array",
+      "description": "CI build and test logs.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": { "type": "string" },
+          "status": { "type": "string", "enum": ["success", "failed", "skipped"] },
+          "log_excerpt": { "type": "string" }
+        }
+      }
+    },
+    "architecture_guidance": {
+      "type": "array",
+      "description": "Architecture patterns and guidelines.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "security_checklist": {
+      "type": "array",
+      "description": "Security checklist items to verify.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

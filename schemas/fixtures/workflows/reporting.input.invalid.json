@@ -1,0 +1,7 @@
+{
+  "_violation": "Missing required field 'report_type'",
+  "project_id": "PRJ-2026-001",
+  "audience": "team",
+  "period_start": "2026-06-19T00:00:00Z",
+  "period_end": "2026-06-19T23:59:59Z"
+}

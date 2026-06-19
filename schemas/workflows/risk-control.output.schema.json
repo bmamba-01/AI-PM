@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/risk-control.output.schema.json",
+  "title": "Risk Control Workflow Output",
+  "description": "Output contract for the Risk & Issue Control workflow.",
+  "type": "object",
+  "required": [
+    "new_risks",
+    "worsening_risks",
+    "stale_risks",
+    "escalations",
+    "confidence"
+  ],
+  "properties": {
+    "new_risks": {
+      "type": "array",
+      "description": "Newly identified risks.",
+      "items": {
+        "type": "object",
+        "required": ["title", "probability", "impact", "owner", "mitigation"],
+        "properties": {
+          "title": { "type": "string" },
+          "probability": { "type": "string", "enum": ["low", "medium", "high"] },
+          "impact": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "owner": { "type": "string" },
+          "mitigation": { "type": "string" },
+          "contingency": { "type": "string" },
+          "next_review_date": { "type": "string", "format": "date-time" },
+          "source_ref": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "worsening_risks": {
+      "type": "array",
+      "description": "Risks that have increased in severity or probability.",
+      "items": {
+        "type": "object",
+        "required": ["title", "change"],
+        "properties": {
+          "title": { "type": "string" },
+          "change": { "type": "string", "description": "Description of the worsening change." },
+          "previous_level": { "type": "string" },
+          "current_level": { "type": "string" },
+          "source_ref": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "stale_risks": {
+      "type": "array",
+      "description": "Risks not updated or reviewed in a long time.",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string" },
+          "last_reviewed": { "type": "string", "format": "date-time" },
+          "suggestion": { "type": "string", "description": "Suggested action (close, reassess, reassign)." }
+        },
+        "additionalProperties": false
+      }
+    },
+    "escalations": {
+      "type": "array",
+      "description": "Risks or issues requiring PM escalation.",
+      "items": {
+        "type": "object",
+        "required": ["title", "reason"],
+        "properties": {
+          "title": { "type": "string" },
+          "reason": { "type": "string" },
+          "level": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "suggested_action": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "closed_risks": {
+      "type": "array",
+      "description": "Risks recommended for closure with supporting evidence.",
+      "items": {
+        "type": "object",
+        "required": ["title", "evidence"],
+        "properties": {
+          "title": { "type": "string" },
+          "evidence": { "type": "string", "description": "Evidence supporting risk closure." }
+        },
+        "additionalProperties": false
+      }
+    },
+    "approval_required": {
+      "type": "array",
+      "description": "Risk actions requiring PM approval before execution.",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in the risk assessment (0-100)."
+    },
+    "audit": {
+      "type": "object",
+      "description": "Audit trail for the risk control workflow run.",
+      "properties": {
+        "risk_sources": { "type": "array", "items": { "type": "string" } },
+        "scoring_rationale": { "type": "string" },
+        "sources_used": { "type": "array", "items": { "type": "string" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

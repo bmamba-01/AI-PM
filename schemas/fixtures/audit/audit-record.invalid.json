@@ -1,0 +1,13 @@
+{
+  "_violation": "Invalid enum value for workflow_id",
+  "run_id": "RUN-2026-06-19-002",
+  "workflow_id": "test-workflow",
+  "project_id": "PRJ-2026-001",
+  "status": "completed",
+  "started_at": "2026-06-19T09:00:00Z",
+  "completed_at": "2026-06-19T09:05:00Z",
+  "confidence": 75,
+  "sources_used": ["jira"],
+  "assumptions": [],
+  "proposed_external_actions": []
+}

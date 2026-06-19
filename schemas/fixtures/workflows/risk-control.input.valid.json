@@ -1,0 +1,77 @@
+{
+  "project_id": "PRJ-2026-001",
+  "risk_register": [
+    {
+      "id": "RISK-015",
+      "title": "Third-party API rate limits may impact launch timeline",
+      "probability": "medium",
+      "impact": "high",
+      "status": "active",
+      "owner": "tech_lead",
+      "mitigation": "Implement caching layer and negotiate higher rate limits",
+      "last_review_date": "2026-06-15T10:00:00Z"
+    },
+    {
+      "id": "RISK-022",
+      "title": "Database migration taking longer than planned",
+      "probability": "high",
+      "impact": "medium",
+      "status": "worsening",
+      "owner": "database_admin",
+      "mitigation": "Add additional DBA support and extend timeline by 3 days",
+      "last_review_date": "2026-06-18T14:00:00Z"
+    }
+  ],
+  "issues": [
+    {
+      "id": "BUG-456",
+      "title": "Payment validation fails for edge cases",
+      "status": "open",
+      "priority": "high",
+      "created_at": "2026-06-17T09:00:00Z",
+      "updated_at": "2026-06-18T16:30:00Z"
+    },
+    {
+      "id": "BUG-457",
+      "title": "CI pipeline intermittently fails on main branch",
+      "status": "open",
+      "priority": "critical",
+      "created_at": "2026-06-19T06:30:00Z",
+      "updated_at": "2026-06-19T08:00:00Z"
+    }
+  ],
+  "blockers": [
+    "CI pipeline broken on main since 06:30",
+    "Waiting for client approval on dashboard design",
+    "Third-party API documentation incomplete"
+  ],
+  "meeting_notes": [
+    {
+      "meeting_id": "MTG-2026-040",
+      "date": "2026-06-17T14:00:00Z",
+      "risks_mentioned": [
+        "Team velocity dropping due to technical debt",
+        "Security review process may delay release"
+      ]
+    }
+  ],
+  "delivery_metrics": {
+    "velocity_trend": "declining",
+    "milestone_status": "at_risk",
+    "overdue_items_count": 3
+  },
+  "budget_data": {
+    "budget_remaining": 45000,
+    "burn_rate": 15000,
+    "forecast_variance": -5000
+  },
+  "ci_status": {
+    "failed_builds_count": 5,
+    "test_failure_rate": 0.12,
+    "recent_failures": [
+      "Unit tests failed in payment module",
+      "Integration test timeout",
+      "Linter errors in new code"
+    ]
+  }
+}

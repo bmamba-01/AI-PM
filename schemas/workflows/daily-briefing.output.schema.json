@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/daily-briefing.output.schema.json",
+  "title": "Daily Briefing Workflow Output",
+  "description": "Output contract for the Daily PM Briefing workflow.",
+  "type": "object",
+  "required": [
+    "date",
+    "project_id",
+    "top_priorities",
+    "meetings_to_prepare",
+    "urgent_blockers",
+    "risks_to_review",
+    "pending_approvals",
+    "suggested_followups",
+    "source_coverage",
+    "assumptions",
+    "confidence"
+  ],
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 date the briefing was generated for."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier."
+    },
+    "top_priorities": {
+      "type": "array",
+      "description": "Top priorities for the day.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "meetings_to_prepare": {
+      "type": "array",
+      "description": "Meetings requiring preparation.",
+      "items": { "type": "string" }
+    },
+    "urgent_blockers": {
+      "type": "array",
+      "description": "Blockers requiring immediate attention.",
+      "items": { "type": "string" }
+    },
+    "risks_to_review": {
+      "type": "array",
+      "description": "Risks requiring PM review or action.",
+      "items": { "type": "string" }
+    },
+    "pending_approvals": {
+      "type": "array",
+      "description": "Items awaiting PM decision.",
+      "items": { "type": "string" }
+    },
+    "suggested_followups": {
+      "type": "array",
+      "description": "Suggested messages or follow-up actions.",
+      "items": { "type": "string" }
+    },
+    "stale_items": {
+      "type": "array",
+      "description": "Items that have been inactive too long.",
+      "items": { "type": "string" }
+    },
+    "source_coverage": {
+      "type": "array",
+      "description": "List of data sources successfully queried.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "unavailable_sources": {
+      "type": "array",
+      "description": "Data sources that were unavailable or failed.",
+      "items": { "type": "string" }
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Assumptions made during briefing generation.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence level in the briefing completeness (0-100). Below 70 requires explicit assumptions."
+    },
+    "proposed_external_actions": {
+      "type": "array",
+      "description": "External actions proposed but not yet executed (require approval).",
+      "items": {
+        "type": "object",
+        "required": ["action", "target_system"],
+        "properties": {
+          "action": { "type": "string" },
+          "target_system": { "type": "string" },
+          "approval_required": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

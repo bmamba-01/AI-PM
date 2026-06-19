@@ -1,0 +1,100 @@
+{
+  "project_id": "PRJ-2026-001",
+  "review_target": {
+    "type": "pr",
+    "reference": "234",
+    "source_system": "github"
+  },
+  "changed_files": [
+    {
+      "path": "src/api/payments/queryBuilder.ts",
+      "additions": 45,
+      "deletions": 12,
+      "status": "modified"
+    },
+    {
+      "path": "src/api/payments/processor.ts",
+      "additions": 120,
+      "deletions": 5,
+      "status": "modified"
+    },
+    {
+      "path": "src/api/payments/validator.ts",
+      "additions": 89,
+      "deletions": 0,
+      "status": "added"
+    },
+    {
+      "path": "tests/api/payments/processor.test.ts",
+      "additions": 67,
+      "deletions": 0,
+      "status": "added"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-042",
+      "title": "Payment processing with validation",
+      "acceptance_criteria": [
+        "System validates payment amounts between $1 and $10,000",
+        "System supports USD, EUR, GBP currencies",
+        "Payment errors are logged without exposing sensitive data",
+        "All payment operations are unit tested"
+      ]
+    },
+    {
+      "id": "REQ-043",
+      "title": "PCI DSS compliance for payment data",
+      "acceptance_criteria": [
+        "Credit card data is never logged in plain text",
+        "Payment transactions use encrypted connections",
+        "Sensitive data is redacted in error messages"
+      ]
+    }
+  ],
+  "test_results": {
+    "passed": 45,
+    "failed": 0,
+    "skipped": 2,
+    "test_files": [
+      "tests/api/payments/processor.test.ts",
+      "tests/api/payments/model.test.ts"
+    ]
+  },
+  "coverage_report": {
+    "overall_coverage": 72.5,
+    "line_coverage": 75.3,
+    "branch_coverage": 68.2,
+    "uncovered_files": [
+      "src/api/payments/validator.ts"
+    ]
+  },
+  "ci_logs": [
+    {
+      "stage": "build",
+      "status": "success",
+      "log_excerpt": "TypeScript compilation successful"
+    },
+    {
+      "stage": "test",
+      "status": "success",
+      "log_excerpt": "45 tests passed, 2 skipped"
+    },
+    {
+      "stage": "lint",
+      "status": "success",
+      "log_excerpt": "No linting errors found"
+    }
+  ],
+  "architecture_guidance": [
+    "Use parameterized queries for all database operations",
+    "Implement circuit breaker pattern for third-party API calls",
+    "Follow repository pattern for data access"
+  ],
+  "security_checklist": [
+    "No sensitive data in logs",
+    "Input validation on all public APIs",
+    "SQL injection prevention",
+    "Authentication and authorization checks"
+  ]
+}

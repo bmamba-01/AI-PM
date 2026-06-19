@@ -1,0 +1,8 @@
+{
+  "_violation": "Invalid enum value for review_target.type",
+  "project_id": "PRJ-2026-001",
+  "review_target": {
+    "type": "branch",
+    "reference": "feature-branch"
+  }
+}

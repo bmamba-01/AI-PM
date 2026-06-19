@@ -31,7 +31,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Circle
-            className={`w-2 h-2 fill-current ${isOnline ? "text-emerald-400" : "text-red-400"}`}
+            className={`w-2 h-2 fill-current ${isOnline ? "text-[#34C759]" : "text-[#FF3B30]"}`}
           />
           <span className="text-xs text-muted-foreground capitalize">{syncStatus}</span>
         </div>

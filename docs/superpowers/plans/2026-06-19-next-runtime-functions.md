@@ -12,61 +12,59 @@
 
 ## Current Verification State
 
-Last verified on 2026-06-19:
+Last verified on 2026-06-19 (post Agent 1 repair):
 
 ```text
-pnpm --filter @ai-pm/core test -- src/runtime/localProjectStore.test.ts src/workflows/dailyBriefing.test.ts
-Result: PASS, 2 files, 3 tests
+pnpm --filter @ai-pm/core test
+Result: PASS, 3 tests
 
 pnpm --filter @ai-pm/core build
 Result: PASS
 
 pnpm --filter @ai-pm/mcp build
-Result: FAIL due current MCP WIP
+Result: PASS (repaired by Agent 1)
 
 pnpm --filter @ai-pm/cli build
-Result: FAIL because CLI imports current MCP WIP
+Result: PASS (repaired by Agent 1)
+
+pnpm build
+Result: PASS (all 7 packages)
 ```
 
-Known blockers from current working tree:
+**Status: REPO IS GREEN.** All blockers from Agent 1 repair are resolved.
 
-- `packages/cli/src/commands/mcp.ts` no longer exports `mcpCommand`.
-- `packages/mcp/src/registry/configValidator.ts` references missing `validateSeverities`.
-- `packages/mcp/src/registry/configLoader.ts` resolves registry path to `C:\mcp\registry.yaml`.
-- `packages/mcp/src/registry/configValidator.test.ts` is included in package build and currently has duplicate imports/type errors.
-- Extra runtime files under root `mcp/src/` and `mcp/serverRegistry.ts` are outside package boundaries.
+## Completed Delegated Work
 
-Do not start package-wide runtime work until this is repaired or isolated.
-
-## Delegated Work In Flight
-
-These tasks are already delegated and must not be duplicated:
-
-- Agent 1: repair/clarify MCP registry/CLI WIP after scope mismatch.
-- Agent 2: move and clean PM templates into `C:\Works\AI-PM\templates`.
-- Agent 3: MCP registry/profile validation layer.
-- Agent 4: workflow JSON schemas under `schemas/workflows/`.
-- Agent 5: approval queue UX/runtime contract docs.
-- Agent 6: desktop read-only Daily Briefing panel.
+| Agent | Task | Status | Output |
+|---|---|---|---|
+| Agent 1 | Repair MCP/CLI WIP | ✅ Done | `packages/mcp` and `packages/cli` build again |
+| Agent 2 | Move/clean PM templates | ✅ Done | 9 templates in `templates/` (README needs trim) |
+| Agent 3 | MCP registry/profile validation | ✅ Done | `ai-pm mcp validate` works, docs in `docs/architecture/` |
+| Agent 4 | Workflow JSON schemas (7) | ✅ Done | `schemas/workflows/` — 7 input/output schemas + README |
+| Agent 4 | Schema expansion (4) | ✅ Done | `schemas/audit/`, `schemas/approval/`, `schemas/subagent/` |
+| Agent 4 | Schema hardening + fixtures | ✅ Done | 3 fields patched, 20 test fixtures created |
+| Agent 5 | Approval queue UX spec | ✅ Done | `docs/product/approval-queue-ux.md` (346 lines) |
+| Agent 5 | Approval queue runtime contract | ✅ Done | `docs/architecture/approval-queue-runtime-contract.md` (618 lines) |
+| Agent 5 | Approval queue CLI spec | ✅ Done | `docs/product/approval-queue-cli-spec.md` |
 
 ## Next Main-Thread Sequence
 
 ### Task 1: Stabilization Gate
 
-**Files:** none unless repairing own code.
+**Status: ✅ COMPLETE**
 
-- [ ] Confirm Agent 1/MCP WIP is either fixed or reverted by the assigned agent.
-- [ ] Run `pnpm --filter @ai-pm/mcp build`.
-- [ ] Run `pnpm --filter @ai-pm/cli build`.
-- [ ] Run `pnpm build`.
-- [ ] Do not merge any dependent runtime plan until these pass.
+- [x] Agent 1 repaired MCP/CLI WIP
+- [x] `pnpm --filter @ai-pm/mcp build` passes
+- [x] `pnpm --filter @ai-pm/cli build` passes
+- [x] `pnpm build` passes (all 7 packages)
+- [x] `pnpm --filter @ai-pm/core test` passes
 
 ### Task 2: Audit Inspection CLI
 
 **Files:**
 - Modify: `packages/core/src/runtime/localProjectStore.ts`
 - Test: `packages/core/src/runtime/localProjectStore.test.ts`
-- Modify: `packages/cli/src/commands/daily.ts` or create `packages/cli/src/commands/audit.ts`
+- Create: `packages/cli/src/commands/audit.ts`
 - Modify: `packages/cli/src/index.ts`
 - Modify: `packages/cli/bin/ai-pm.js`
 
@@ -146,12 +144,9 @@ pnpm --filter @ai-pm/core build
 
 ### Task 5: Workflow Schema Adoption
 
-Prerequisite:
+**Prerequisites: ✅ MET** — Agent 4 completed all schemas + fixtures.
 
-- Agent 4 completes `schemas/workflows/`.
-
-Files:
-
+**Files:**
 - Create: `packages/core/src/workflows/schemaValidation.ts`
 - Test: `packages/core/src/workflows/schemaValidation.test.ts`
 
@@ -182,4 +177,3 @@ Delegated agents should own:
 - Isolated UI panels.
 - Schema files.
 - MCP validation repair unless main thread explicitly takes it over.
-

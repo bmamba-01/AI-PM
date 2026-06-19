@@ -1,0 +1,17 @@
+{
+  "_violation": "Invalid enum value for priority in action_items",
+  "meeting_id": "MTG-2026-043",
+  "summary": "Quick standup meeting",
+  "key_decisions": [],
+  "action_items": [
+    {
+      "action": "Review PR",
+      "owner": "developer",
+      "due_date": "2026-06-20T17:00:00Z",
+      "priority": "urgent"
+    }
+  ],
+  "risks_identified": [],
+  "confidence": 75,
+  "proposed_external_actions": []
+}

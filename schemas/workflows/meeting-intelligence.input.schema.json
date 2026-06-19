@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/meeting-intelligence.input.schema.json",
+  "title": "Meeting Intelligence Workflow Input",
+  "description": "Input contract for the Meeting Intelligence workflow. Defines all data sources required for meeting preparation and summarization.",
+  "type": "object",
+  "required": ["meeting_id", "project_id", "meeting_type"],
+  "properties": {
+    "meeting_id": {
+      "type": "string",
+      "description": "Unique identifier for the meeting."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier this meeting relates to."
+    },
+    "meeting_type": {
+      "type": "string",
+      "enum": ["standup", "planning", "review", "retrospective", "client", "stakeholder", "technical", "other"],
+      "description": "Type of meeting."
+    },
+    "calendar_event": {
+      "type": "object",
+      "description": "Calendar event information.",
+      "properties": {
+        "title": { "type": "string" },
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "attendees": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "agenda": {
+      "type": "string",
+      "description": "Meeting agenda or objective."
+    },
+    "previous_meeting_notes": {
+      "type": "array",
+      "description": "References to previous meeting notes.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "meeting_id": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "summary": { "type": "string" }
+        }
+      }
+    },
+    "related_issues": {
+      "type": "array",
+      "description": "Related issues or documents for context.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string" },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "transcript": {
+      "type": "string",
+      "description": "Meeting transcript or notes for summarization."
+    },
+    "attendee_list": {
+      "type": "array",
+      "description": "List of meeting attendees.",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

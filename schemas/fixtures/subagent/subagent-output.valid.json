@@ -1,0 +1,72 @@
+{
+  "task_id": "TASK-2026-06-19-042",
+  "status": "completed",
+  "summary": "Code review completed. Found 2 critical security issues and missing test coverage. PR is not ready for merge.",
+  "findings": [
+    {
+      "severity": "critical",
+      "title": "SQL injection vulnerability in payment query builder",
+      "detail": "String concatenation used instead of parameterized queries at line 145 of queryBuilder.ts",
+      "source_ref": "src/api/payments/queryBuilder.ts:145"
+    },
+    {
+      "severity": "critical",
+      "title": "Sensitive payment data logged in plain text",
+      "detail": "Credit card numbers and CVV codes are logged without redaction",
+      "source_ref": "src/api/payments/processor.ts:67"
+    },
+    {
+      "severity": "high",
+      "title": "Missing test coverage for payment validation",
+      "detail": "No unit tests found for edge cases in payment amount validation logic",
+      "source_ref": "src/api/payments/validator.ts"
+    }
+  ],
+  "recommendations": [
+    {
+      "action": "Fix SQL injection vulnerability before merge",
+      "owner": "developer",
+      "priority": "critical"
+    },
+    {
+      "action": "Remove or redact sensitive data from logs",
+      "owner": "developer",
+      "priority": "critical"
+    },
+    {
+      "action": "Add unit tests for payment validation edge cases",
+      "owner": "developer",
+      "priority": "high"
+    },
+    {
+      "action": "Schedule security team review after fixes",
+      "owner": "tech_lead",
+      "priority": "high"
+    }
+  ],
+  "confidence": 95,
+  "artifacts": [
+    {
+      "path_or_url": ".ai-pm/reviews/2026-06-19-pr-234-review.md",
+      "type": "review"
+    }
+  ],
+  "open_questions": [
+    "Should we require PCI DSS certification before this module goes to production?"
+  ],
+  "audit": {
+    "sources_used": [
+      "github:PR-234",
+      "jira:EPIC-045",
+      "local:src/api/payments/**"
+    ],
+    "assumptions": [
+      "All payment-related code is in src/api/payments directory",
+      "EPIC-045 contains complete acceptance criteria"
+    ],
+    "approvals_required": [
+      "Security team must review before merge"
+    ],
+    "next_agent_suggested": "security_lead"
+  }
+}

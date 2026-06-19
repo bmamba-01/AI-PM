@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/approval/approval-item.schema.json",
+  "title": "Approval Item",
+  "description": "Schema for a single approval queue item. Based on the approval policy and runtime Task 4 (approval queue foundation).",
+  "type": "object",
+  "required": [
+    "approval_id",
+    "project_id",
+    "action_type",
+    "target_system",
+    "summary",
+    "requested_by",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "description": "Unique identifier for this approval item."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Unique project identifier this approval applies to."
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "change_request",
+        "scope_change",
+        "pr_merge",
+        "report_publish",
+        "risk_closure",
+        "budget_update",
+        "external_mutation",
+        "email_send",
+        "chat_message",
+        "issue_update",
+        "pr_comment",
+        "milestone_change",
+        "baseline_change",
+        "data_deletion"
+      ],
+      "description": "Type of action requiring approval."
+    },
+    "target_system": {
+      "type": "string",
+      "description": "Target system for the action (jira, github, email, slack, etc.)."
+    },
+    "target_id": {
+      "type": "string",
+      "description": "Identifier of the target entity in the target system (issue ID, PR number, etc.)."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief summary of the action requiring approval."
+    },
+    "requested_by": {
+      "type": "string",
+      "description": "Agent or user who requested this approval."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "revision_requested"],
+      "description": "Current approval status."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the approval was requested."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the approval was last updated."
+    },
+    "details": {
+      "type": "object",
+      "description": "Freeform detail about the action requiring approval.",
+      "additionalProperties": true
+    },
+    "audit_ref": {
+      "type": "string",
+      "description": "Reference to the audit record that generated this approval item."
+    },
+    "review_notes": {
+      "type": "string",
+      "description": "Notes from the reviewer or approver."
+    },
+    "decided_by": {
+      "type": "string",
+      "description": "Who made the approval decision (user ID or name)."
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the decision was made."
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "ISO-8601 timestamp or descriptive string when this approval expires."
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["once", "similar_actions", "workflow_run"],
+      "description": "Scope of the approval (single action, similar actions, or entire workflow run)."
+    }
+  },
+  "additionalProperties": false
+}

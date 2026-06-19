@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/workflows/code-quality-guard.output.schema.json",
+  "title": "Code Quality Guard Workflow Output",
+  "description": "Output contract for the Code Quality Guard workflow.",
+  "type": "object",
+  "required": [
+    "merge_readiness",
+    "summary",
+    "critical_findings",
+    "high_findings",
+    "medium_findings",
+    "missing_tests",
+    "requirement_gaps",
+    "verification_seen",
+    "approval_required",
+    "confidence"
+  ],
+  "properties": {
+    "merge_readiness": {
+      "type": "string",
+      "enum": ["ready", "not_ready", "needs_human_decision"],
+      "description": "Overall merge readiness determination."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Summary of the code review findings."
+    },
+    "critical_findings": {
+      "type": "array",
+      "description": "Critical severity findings (must fix before merge).",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" },
+          "file": { "type": "string", "description": "File path where the finding was detected." },
+          "line": { "type": "integer", "description": "Line number where the finding was detected." },
+          "category": { "type": "string", "enum": ["bug", "security", "regression", "data_loss", "architecture", "other"] },
+          "suggested_fix": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "high_findings": {
+      "type": "array",
+      "description": "High severity findings (should fix before merge).",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "category": { "type": "string", "enum": ["bug", "security", "performance", "maintainability", "regression", "other"] },
+          "suggested_fix": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "medium_findings": {
+      "type": "array",
+      "description": "Medium severity findings (recommended improvements).",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": "integer" },
+          "category": { "type": "string", "enum": ["maintainability", "readability", "performance", "convention", "other"] },
+          "suggested_fix": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "missing_tests": {
+      "type": "array",
+      "description": "Test coverage gaps identified.",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" },
+          "file": { "type": "string", "description": "Source file missing test coverage." },
+          "test_type_needed": { "type": "string", "enum": ["unit", "integration", "e2e", "regression", "any"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "requirement_gaps": {
+      "type": "array",
+      "description": "Gaps between code changes and requirements/acceptance criteria.",
+      "items": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" },
+          "requirement_ref": { "type": "string", "description": "Reference to the requirement not covered." },
+          "acceptance_criteria": { "type": "string", "description": "Acceptance criteria not met." }
+        },
+        "additionalProperties": false
+      }
+    },
+    "verification_seen": {
+      "type": "array",
+      "description": "Verification evidence observed (tests, CI, lint).",
+      "items": { "type": "string" }
+    },
+    "approval_required": {
+      "type": "array",
+      "description": "Actions requiring approval before execution (PR comments, merge, label changes).",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Confidence in the review completeness (0-100)."
+    },
+    "audit": {
+      "type": "object",
+      "description": "Audit trail for the code quality guard workflow run.",
+      "properties": {
+        "pr_ref": { "type": "string", "description": "PR or diff reference reviewed." },
+        "changed_files": { "type": "array", "items": { "type": "string" } },
+        "requirements_used": { "type": "array", "items": { "type": "string" } },
+        "tests_inspected": { "type": "array", "items": { "type": "string" } },
+        "ci_status": { "type": "string" },
+        "lint_status": { "type": "string" },
+        "sources_used": { "type": "array", "items": { "type": "string" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
