@@ -1,47 +1,95 @@
 import { create } from 'zustand';
-import type { ApprovalItem, DecidePayload } from '@ai-pm/core/runtime';
 
-// Mobile cannot use node:fs/promises. This store mirrors the ApprovalQueue
-// API using in-memory state (populated from mock data for MVP).
-// In production, this would sync with the local server API.
+// Local types — no @ai-pm/core/runtime import in renderer.
+// These mirror the approval queue runtime contract for the mobile surface.
 
-type ApprovalPriority = 'critical' | 'high' | 'medium' | 'low';
-type ApprovalStatus =
-  | 'pending' | 'revision_requested' | 'approved' | 'rejected'
+export type ApprovalPriority = 'critical' | 'high' | 'medium' | 'low';
+export type ApprovalStatus =
+  | 'draft' | 'pending' | 'revision_requested' | 'approved' | 'rejected'
   | 'cancelled' | 'expired' | 'executing' | 'executed' | 'execution_failed';
 
-interface ApprovalState {
-  items: ApprovalItem[];
-  counts: Record<string, number>;
-  isLoading: boolean;
-
-  loadItems: (filter?: { status?: string; priority?: string }) => Promise<void>;
-  loadCounts: () => Promise<void>;
-  decide: (id: string, payload: DecidePayload) => Promise<ApprovalItem>;
-  refresh: () => Promise<void>;
+export interface ApprovalItem {
+  approval_id: string;
+  project_id: string;
+  action_type: string;
+  workflow_id: string;
+  run_id: string;
+  requested_by_agent: string;
+  requested_by_role: string;
+  title: string;
+  description: string;
+  summary_diff: string;
+  confidence: number;
+  source_refs: Array<{ type: string; id: string; title: string; accessed_at: string }>;
+  priority: ApprovalPriority;
+  target_system: string;
+  target_id: string;
+  status: ApprovalStatus;
+  revision_round: number;
+  deadline: string | null;
+  ttl_seconds: number | null;
+  assigned_approvers: string[];
+  created_at: string;
+  updated_at: string;
+  decided_at: string | null;
+  decided_by: string | null;
+  decision: string | null;
+  rejection_reason: string | null;
+  revision_notes: string | null;
+  delegated_to: string | null;
+  execution_status: string;
+  execution_error: string | null;
+  execution_target_response: string | null;
+  retry_count: number;
+  policy_rule_id: string | null;
 }
 
-const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+export interface DecidePayload {
+  decided_by: string;
+  decision: 'approve' | 'reject' | 'revision_requested' | 'cancel';
+  reason?: string;
+  notes?: string;
+}
 
-function sortByPriority(items: ApprovalItem[]): ApprovalItem[] {
-  return [...items].sort((a, b) => {
-    const pa = PRIORITY_ORDER[a.priority as keyof typeof PRIORITY_ORDER] ?? 4;
-    const pb = PRIORITY_ORDER[b.priority as keyof typeof PRIORITY_ORDER] ?? 4;
-    if (pa !== pb) return pa - pb;
-    return a.created_at.localeCompare(b.created_at);
+export type DataSource = 'local_server' | 'mock_fallback';
+
+// ---------------------------------------------------------------------------
+// API client
+// ---------------------------------------------------------------------------
+
+let _baseUrl: string | null = null;
+
+/**
+ * Configure the local server base URL for approval queue requests.
+ * Call once at app startup (e.g. from Settings or environment).
+ * Pass `null` to revert to mock fallback.
+ */
+export function setApprovalBaseUrl(url: string | null): void {
+  _baseUrl = url;
+}
+
+export function getApprovalBaseUrl(): string | null {
+  return _baseUrl;
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!_baseUrl) throw new Error('No server configured');
+  const res = await fetch(`${_baseUrl}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
   });
-}
-
-function computeCounts(items: ApprovalItem[]): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const item of items) {
-    counts[item.status] = (counts[item.status] || 0) + 1;
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`API ${res.status}: ${body || res.statusText}`);
   }
-  return counts;
+  return res.json() as Promise<T>;
 }
 
-// Seed data — aligned with the approval queue runtime contract.
-// This is the initial dataset the mobile app shows.
+// ---------------------------------------------------------------------------
+// Mock data — seed dataset aligned with the approval queue runtime contract.
+// Used when no local server URL is configured.
+// ---------------------------------------------------------------------------
+
 const SEED_ITEMS: ApprovalItem[] = [
   {
     approval_id: 'a1d5b4c6-7f9c-4d8a-b1e2-3f4a5b6c7d8e',
@@ -193,69 +241,150 @@ const SEED_ITEMS: ApprovalItem[] = [
   },
 ];
 
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  draft: ['pending', 'cancelled'],
-  pending: ['approved', 'rejected', 'revision_requested', 'expired', 'cancelled'],
-  revision_requested: ['pending', 'cancelled'],
-  approved: ['executing'],
-  rejected: [],
-  cancelled: [],
-  expired: [],
-  executing: ['executed', 'execution_failed'],
-  executed: [],
-  execution_failed: ['pending', 'cancelled'],
-};
+// ---------------------------------------------------------------------------
+// In-memory mock store (used when no server is configured)
+// ---------------------------------------------------------------------------
 
-// In-memory store — populated with seed data on first load.
 let memoryItems: ApprovalItem[] | null = null;
 
-function getItems(): ApprovalItem[] {
-  if (!memoryItems) {
-    memoryItems = [...SEED_ITEMS];
-  }
+function getMockItems(): ApprovalItem[] {
+  if (!memoryItems) memoryItems = [...SEED_ITEMS];
   return memoryItems;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
+function sortByPriority(items: ApprovalItem[]): ApprovalItem[] {
+  return [...items].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] ?? 4;
+    const pb = PRIORITY_ORDER[b.priority] ?? 4;
+    if (pa !== pb) return pa - pb;
+    return a.created_at.localeCompare(b.created_at);
+  });
+}
+
+function computeCounts(items: ApprovalItem[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items) {
+    counts[item.status] = (counts[item.status] || 0) + 1;
+  }
+  return counts;
+}
+
+// ---------------------------------------------------------------------------
+// Store
+// ---------------------------------------------------------------------------
+
+interface ApprovalState {
+  items: ApprovalItem[];
+  counts: Record<string, number>;
+  isLoading: boolean;
+  error: string | null;
+  dataSource: DataSource;
+
+  loadItems: (filter?: { status?: string; priority?: string }) => Promise<void>;
+  loadCounts: () => Promise<void>;
+  decide: (id: string, payload: DecidePayload) => Promise<ApprovalItem>;
+  refresh: () => Promise<void>;
 }
 
 export const useApprovalStore = create<ApprovalState>()((set) => ({
   items: [],
   counts: {},
   isLoading: false,
+  error: null,
+  dataSource: 'mock_fallback',
 
   loadItems: async (filter?) => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
-      const all = getItems();
+      if (_baseUrl) {
+        // ---- Local server mode ----
+        const params = new URLSearchParams();
+        if (filter?.status) params.set('status', filter.status);
+        if (filter?.priority) params.set('priority', filter.priority);
+        const qs = params.toString();
+        const items = await apiFetch<ApprovalItem[]>(`/api/approvals${qs ? `?${qs}` : ''}`);
+        set({ items: sortByPriority(items), dataSource: 'local_server', isLoading: false });
+      } else {
+        // ---- Mock fallback mode ----
+        const all = getMockItems();
+        let result = sortByPriority(all);
+        if (filter?.status) result = result.filter(i => i.status === filter.status);
+        if (filter?.priority) result = result.filter(i => i.priority === filter.priority);
+        set({ items: result, dataSource: 'mock_fallback', isLoading: false });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[approval-store] loadItems failed:', msg);
+      // Degrade to mock fallback on network error
+      const all = getMockItems();
       let result = sortByPriority(all);
       if (filter?.status) result = result.filter(i => i.status === filter.status);
       if (filter?.priority) result = result.filter(i => i.priority === filter.priority);
-      set({ items: result, counts: computeCounts(all), isLoading: false });
-    } catch (error) {
-      console.warn('[approval-store] loadItems failed:', error);
-      set({ isLoading: false });
+      set({ items: result, dataSource: 'mock_fallback', isLoading: false, error: msg });
     }
   },
 
   loadCounts: async () => {
     try {
-      const all = getItems();
-      set({ counts: computeCounts(all) });
-    } catch (error) {
-      console.warn('[approval-store] loadCounts failed:', error);
+      if (_baseUrl) {
+        const counts = await apiFetch<Record<string, number>>('/api/approvals/counts');
+        set({ counts, dataSource: 'local_server' });
+      } else {
+        const all = getMockItems();
+        set({ counts: computeCounts(all), dataSource: 'mock_fallback' });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[approval-store] loadCounts failed:', msg);
+      const all = getMockItems();
+      set({ counts: computeCounts(all), dataSource: 'mock_fallback', error: msg });
     }
   },
 
   decide: async (id: string, payload: DecidePayload) => {
-    const items = getItems();
+    if (_baseUrl) {
+      // ---- Local server mode ----
+      const item = await apiFetch<ApprovalItem>(`/api/approvals/${id}/decide`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      // Refresh after decision
+      const counts = await apiFetch<Record<string, number>>('/api/approvals/counts').catch(() => null);
+      const items = await apiFetch<ApprovalItem[]>('/api/approvals').catch(() => []);
+      set({ counts: counts ?? computeCounts(items), items: sortByPriority(items) });
+      return item;
+    }
+
+    // ---- Mock fallback mode ----
+    const items = getMockItems();
     const idx = items.findIndex(i => i.approval_id === id || i.approval_id.startsWith(id));
     if (idx === -1) throw new Error(`Approval item ${id} not found`);
 
     const item = items[idx];
-
     const nextStatus =
       payload.decision === 'approve' ? 'approved' :
       payload.decision === 'reject' ? 'rejected' :
       payload.decision === 'revision_requested' ? 'revision_requested' :
       'cancelled';
+
+    const VALID_TRANSITIONS: Record<string, string[]> = {
+      draft: ['pending', 'cancelled'],
+      pending: ['approved', 'rejected', 'revision_requested', 'expired', 'cancelled'],
+      revision_requested: ['pending', 'cancelled'],
+      approved: ['executing'],
+      rejected: [],
+      cancelled: [],
+      expired: [],
+      executing: ['executed', 'execution_failed'],
+      executed: [],
+      execution_failed: ['pending', 'cancelled'],
+    };
 
     const allowed = VALID_TRANSITIONS[item.status] ?? [];
     if (!allowed.includes(nextStatus)) {
@@ -279,13 +408,27 @@ export const useApprovalStore = create<ApprovalState>()((set) => ({
     item.revision_notes = payload.notes ?? null;
 
     items[idx] = item;
-
     set({ counts: computeCounts(items) });
     return item;
   },
 
   refresh: async () => {
-    const all = getItems();
-    set({ items: sortByPriority(all), counts: computeCounts(all) });
+    try {
+      if (_baseUrl) {
+        const [items, counts] = await Promise.all([
+          apiFetch<ApprovalItem[]>('/api/approvals'),
+          apiFetch<Record<string, number>>('/api/approvals/counts'),
+        ]);
+        set({ items: sortByPriority(items), counts, dataSource: 'local_server', error: null });
+      } else {
+        const all = getMockItems();
+        set({ items: sortByPriority(all), counts: computeCounts(all), dataSource: 'mock_fallback', error: null });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[approval-store] refresh failed:', msg);
+      const all = getMockItems();
+      set({ items: sortByPriority(all), counts: computeCounts(all), dataSource: 'mock_fallback', error: msg });
+    }
   },
 }));

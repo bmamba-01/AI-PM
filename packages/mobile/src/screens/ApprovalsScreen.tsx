@@ -6,8 +6,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../App';
-import { useApprovalStore } from '../state/approval-store';
-import type { ApprovalItem } from '@ai-pm/core/runtime';
+import { useApprovalStore, type ApprovalItem } from '../state/approval-store';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Approvals'>;
 
@@ -167,7 +166,7 @@ function SwipeableRow({
 
 export function ApprovalsScreen({ navigation }: Props) {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const { items, isLoading, loadItems, decide, refresh } = useApprovalStore();
+  const { items, isLoading, dataSource, loadItems, decide, refresh } = useApprovalStore();
   const [, setRefreshKey] = useState(0);
 
   // Refresh when screen comes into focus (after returning from detail)
@@ -283,6 +282,14 @@ export function ApprovalsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      {/* Data source indicator */}
+      <View style={styles.dataSourceBar}>
+        <View style={[styles.dataSourceDot, { backgroundColor: dataSource === 'local_server' ? '#10b981' : '#f59e0b' }]} />
+        <Text style={styles.dataSourceText}>
+          {dataSource === 'local_server' ? 'Local server' : 'Mock fallback'}
+        </Text>
+      </View>
+
       {/* Filter chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipContainer}>
         {FILTERS.map(f => (
@@ -325,6 +332,16 @@ export function ApprovalsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a' },
+
+  // Data source indicator
+  dataSourceBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  dataSourceDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  dataSourceText: { color: '#64748b', fontSize: 11 },
 
   // Filter chips
   chipContainer: { paddingHorizontal: 12, paddingVertical: 10, maxHeight: 52 },

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadMcpConfig, saveMcpConfig, upsertMcpServer, removeMcpServer, setMcpServerEnabled, MCPServerConfig } from "@ai-pm/mcp/connectionManager.js";
-import { ApprovalQueue } from "@ai-pm/core/runtime";
+import { ApprovalQueue, type ApprovalDecision } from "@ai-pm/core/runtime";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -153,5 +153,13 @@ ipcMain.handle("approvals:get", async (_, id: string) => {
 });
 
 ipcMain.handle("approvals:decide", async (_, id: string, payload: { decided_by: string; decision: string; reason?: string; notes?: string }) => {
-  return approvalQueue.decide(id, payload as any);
+  return approvalQueue.decide(id, { ...payload, decision: payload.decision as ApprovalDecision });
+});
+
+ipcMain.handle("approvals:create", async (_, input: Parameters<ApprovalQueue['createItem']>[0]) => {
+  return approvalQueue.createItem(input);
+});
+
+ipcMain.handle("approvals:resubmit", async (_, id: string, summary_diff: string) => {
+  return approvalQueue.resubmit(id, summary_diff);
 });

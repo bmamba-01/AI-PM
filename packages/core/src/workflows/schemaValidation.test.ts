@@ -67,6 +67,20 @@ describe('validateWorkflowOutput', () => {
     expect(result.errors.some(e => e.includes('additional'))).toBe(true);
   });
 
+  it('rejects invalid date-time format', async () => {
+    const invalid = { ...validBriefOutput, date: '2026-06-19' };
+    const result = await validateWorkflowOutput('daily-briefing', invalid, schemasDir);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('date'))).toBe(true);
+  });
+
+  it('rejects completely malformed date-time', async () => {
+    const invalid = { ...validBriefOutput, date: 'not-a-date' };
+    const result = await validateWorkflowOutput('daily-briefing', invalid, schemasDir);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('date'))).toBe(true);
+  });
+
   it('returns valid with warning when schema file is missing', async () => {
     const result = await validateWorkflowOutput('nonexistent-workflow', { anything: true }, schemasDir);
     expect(result.valid).toBe(true);

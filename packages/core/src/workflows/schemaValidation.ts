@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,6 +77,7 @@ export async function validateWorkflowOutput(
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false });
+  addFormats(ajv);
   // Schemas use snake_case keys; convert camelCase TS objects before validation
   const snakeOutput = toSnakeCaseKeys(output);
   const valid = ajv.validate(schema, snakeOutput);

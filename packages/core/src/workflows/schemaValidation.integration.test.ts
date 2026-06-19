@@ -86,7 +86,7 @@ describe('Schema validation — integration', () => {
     it('passes schema validation with realistic input', async () => {
       const briefing = generateDailyBriefing({
         projectId: 'PRJ-INT-001',
-        date: '2026-06-19',
+        date: '2026-06-19T00:00:00Z',
         items: [
           { source: 'jira', type: 'blocker', title: 'CI pipeline broken', priority: 'critical' },
           { source: 'calendar', type: 'meeting', title: 'Sprint review', priority: 'high' },
@@ -108,7 +108,7 @@ describe('Schema validation — integration', () => {
     it('passes with minimal valid input', async () => {
       const briefing = generateDailyBriefing({
         projectId: 'minimal-proj',
-        date: '2026-06-19',
+        date: '2026-06-19T00:00:00Z',
         items: [
           { source: 'local', type: 'priority', title: 'Review status', priority: 'high' },
         ],
@@ -122,7 +122,7 @@ describe('Schema validation — integration', () => {
     it('passes with minimal assumptions (confidence >= 70)', async () => {
       const briefing = generateDailyBriefing({
         projectId: 'test',
-        date: '2026-06-19',
+        date: '2026-06-19T00:00:00Z',
         items: [
           { source: 'jira', type: 'priority', title: 'Do something', priority: 'high' },
         ],

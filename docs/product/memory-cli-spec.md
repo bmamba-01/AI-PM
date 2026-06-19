@@ -57,8 +57,29 @@ List memory tasks with optional status filter.
 
 | Option | Description | Default |
 |---|---|---|
-| `--status <status>` | Filter: pending, in_progress, completed, failed, cancelled | all |
+| `--status <status>` | Filter by status: `pending`, `in_progress`, `completed`, `failed`, `cancelled` | all |
 | `--json` | Output as JSON | false |
+
+**Valid task statuses:**
+
+| Status | Description |
+|---|---|
+| `pending` | Not yet started |
+| `in_progress` | Actively being worked on |
+| `completed` | Done |
+| `failed` | Did not complete successfully |
+| `cancelled` | No longer needed |
+
+**Error on invalid status (exit 1):**
+
+```json
+{
+  "error": {
+    "code": "INVALID_STATUS",
+    "message": "Invalid task status \"bogus\". Allowed: pending, in_progress, completed, failed, cancelled"
+  }
+}
+```
 
 **API mapping:** `MemoryStore.listTasks(filter)`
 
@@ -72,9 +93,29 @@ List memory artifacts with optional status/type filter.
 
 | Option | Description | Default |
 |---|---|---|
-| `--status <status>` | Filter: active, draft, archived, deleted | all |
+| `--status <status>` | Filter by status: `active`, `draft`, `archived`, `deleted` | all |
 | `--type <type>` | Filter by type (doc, schema, code, ...) | all |
 | `--json` | Output as JSON | false |
+
+**Valid artifact statuses:**
+
+| Status | Description |
+|---|---|
+| `active` | Currently in use |
+| `draft` | Work in progress |
+| `archived` | No longer active, kept for reference |
+| `deleted` | Removed from active use |
+
+**Error on invalid status (exit 1):**
+
+```json
+{
+  "error": {
+    "code": "INVALID_STATUS",
+    "message": "Invalid artifact status \"bogus\". Allowed: active, draft, archived, deleted"
+  }
+}
+```
 
 **API mapping:** `MemoryStore.listArtifacts(filter)`
 
@@ -88,7 +129,7 @@ Archive a memory artifact (sets status to `archived`, records reason and timesta
 
 | Argument | Description |
 |---|---|
-| `artifact_id` | Artifact ID (UUID or short prefix) |
+| `artifact_id` | Artifact ID — full UUID or short prefix (min 1 character) |
 
 **Options:**
 
@@ -97,6 +138,34 @@ Archive a memory artifact (sets status to `archived`, records reason and timesta
 | `--reason <text>` | Archive reason (min 3 characters) | "Archived via CLI by user" |
 | `--json` | Output result as JSON | false |
 | `--yes` | Skip confirmation prompt | false |
+
+**ID resolution rules:**
+
+1. **Exact match** — full UUID matches an artifact → use it.
+2. **Unique prefix** — short prefix matches exactly one artifact → resolve to it.
+3. **No match** — prefix matches nothing → error: `"No artifact found matching prefix \"xyz\"."`
+4. **Ambiguous** — prefix matches multiple artifacts → error listing candidates:
+
+```json
+{
+  "error": {
+    "code": "AMBIGUOUS_ID",
+    "message": "Ambiguous ID \"48\". Did you mean:\n  480fc327 — design-doc.md (doc, v1)\n  48c850de — schema.json (schema, v1)",
+    "matches": [
+      { "id": "480fc327-...", "label": "design-doc.md (doc, v1)" },
+      { "id": "48c850de-...", "label": "schema.json (schema, v1)" }
+    ]
+  }
+}
+```
+
+**Reason validation:**
+
+| Input | Behavior |
+|---|---|
+| No `--reason` flag | Uses default: `"Archived via CLI by user"` |
+| `--reason` with < 3 characters | Error (exit 1): `"Reason must be at least 3 characters (or omit --reason to use default)."` |
+| `--reason` with ≥ 3 characters | Uses provided value |
 
 **API mapping:** `MemoryStore.archiveArtifact(id, reason)`
 
@@ -121,11 +190,28 @@ The `.ai-pm/memory/` directory is git-ignored since it contains user-specific ru
 
 ## 5. Error Handling
 
-| Condition | Behavior |
-|---|---|
-| Missing `.ai-pm/memory/state.json` | Returns empty state (not an error) |
-| Invalid artifact ID | "Artifact not found" error, exit 1 |
-| Archive confirmation declined | "Cancelled" message, no action |
+All error paths produce parseable JSON when `--json` is passed:
+
+| Condition | Error code | Exit | Example |
+|---|---|---|---|
+| Missing `.ai-pm/memory/state.json` | — | 0 | Returns empty state (not an error) |
+| Invalid artifact ID | `NOT_FOUND` | 1 | "No artifact found matching prefix ..." |
+| Ambiguous artifact ID | `AMBIGUOUS_ID` | 1 | Lists matched candidates |
+| Invalid task status | `INVALID_STATUS` | 1 | Lists allowed values |
+| Invalid artifact status | `INVALID_STATUS` | 1 | Lists allowed values |
+| Reason too short | — | 1 | "Reason must be at least 3 characters" |
+| Archive confirmation declined | — | 0 | "Cancelled" message, no action |
+
+JSON error shape:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable description"
+  }
+}
+```
 
 ## 6. Shell Integration
 
@@ -136,6 +222,15 @@ ai-pm memory summary --json | jq '.totalTasks'
 # List pending tasks
 ai-pm memory tasks list --status pending --json
 
-# Archive old artifacts without confirmation
-ai-pm memory artifacts archive <id> --reason "Superseded" --yes
+# List active artifacts
+ai-pm memory artifacts list --status active --json
+
+# Archive by exact ID
+ai-pm memory artifacts archive 1189803f-182b-47b1-b38d-4fe0ae3a52f1 --reason "Superseded" --yes
+
+# Archive by short prefix
+ai-pm memory artifacts archive 1189803f --reason "Old version" --yes
+
+# Check invalid status (exit 1, parseable error)
+ai-pm memory tasks list --status bogus --json | jq '.error.message'
 ```

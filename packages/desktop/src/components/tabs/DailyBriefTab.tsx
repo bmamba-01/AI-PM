@@ -6,10 +6,12 @@ import {
   AlertTriangle, Clock, Calendar, CheckCircle2, Mail,
   ShieldAlert, MessageSquare, ArrowRight
 } from "lucide-react";
+import { useProjectStore } from "../../state";
 
 interface Props { project: Project }
 
 export function DailyBriefTab({ project }: Props) {
+  const { setActiveView } = useProjectStore();
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -84,7 +86,10 @@ export function DailyBriefTab({ project }: Props) {
         </Card>
 
         {/* Pending Approvals */}
-        <Card>
+        <Card
+          className="cursor-pointer hover:bg-white/5 transition-colors"
+          onClick={() => setActiveView("approvals")}
+        >
           <CardHeader><CardTitle className="flex items-center gap-2"><Mail className="w-4 h-4 text-[#AF52DE]" /> Pending Approvals</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {["Change request CR-014: Add OAuth2 scope", "PR #234: Payment integration — awaiting merge approval"].map((item, i) => (
@@ -93,6 +98,11 @@ export function DailyBriefTab({ project }: Props) {
                 <Button size="sm" variant="ghost" className="text-xs text-[#007AFF]">Review</Button>
               </div>
             ))}
+            <div className="flex justify-end pt-1">
+              <span className="text-xs text-[#007AFF] flex items-center gap-1">
+                View all approvals <ArrowRight className="w-3 h-3" />
+              </span>
+            </div>
           </CardContent>
         </Card>
       </div>

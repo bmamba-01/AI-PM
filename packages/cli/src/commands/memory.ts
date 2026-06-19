@@ -3,6 +3,49 @@ import chalk from 'chalk';
 import { table } from 'table';
 import { MemoryStore, type TaskStatus, type ArtifactStatus } from '@ai-pm/core/runtime';
 
+// ─── Valid status values ────────────────────────────────────────────────────
+
+const VALID_TASK_STATUSES: TaskStatus[] = ['pending', 'in_progress', 'completed', 'failed', 'cancelled'];
+const VALID_ARTIFACT_STATUSES: ArtifactStatus[] = ['active', 'draft', 'archived', 'deleted'];
+
+function isValidTaskStatus(s: string): s is TaskStatus {
+  return (VALID_TASK_STATUSES as string[]).includes(s);
+}
+
+function isValidArtifactStatus(s: string): s is ArtifactStatus {
+  return (VALID_ARTIFACT_STATUSES as string[]).includes(s);
+}
+
+// ─── Short ID resolution ────────────────────────────────────────────────────
+
+interface IdMatch {
+  exact: boolean;
+  matched: { id: string; label: string }[];
+}
+
+function resolveId(
+  input: string,
+  items: { id: string; label: string }[],
+): IdMatch {
+  // Exact match
+  const exact = items.find(i => i.id === input);
+  if (exact) return { exact: true, matched: [exact] };
+
+  // Prefix match
+  const prefixMatches = items.filter(i => i.id.startsWith(input));
+
+  if (prefixMatches.length === 0) {
+    return { exact: false, matched: [] };
+  }
+
+  if (prefixMatches.length === 1) {
+    return { exact: false, matched: prefixMatches };
+  }
+
+  // Ambiguous — multiple matches
+  return { exact: false, matched: prefixMatches };
+}
+
 // ─── Bilingual messages ──────────────────────────────────────────────────────
 
 const msgs = {
@@ -31,15 +74,13 @@ const msgs = {
     hdrAssigned: 'Assigned',
     hdrCreated: 'Created',
     hdrPath: 'Path',
-    // Status colors
-    statusPending: 'pending',
-    statusInProgress: 'in_progress',
-    statusCompleted: 'completed',
-    statusFailed: 'failed',
-    statusCancelled: 'cancelled',
-    statusActive: 'active',
-    statusDraft: 'draft',
-    statusArchived: 'archived',
+    // Errors
+    invalidTaskStatus: (s: string) => `Invalid task status "${s}". Allowed: ${VALID_TASK_STATUSES.join(', ')}`,
+    invalidArtifactStatus: (s: string) => `Invalid artifact status "${s}". Allowed: ${VALID_ARTIFACT_STATUSES.join(', ')}`,
+    ambiguousId: (input: string, matches: { id: string; label: string }[]) =>
+      `Ambiguous ID "${input}". Did you mean:\n${matches.map(m => `  ${m.id.slice(0, 8)} — ${m.label}`).join('\n')}`,
+    prefixNotFound: (input: string) => `No artifact found matching prefix "${input}".`,
+    reasonTooShort: 'Reason must be at least 3 characters (or omit --reason to use default).',
   },
   vi: {
     title: 'Lưu Trữ Bộ Nhớ',
@@ -64,14 +105,12 @@ const msgs = {
     hdrAssigned: 'Giao Cho',
     hdrCreated: 'Tạo',
     hdrPath: 'Đường Dẫn',
-    statusPending: 'chờ',
-    statusInProgress: 'đang_làm',
-    statusCompleted: 'hoàn_thành',
-    statusFailed: 'thất_bại',
-    statusCancelled: 'hủy',
-    statusActive: 'hoạt_động',
-    statusDraft: 'nháp',
-    statusArchived: 'lưu_trữ',
+    invalidTaskStatus: (s: string) => `Trạng thái "${s}" không hợp lệ. Cho phép: ${VALID_TASK_STATUSES.join(', ')}`,
+    invalidArtifactStatus: (s: string) => `Trạng thái "${s}" không hợp lệ. Cho phép: ${VALID_ARTIFACT_STATUSES.join(', ')}`,
+    ambiguousId: (input: string, matches: { id: string; label: string }[]) =>
+      `Mã "${input}" không rõ ràng. Bạn muốn:\n${matches.map(m => `  ${m.id.slice(0, 8)} — ${m.label}`).join('\n')}`,
+    prefixNotFound: (input: string) => `Không tìm thấy sản phẩm nào khớp tiền tố "${input}".`,
+    reasonTooShort: 'Lý do phải ít nhất 3 ký tự (hoặc bỏ qua --reason để dùng mặc định).',
   },
 };
 
@@ -110,6 +149,22 @@ function truncate(s: string, max: number): string {
 
 function shortId(id: string): string {
   return id.slice(0, 8);
+}
+
+function validateReason(reason: string | undefined, json: boolean): string {
+  if (!reason || reason.trim() === '') {
+    return 'Archived via CLI by user';
+  }
+  if (reason.trim().length < 3) {
+    const errMsg = 'Reason must be at least 3 characters (or omit --reason to use default).';
+    if (json) {
+      console.log(JSON.stringify({ error: { code: 'REASON_TOO_SHORT', message: errMsg } }, null, 2));
+    } else {
+      console.error(chalk.red(`Error: ${errMsg}`));
+    }
+    process.exit(1);
+  }
+  return reason.trim();
 }
 
 // ─── Parent command ──────────────────────────────────────────────────────────
@@ -151,6 +206,7 @@ memoryCommand
           console.log(table(data));
         } catch (error) {
           console.error(chalk.red(String(error)));
+          process.exit(1);
         }
       })
   );
@@ -170,6 +226,16 @@ tasksCommand
         const lang = getLang();
         const msgsLang = msgs[lang];
         const store = new MemoryStore(process.cwd());
+
+        // Validate status filter
+        if (opts.status && !isValidTaskStatus(opts.status)) {
+          if (opts.json) {
+            console.log(JSON.stringify({ error: { code: 'INVALID_STATUS', message: msgsLang.invalidTaskStatus(opts.status) } }, null, 2));
+          } else {
+            console.error(chalk.red(`Error: ${msgsLang.invalidTaskStatus(opts.status)}`));
+          }
+          process.exit(1);
+        }
 
         try {
           const filter = opts.status ? { status: opts.status as TaskStatus } : undefined;
@@ -201,6 +267,7 @@ tasksCommand
           console.log(chalk.gray(`${tasks.length} task(s)`));
         } catch (error) {
           console.error(chalk.red(String(error)));
+          process.exit(1);
         }
       })
   );
@@ -223,6 +290,16 @@ artifactsCommand
         const lang = getLang();
         const msgsLang = msgs[lang];
         const store = new MemoryStore(process.cwd());
+
+        // Validate status filter
+        if (opts.status && !isValidArtifactStatus(opts.status)) {
+          if (opts.json) {
+            console.log(JSON.stringify({ error: { code: 'INVALID_STATUS', message: msgsLang.invalidArtifactStatus(opts.status) } }, null, 2));
+          } else {
+            console.error(chalk.red(`Error: ${msgsLang.invalidArtifactStatus(opts.status)}`));
+          }
+          process.exit(1);
+        }
 
         try {
           const filter: { status?: ArtifactStatus; type?: string } = {};
@@ -260,6 +337,7 @@ artifactsCommand
           console.log(chalk.gray(`${artifacts.length} artifact(s)`));
         } catch (error) {
           console.error(chalk.red(String(error)));
+          process.exit(1);
         }
       })
   );
@@ -268,8 +346,8 @@ artifactsCommand
   .addCommand(
     new Command('archive')
       .description('Archive a memory artifact')
-      .argument('<artifact_id>', 'Artifact ID')
-      .option('--reason <text>', 'Archive reason (min 3 characters)', '')
+      .argument('<artifact_id>', 'Artifact ID or short prefix (min 8 chars)')
+      .option('--reason <text>', 'Archive reason (min 3 characters)')
       .option('--json', 'Output result as JSON', false)
       .option('--yes', 'Skip confirmation prompt', false)
       .action(async (artifactId: string, opts) => {
@@ -277,14 +355,52 @@ artifactsCommand
         const msgsLang = msgs[lang];
         const store = new MemoryStore(process.cwd());
 
+        // Validate reason early
+        const reason = validateReason(opts.reason, opts.json);
+
         try {
-          const artifact = await store.getArtifact(artifactId);
-          if (!artifact) {
-            console.error(chalk.red(msgsLang.notFound('Artifact', artifactId)));
+          // Load all artifacts for prefix resolution
+          const allArtifacts = await store.listArtifacts();
+          if (allArtifacts.length === 0) {
+            const errMsg = msgsLang.notFound('Artifact', artifactId);
+            if (opts.json) {
+              console.log(JSON.stringify({ error: { code: 'NOT_FOUND', message: errMsg } }, null, 2));
+            } else {
+              console.error(chalk.red(errMsg));
+            }
             process.exit(1);
           }
 
-          const reason = opts.reason || `Archived via CLI by user`;
+          // Resolve ID (exact or prefix)
+          const candidates = allArtifacts.map(a => ({
+            id: a.artifact_id,
+            label: `${a.name} (${a.type}, v${a.version})`,
+          }));
+
+          const match = resolveId(artifactId, candidates);
+
+          if (match.matched.length === 0) {
+            const errMsg = msgsLang.prefixNotFound(artifactId);
+            if (opts.json) {
+              console.log(JSON.stringify({ error: { code: 'NOT_FOUND', message: errMsg } }, null, 2));
+            } else {
+              console.error(chalk.red(errMsg));
+            }
+            process.exit(1);
+          }
+
+          if (match.matched.length > 1 && !match.exact) {
+            const errMsg = msgsLang.ambiguousId(artifactId, match.matched);
+            if (opts.json) {
+              console.log(JSON.stringify({ error: { code: 'AMBIGUOUS_ID', message: errMsg, matches: match.matched.map(m => ({ id: m.id, label: m.label })) } }, null, 2));
+            } else {
+              console.error(chalk.red(errMsg));
+            }
+            process.exit(1);
+          }
+
+          const resolvedId = match.matched[0].id;
+          const artifact = allArtifacts.find(a => a.artifact_id === resolvedId)!;
 
           if (!opts.yes) {
             console.log(chalk.bold(`\nArchive artifact "${artifact.name}" (${shortId(artifact.artifact_id)})?`));
@@ -293,7 +409,6 @@ artifactsCommand
             console.log(`  Reason: ${reason}`);
             console.log();
 
-            // Simple confirmation via readline
             const readline = await import('node:readline');
             const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
             const answer = await new Promise<string>(resolve => {
@@ -307,7 +422,7 @@ artifactsCommand
             }
           }
 
-          const archived = await store.archiveArtifact(artifactId, reason);
+          const archived = await store.archiveArtifact(resolvedId, reason);
 
           if (opts.json) {
             console.log(JSON.stringify(archived, null, 2));

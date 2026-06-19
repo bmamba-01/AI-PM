@@ -5,8 +5,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
-import { useApprovalStore } from '../state/approval-store';
-import type { ApprovalItem } from '@ai-pm/core/runtime';
+import { useApprovalStore, type ApprovalItem } from '../state/approval-store';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ApprovalDetail'>;
 

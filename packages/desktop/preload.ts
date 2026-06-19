@@ -25,6 +25,8 @@ const api = {
     count: (): Promise<Record<string, number>> => ipcRenderer.invoke("approvals:count"),
     get: (id: string): Promise<any | null> => ipcRenderer.invoke("approvals:get", id),
     decide: (id: string, payload: { decided_by: string; decision: string; reason?: string; notes?: string }): Promise<any> => ipcRenderer.invoke("approvals:decide", id, payload),
+    create: (input: { project_id: string; action_type: string; target_system: string; target_id: string; workflow_id: string; run_id: string; requested_by_agent: string; requested_by_role: string; title: string; description: string; summary_diff: string; confidence: number; source_refs: Array<{ type: string; id: string; title?: string; accessed_at?: string }>; priority: string; deadline?: string | null; ttl_seconds?: number | null; assigned_approvers?: string[] }): Promise<any> => ipcRenderer.invoke("approvals:create", input),
+    resubmit: (id: string, summary_diff: string): Promise<any> => ipcRenderer.invoke("approvals:resubmit", id, summary_diff),
   },
 };
 
