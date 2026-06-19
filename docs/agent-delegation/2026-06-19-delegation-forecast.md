@@ -1,67 +1,74 @@
 # Delegation Forecast
 
-> **Last updated:** 2026-06-19 (post all wave-1 completions)
+> **Last updated:** 2026-06-19 after runtime verification and CLI smoke fix.
 
-## Completed Wave — All Agents
+## Verified Current State
 
-| Agent | Task | Status | Output |
-|---|---|---|---|
-| Agent 1 | Repair MCP/CLI WIP | ✅ Done | `packages/mcp` and `packages/cli` build again |
-| Agent 2 | Move/clean PM templates | ✅ Done | 9 templates in `templates/` (README trim pending) |
-| Agent 3 | MCP registry/profile validation | ✅ Done | `ai-pm mcp validate` works |
-| Agent 4 | Workflow JSON schemas (7) | ✅ Done | `schemas/workflows/` |
-| Agent 4 | Schema expansion (4) | ✅ Done | `schemas/audit/`, `schemas/approval/`, `schemas/subagent/` |
-| Agent 4 | Schema hardening + fixtures | ✅ Done | 3 fields patched, 20 test fixtures |
-| Agent 5 | Approval queue UX spec | ✅ Done | `docs/product/approval-queue-ux.md` |
-| Agent 5 | Approval queue runtime contract | ✅ Done | `docs/architecture/approval-queue-runtime-contract.md` |
-| Agent 5 | Approval queue CLI spec | ✅ Done | `docs/product/approval-queue-cli-spec.md` |
+The repo is green by build/test/smoke evidence:
 
-## In-flight / Not Started
+| Check | Status |
+|---|---|
+| `pnpm --filter @ai-pm/core test` | PASS, 95 tests |
+| `pnpm --filter @ai-pm/mcp test` | PASS, 26 tests |
+| `pnpm --filter @ai-pm/cli build` | PASS |
+| `pnpm --filter @ai-pm/desktop build` | PASS |
+| `pnpm --filter @ai-pm/mobile build` | PASS |
+| `pnpm build` | PASS |
+| `node packages/cli/bin/ai-pm.js approval --help` | PASS |
+| `node schemas/validate-fixtures.mjs` | PASS, 30/30 |
 
-| Agent | Task | Status |
+## Completed Or Ready-To-Accept Work
+
+| Area | Status | Notes |
 |---|---|---|
-| Agent 6 | Desktop Daily Briefing panel | Not started |
+| Schema Validation Runtime | Complete | Runtime validates workflow outputs; schema tests pass |
+| Approval CLI | Complete | Runtime smoke issue fixed by registering `approvalCommand` in bin |
+| Core Approval Integration Tests | Complete | Unit + integration flow tests pass |
+| Runtime Memory System | Complete in core | File-backed `MemoryStore` implemented and exported |
+| Housekeeping Archive | Complete locally | Old prompt files moved to dated archive |
 
-## Repo Status
+## Important Caveats
 
-**GREEN.** All packages build. All core tests pass. No blockers.
+- Approval UI is an MVP only. Desktop uses localStorage; mobile uses in-memory seed data. Neither is a true runtime-backed approval queue yet.
+- `.ai-pm/memory/*.yaml` is ignored by git. That is correct for local runtime data, but `ai-pm init` and docs must describe/bootstrap it.
+- Schema validation passes, but Ajv ignores `format: date-time` until `ajv-formats` is added.
 
-## Main Thread — Ready to Start
+## Next Delegation Wave
 
-| Task | Plan Reference | Status |
-|------|---------------|--------|
-| `ai-pm audit list` | Task 2 | Ready |
-| `ai-pm project scan` | Task 3 | Ready |
-| Core approval queue runtime | Task 4 | Ready — full specs available |
-| Workflow schema validation | Task 5 | Ready — schemas + fixtures available |
+Use: `docs/agent-delegation/2026-06-19-runtime-hardening-agent-prompts.md`
 
-## Next Delegatable Tasks
+### Parallel Group A
 
-### Agent 4: Input Schemas for Remaining Workflows
+| Agent | Task | Depends On | Scope |
+|---|---|---|---|
+| Schema Agent | Ajv format hardening | Current schema runtime | `packages/core`, `package.json`, lockfile |
+| DB/Memory Agent | Memory CLI + init bootstrap | Current `MemoryStore` | `packages/core`, `packages/cli`, docs |
+| API/IPC Agent | Desktop approval IPC bridge | Current `ApprovalQueue` | Electron main/preload/global types only |
 
-Currently only `daily-briefing` has an input schema. The other 6 workflows rely on the subagent task contract for inputs, but runtime validation benefits from explicit input schemas. Agent 4 should create:
+### Group B After API/IPC Agent
 
-- `schemas/workflows/meeting-intelligence.input.schema.json`
-- `schemas/workflows/scope-control.input.schema.json`
-- `schemas/workflows/risk-control.input.schema.json`
-- `schemas/workflows/reporting.input.schema.json`
-- `schemas/workflows/code-quality-guard.input.schema.json`
-- Valid + invalid fixtures for each
+| Agent | Task | Depends On | Scope |
+|---|---|---|---|
+| Desktop UI Agent | Replace localStorage approval store with IPC-backed store | API/IPC Agent | Desktop renderer state + approval tab |
 
-See: `2026-06-19-agent-4-followup-v3-prompt.md`
+### Group C After API Contract Is Stable
 
-### Agent 2: README Trim (low priority)
+| Agent | Task | Depends On | Scope |
+|---|---|---|---|
+| Mobile UI/API Agent | Local-server approval client with mock fallback | API/IPC/local-server contract | Mobile state + docs/product API note |
 
-Fix `templates/README.md` to list only the 9 templates that actually exist.
+### Final Verification Agent
 
-See: `2026-06-19-agent-2-followup-prompt.md`
+| Agent | Task | Depends On | Scope |
+|---|---|---|---|
+| Integration Test Agent | CLI smoke + runtime boundary tests | All above | Tests only unless a narrow fix is proven |
 
-### Agent 6: Desktop Daily Brief Panel
+## Hold Back For Later
 
-Static read-only UI panel using sample data.
+- Google Workspace publication.
+- Chat/Hermes/OpenClaw gateway.
+- Jira/GitHub write mutations.
+- SQLite migration.
+- Full local HTTP server.
 
-See: `2026-06-18-agent-prompts.md` Prompt 6
-
-### Agent 5: Resolved Open Questions (optional)
-
-10 open questions in UX spec + runtime contract need PM owner decisions before full implementation.
+These need the runtime boundary cleaned first.

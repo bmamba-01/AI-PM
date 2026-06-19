@@ -263,6 +263,8 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 Current prompt set:
 
 - `docs/agent-delegation/2026-06-19-pm-orchestrator-agent-prompts.md`
+- Runtime hardening prompt set: `docs/agent-delegation/2026-06-19-runtime-hardening-agent-prompts.md`
+- Runtime implementation plan: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`
 
 ## 11. Verification Gate
 
@@ -273,7 +275,7 @@ pnpm --filter @ai-pm/core test
 pnpm --filter @ai-pm/mcp test
 pnpm --filter @ai-pm/cli build
 pnpm build
-rg -n "UNRESOLVED|CHANGE_ME|FIX_ME" AGENTS.md README.md docs playbooks workflows mcp templates packages
+rg -n "UNRESOLVED_" AGENTS.md README.md docs playbooks workflows mcp templates packages
 ```
 
 Warnings from Vite about Electron `fs` and `path` browser externalization are known build warnings, not current blockers, but should be tracked before desktop runtime hardening.

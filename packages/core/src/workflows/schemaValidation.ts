@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import Ajv from 'ajv/dist/2020';
+import Ajv from 'ajv/dist/2020.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +13,25 @@ export interface ValidationResult {
 }
 
 const DEFAULT_SCHEMAS_DIR = path.resolve(__dirname, '../../../../schemas/workflows');
+
+/** Convert a camelCase key to snake_case (e.g. "projectId" → "project_id"). */
+function camelToSnake(key: string): string {
+  return key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/** Recursively convert all object keys from camelCase to snake_case. */
+function toSnakeCaseKeys(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(toSnakeCaseKeys);
+  if (typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj as Record<string, unknown>).map(
+        ([k, v]) => [camelToSnake(k), toSnakeCaseKeys(v)],
+      ),
+    );
+  }
+  return obj;
+}
 
 /**
  * Load a JSON schema for a workflow output from disk.
@@ -57,7 +76,9 @@ export async function validateWorkflowOutput(
   }
 
   const ajv = new Ajv({ allErrors: true, strict: false });
-  const valid = ajv.validate(schema, output);
+  // Schemas use snake_case keys; convert camelCase TS objects before validation
+  const snakeOutput = toSnakeCaseKeys(output);
+  const valid = ajv.validate(schema, snakeOutput);
 
   if (valid) {
     return { valid: true, errors: [], warnings: [] };

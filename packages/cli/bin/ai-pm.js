@@ -5,6 +5,8 @@ import { methodologyCommand } from '../dist/commands/methodology.js';
 import { dailyCommand } from '../dist/commands/daily.js';
 import { auditCommand } from '../dist/commands/audit.js';
 import { projectCommand } from '../dist/commands/project.js';
+import { approvalCommand } from '../dist/commands/approval.js';
+import { memoryCommand } from '../dist/commands/memory.js';
 import { Command } from 'commander';
 import chalk from 'chalk';
 
@@ -26,6 +28,8 @@ program.addCommand(methodologyCommand);
 program.addCommand(dailyCommand);
 program.addCommand(auditCommand);
 program.addCommand(projectCommand);
+program.addCommand(approvalCommand);
+program.addCommand(memoryCommand);
 
 program.on('command', () => {});
 
@@ -41,4 +45,6 @@ if (!process.argv.slice(2).length) {
   console.log(chalk.gray('  daily brief              Generate daily PM briefing'));
   console.log(chalk.gray('  audit list               View workflow audit trail'));
   console.log(chalk.gray('  project scan             Scan project for readiness'));
+  console.log(chalk.gray('  approval <subcommand>    Manage approval queue'));
+  console.log(chalk.gray('  memory <subcommand>      Manage project runtime memory'));
 }

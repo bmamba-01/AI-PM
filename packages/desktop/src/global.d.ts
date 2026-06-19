@@ -1,4 +1,5 @@
 import type { MCPServerConfig } from '@ai-pm/mcp/connectionManager';
+import type { ApprovalItem, DecidePayload } from '@ai-pm/core/runtime';
 
 interface ElectronApi {
   dialog: {
@@ -18,6 +19,12 @@ interface ElectronApi {
     toggleServer: (id: string, enabled: boolean) => Promise<{ success: boolean; servers: MCPServerConfig[] }>;
     removeServer: (id: string) => Promise<{ success: boolean; servers: MCPServerConfig[] }>;
     addServer: (server: MCPServerConfig) => Promise<{ success: boolean; servers: MCPServerConfig[] }>;
+  };
+  approvals: {
+    list: (filter?: { status?: string; priority?: string }) => Promise<ApprovalItem[]>;
+    count: () => Promise<Record<string, number>>;
+    get: (id: string) => Promise<ApprovalItem | null>;
+    decide: (id: string, payload: DecidePayload) => Promise<ApprovalItem>;
   };
 }
 

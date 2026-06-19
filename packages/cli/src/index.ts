@@ -5,3 +5,4 @@ export { dailyCommand } from './commands/daily.js';
 export { auditCommand } from './commands/audit.js';
 export { projectCommand } from './commands/project.js';
 export { approvalCommand } from './commands/approval.js';
+export { memoryCommand } from './commands/memory.js';

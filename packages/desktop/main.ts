@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { loadMcpConfig, saveMcpConfig, upsertMcpServer, removeMcpServer, setMcpServerEnabled, MCPServerConfig } from "@ai-pm/mcp/connectionManager.js";
+import { ApprovalQueue } from "@ai-pm/core/runtime";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -134,4 +135,23 @@ ipcMain.handle("remove-server", async (_, id: string) => {
 ipcMain.handle("add-server", async (_, server: MCPServerConfig) => {
   const config = upsertMcpServer(currentProjectRoot, server);
   return { success: true, servers: config.servers };
+});
+
+// Approval Queue IPC handlers
+const approvalQueue = new ApprovalQueue(currentProjectRoot);
+
+ipcMain.handle("approvals:list", async (_, filter?: { status?: string; priority?: string }) => {
+  return approvalQueue.listItems(filter);
+});
+
+ipcMain.handle("approvals:count", async () => {
+  return approvalQueue.getCounts();
+});
+
+ipcMain.handle("approvals:get", async (_, id: string) => {
+  return approvalQueue.getItem(id);
+});
+
+ipcMain.handle("approvals:decide", async (_, id: string, payload: { decided_by: string; decision: string; reason?: string; notes?: string }) => {
+  return approvalQueue.decide(id, payload as any);
 });

@@ -20,6 +20,12 @@ const api = {
     removeServer: (id: string): Promise<{ success: boolean; servers: MCPServerConfig[] }> => ipcRenderer.invoke("remove-server", id),
     addServer: (server: MCPServerConfig): Promise<{ success: boolean; servers: MCPServerConfig[] }> => ipcRenderer.invoke("add-server", server),
   },
+  approvals: {
+    list: (filter?: { status?: string; priority?: string }): Promise<any[]> => ipcRenderer.invoke("approvals:list", filter),
+    count: (): Promise<Record<string, number>> => ipcRenderer.invoke("approvals:count"),
+    get: (id: string): Promise<any | null> => ipcRenderer.invoke("approvals:get", id),
+    decide: (id: string, payload: { decided_by: string; decision: string; reason?: string; notes?: string }): Promise<any> => ipcRenderer.invoke("approvals:decide", id, payload),
+  },
 };
 
 contextBridge.exposeInMainWorld("electronAPI", api);

@@ -62,6 +62,28 @@ export function runInit(projectName: string) {
     }
   }
 
+  // Create .ai-pm runtime directories
+  const aiPmDir = path.join(target, '.ai-pm');
+  fs.mkdirSync(path.join(aiPmDir, 'memory'), { recursive: true });
+  fs.mkdirSync(path.join(aiPmDir, 'audit'), { recursive: true });
+  fs.mkdirSync(path.join(aiPmDir, 'approvals'), { recursive: true });
+  console.log('  ✓ .ai-pm/ (runtime data)');
+
+  // Create .gitignore for runtime data
+  fs.writeFileSync(
+    path.join(target, '.gitignore'),
+    [
+      'node_modules/',
+      'dist/',
+      '.ai-pm/memory/',
+      '.ai-pm/audit/',
+      '.ai-pm/approvals.json',
+      '.ai-pm/approvals/',
+      '',
+    ].join('\n')
+  );
+  console.log('  ✓ .gitignore');
+
   // Create a basic README
   fs.writeFileSync(
     path.join(target, 'README.md'),
