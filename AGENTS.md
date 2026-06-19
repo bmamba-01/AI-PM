@@ -10,9 +10,9 @@ The latest design baseline is:
 
 The current implementation plan is:
 
-- `docs/superpowers/plans/2026-06-18-ai-pm-operating-layer.md`
+- `docs/superpowers/plans/2026-06-19-pm-orchestrator-master-plan.md`
 
-Older files under `docs/plans/` and `docs/superagent-dashboard-spec.md` are historical context. Do not treat them as the active plan unless the current implementation plan explicitly references them.
+Older files under `docs/plans/`, `docs/superagent-dashboard-spec.md`, and prior implementation plans are historical context. Do not treat them as active unless the current implementation plan explicitly references them.
 
 ## Repository Purpose
 

@@ -76,6 +76,9 @@ packages/desktop/build/
 # MCP local config
 packages/mcp/config.local.json
 
+# Temp files
+_tmp_*
+
 # Misc
 *.tgz
 *.tar.gz

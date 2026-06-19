@@ -1,68 +1,106 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { createDefaultValidator, SchemaValidator } from './schemaValidation.js';
+import { loadWorkflowSchema, validateWorkflowOutput, createDefaultValidator } from './schemaValidation.js';
 
-describe('SchemaValidator', () => {
-  const schemasDir = path.resolve(__dirname, '../../../../schemas/workflows');
-  const validator = new SchemaValidator(schemasDir);
-  const briefOutput = {
-    date: '2026-06-19T00:00:00Z',
-    project_id: 'alpha',
-    top_priorities: ['Fix payment gateway timeout'],
-    meetings_to_prepare: ['Client sync'],
-    urgent_blockers: ['Payment gateway timeout'],
-    risks_to_review: ['UAT environment not ready'],
-    pending_approvals: ['Approve release PR'],
-    suggested_followups: ['Reply to vendor'],
-    source_coverage: ['jira', 'calendar'],
-    assumptions: ['calendar data was cached'],
-    confidence: 82,
-    proposed_external_actions: [
-      { action: 'merge_pr', target_system: 'github', approval_required: true },
-    ],
-  };
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const schemasDir = path.resolve(__dirname, '../../../../schemas/workflows');
 
-  it('validates correct daily briefing output', async () => {
-    const result = await validator.validateWorkflowOutput('daily-briefing', briefOutput);
-    expect(result.valid).toBe(true);
-    expect(result.issues).toHaveLength(0);
-    expect(result.schemaPath).toContain('daily-briefing.output.schema.json');
+/** Fixture: valid daily briefing output (snake_case, matches schema). */
+const validBriefOutput = {
+  date: '2026-06-19T00:00:00Z',
+  project_id: 'alpha',
+  top_priorities: ['Fix payment gateway timeout'],
+  meetings_to_prepare: ['Client sync'],
+  urgent_blockers: ['Payment gateway timeout'],
+  risks_to_review: ['UAT environment not ready'],
+  pending_approvals: ['Approve release PR'],
+  suggested_followups: ['Reply to vendor'],
+  source_coverage: ['jira', 'calendar'],
+  assumptions: ['calendar data was cached'],
+  confidence: 82,
+};
+
+describe('loadWorkflowSchema', () => {
+  it('loads the daily-briefing output schema', async () => {
+    const schema = await loadWorkflowSchema('daily-briefing', schemasDir);
+    expect(schema).not.toBeNull();
+    expect(schema).toHaveProperty('required');
+    expect((schema as Record<string, unknown>).required).toContain('confidence');
   });
 
-  it('rejects missing required field', async () => {
-    const invalid = { ...briefOutput };
-    delete (invalid as Record<string, unknown>).top_priorities;
-    const result = await validator.validateWorkflowOutput('daily-briefing', invalid);
+  it('returns null for unknown workflow', async () => {
+    const schema = await loadWorkflowSchema('nonexistent-workflow', schemasDir);
+    expect(schema).toBeNull();
+  });
+});
+
+describe('validateWorkflowOutput', () => {
+  it('validates correct daily briefing output', async () => {
+    const result = await validateWorkflowOutput('daily-briefing', validBriefOutput, schemasDir);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('rejects missing required field (confidence)', async () => {
+    const invalid = { ...validBriefOutput };
+    delete (invalid as Record<string, unknown>).confidence;
+    const result = await validateWorkflowOutput('daily-briefing', invalid, schemasDir);
     expect(result.valid).toBe(false);
-    expect(result.issues.some(i => i.keyword === 'required' && i.path === '$')).toBe(true);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors.some(e => e.includes('confidence'))).toBe(true);
   });
 
   it('rejects confidence out of range', async () => {
-    const invalid = { ...briefOutput, confidence: 150 };
-    const result = await validator.validateWorkflowOutput('daily-briefing', invalid);
+    const invalid = { ...validBriefOutput, confidence: 150 };
+    const result = await validateWorkflowOutput('daily-briefing', invalid, schemasDir);
     expect(result.valid).toBe(false);
-    expect(result.issues.some(i => (i.keyword === 'maximum' || i.keyword === 'type') && i.path === '$.confidence')).toBe(true);
+    expect(result.errors.some(e => e.includes('confidence'))).toBe(true);
   });
 
   it('rejects additional properties', async () => {
-    const invalid = { ...briefOutput, unknown_field: 'bad' };
-    const result = await validator.validateWorkflowOutput('daily-briefing', invalid);
+    const invalid = { ...validBriefOutput, unknown_field: 'bad' };
+    const result = await validateWorkflowOutput('daily-briefing', invalid, schemasDir);
     expect(result.valid).toBe(false);
-    expect(result.issues.some(i => i.keyword === 'additionalProperties' && i.path === '$.unknown_field')).toBe(true);
+    expect(result.errors.some(e => e.includes('additional'))).toBe(true);
   });
 
-  it('returns valid with empty issues when schema file is missing', async () => {
-    const missingValidator = new SchemaValidator('/path/that/does/not/exist');
-    const result = await missingValidator.validateWorkflowOutput('nonexistent-workflow', { foo: 1 });
+  it('returns valid with warning when schema file is missing', async () => {
+    const result = await validateWorkflowOutput('nonexistent-workflow', { anything: true }, schemasDir);
     expect(result.valid).toBe(true);
-    expect(result.issues).toHaveLength(0);
-    expect(result.schemaPath).toContain('nonexistent-workflow.output.schema.json');
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings.length).toBe(1);
+    expect(result.warnings[0]).toContain('nonexistent-workflow');
   });
 
-  it('default validator resolves schemas from repo', async () => {
-    const defaultValidator = createDefaultValidator();
-    const result = await defaultValidator.validateWorkflowOutput('daily-briefing', briefOutput);
+  it('validates valid fixture file', async () => {
+    const { readFileSync } = await import('node:fs');
+    const fixture = JSON.parse(
+      readFileSync(path.join(schemasDir, '../fixtures/workflows/daily-briefing.output.valid.json'), 'utf-8'),
+    );
+    const result = await validateWorkflowOutput('daily-briefing', fixture, schemasDir);
     expect(result.valid).toBe(true);
-    expect(result.schemaPath).toContain('daily-briefing.output.schema.json');
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects invalid fixture file', async () => {
+    const { readFileSync } = await import('node:fs');
+    const fixture = JSON.parse(
+      readFileSync(path.join(schemasDir, '../fixtures/workflows/daily-briefing.output.invalid.json'), 'utf-8'),
+    );
+    const result = await validateWorkflowOutput('daily-briefing', fixture, schemasDir);
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('createDefaultValidator', () => {
+  it('validates using default schemas directory', async () => {
+    const validator = createDefaultValidator();
+    const result = await validator.validate('daily-briefing', validBriefOutput);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 });

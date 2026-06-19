@@ -19,9 +19,9 @@ export type WorkflowId =
   | "all_workflows";
 
 export interface RegistryDefaults {
-  access_mode: "read_only" | "read_write";
-  mutation_policy: "approval_required" | "allowed" | "restricted";
-  unavailable_behavior: "degrade_gracefully" | "fail_hard";
+  access_mode: string;
+  mutation_policy: string;
+  unavailable_behavior: string;
 }
 
 export interface RegistryServerEntry {
@@ -44,10 +44,7 @@ export interface RegistryConfig {
 export interface ProfileServerEntry {
   minimum_servers?: string[];
   recommended_servers?: string[];
-  degraded_sources?: {
-    name: string;
-    fallback: string;
-  }[];
+  degraded_sources?: Array<{ name: string; fallback: string }>;
 }
 
 export interface ProfileConfig {
@@ -57,7 +54,7 @@ export interface ProfileConfig {
   enabled_servers?: string[];
   optional_servers?: string[];
   disabled_online_servers?: string[];
-  workflow_expectations?: Record<WorkflowId, ProfileServerEntry>;
+  workflow_expectations?: Record<string, ProfileServerEntry>;
   workflow_behavior?: Record<string, Record<string, boolean | string>>;
   connector_policies?: Record<string, string | number | boolean>;
 }

@@ -136,6 +136,9 @@ importers:
 
   packages/core:
     dependencies:
+      ajv:
+        specifier: ^8.17.0
+        version: 8.20.0
       date-fns:
         specifier: ^3.6.0
         version: 3.6.0

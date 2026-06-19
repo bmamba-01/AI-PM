@@ -1,134 +1,83 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import Ajv from 'ajv/dist/2020';
 
-export interface SchemaValidationIssue {
-  keyword: string;
-  message: string;
-  path: string;
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export interface SchemaValidationResult {
+export interface ValidationResult {
   valid: boolean;
-  issues: SchemaValidationIssue[];
-  schemaPath?: string;
-}
-
-export class SchemaValidator {
-  private readonly schemasDir: string;
-
-  constructor(schemasDir: string) {
-    this.schemasDir = schemasDir;
-  }
-
-  async validateWorkflowOutput(workflowId: string, output: unknown): Promise<SchemaValidationResult> {
-    const schemaPath = path.join(this.schemasDir, `${workflowId}.output.schema.json`);
-
-    try {
-      const raw = await readFile(schemaPath, 'utf-8');
-      const schema = JSON.parse(raw);
-      const issues = this.validate(schema, output);
-      return { valid: issues.length === 0, issues, schemaPath };
-    } catch (error: unknown) {
-      const nodeError = error as NodeJS.ErrnoException;
-      if (nodeError.code === 'ENOENT') {
-        return {
-          valid: true,
-          issues: [],
-          schemaPath,
-        };
-      }
-      throw error;
-    }
-  }
-
-  private validate(schema: unknown, data: unknown): SchemaValidationIssue[] {
-    const issues: SchemaValidationIssue[] = [];
-    const root = schema as Record<string, unknown>;
-    const expectedType = root.type as string | undefined;
-
-    if (expectedType) {
-      this.checkType(data, expectedType, '$', issues);
-    }
-
-    if (root.properties && typeof root.properties === 'object') {
-      this.checkProperties(data, root.properties as Record<string, unknown>, '$', issues);
-    }
-
-    if (Array.isArray(root.required)) {
-      for (const field of root.required) {
-        if (data === null || data === undefined || !(field in (data as Record<string, unknown>))) {
-          issues.push({ keyword: 'required', message: `Missing required field: ${field}`, path: '$' });
-        }
-      }
-    }
-
-    if (root.additionalProperties === false && typeof data === 'object' && data !== null) {
-      const allowed = new Set(Object.keys(root.properties as Record<string, unknown>));
-      const record = data as Record<string, unknown>;
-      for (const key of Object.keys(record)) {
-        if (!allowed.has(key)) {
-          issues.push({ keyword: 'additionalProperties', message: `Additional property not allowed: ${key}`, path: `$.${key}` });
-        }
-      }
-    }
-
-    if (Array.isArray(root.items)) {
-      const arr = data as unknown[];
-      for (let i = 0; i < arr.length; i++) {
-        const itemSchema = root.items[0];
-        if (itemSchema) {
-          this.validate(itemSchema, arr[i]).forEach(issue => issues.push({ ...issue, path: issue.path.replace('$', `$.${i}`) }));
-        }
-      }
-    } else if (typeof root.items === 'object' && root.items !== null) {
-      const arr = data as unknown[];
-      for (let i = 0; i < arr.length; i++) {
-        this.validate(root.items, arr[i]).forEach(issue => issues.push({ ...issue, path: issue.path.replace('$', `$.${i}`) }));
-      }
-    }
-
-    return issues;
-  }
-
-  private checkProperties(data: unknown, properties: Record<string, unknown>, prefix: string, issues: SchemaValidationIssue[]): void {
-    if (typeof data !== 'object' || data === null) return;
-    const record = data as Record<string, unknown>;
-    for (const [key, schema] of Object.entries(properties)) {
-      if (!(key in record)) continue;
-      const value = record[key];
-      const childPath = `${prefix}.${key}`;
-      this.validate(schema, value).forEach(issue => issues.push({ ...issue, path: childPath }));
-      this.checkConstraints(schema as Record<string, unknown>, value, childPath, issues);
-    }
-  }
-
-  private checkConstraints(schema: Record<string, unknown>, value: unknown, propertyPath: string, issues: SchemaValidationIssue[]): void {
-    if (typeof value === 'number') {
-      if (typeof schema.minimum === 'number' && value < schema.minimum) {
-        issues.push({ keyword: 'minimum', message: `Value ${value} is less than minimum ${schema.minimum}`, path: propertyPath });
-      }
-      if (typeof schema.maximum === 'number' && value > schema.maximum) {
-        issues.push({ keyword: 'maximum', message: `Value ${value} is greater than maximum ${schema.maximum}`, path: propertyPath });
-      }
-    }
-  }
-
-  private checkType(value: unknown, expected: string, propertyPath: string, issues: SchemaValidationIssue[]): void {
-    const actual = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
-    if (expected === 'integer' && actual === 'number') {
-      if (!Number.isInteger(value)) {
-        issues.push({ keyword: 'type', message: `Expected integer at ${propertyPath}`, path: propertyPath });
-      }
-      return;
-    }
-    if (actual !== expected) {
-      issues.push({ keyword: 'type', message: `Expected ${expected} at ${propertyPath}, got ${actual}`, path: propertyPath });
-    }
-  }
+  errors: string[];
+  warnings: string[];
 }
 
 const DEFAULT_SCHEMAS_DIR = path.resolve(__dirname, '../../../../schemas/workflows');
 
-export function createDefaultValidator(): SchemaValidator {
-  return new SchemaValidator(DEFAULT_SCHEMAS_DIR);
+/**
+ * Load a JSON schema for a workflow output from disk.
+ * Returns the parsed schema object, or null if the file is missing.
+ */
+export async function loadWorkflowSchema(
+  workflowId: string,
+  schemasDir: string = DEFAULT_SCHEMAS_DIR,
+): Promise<Record<string, unknown> | null> {
+  const filePath = path.join(schemasDir, `${workflowId}.output.schema.json`);
+  try {
+    const raw = await readFile(filePath, 'utf-8');
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+/**
+ * Validate a workflow output object against its registered JSON schema
+ * using ajv. Returns a `ValidationResult` with `valid`, `errors`, and
+ * `warnings`.
+ *
+ * If no schema file is found for the given workflowId the result is
+ * `valid: true` with a warning – callers can degrade gracefully.
+ */
+export async function validateWorkflowOutput(
+  workflowId: string,
+  output: unknown,
+  schemasDir: string = DEFAULT_SCHEMAS_DIR,
+): Promise<ValidationResult> {
+  const schema = await loadWorkflowSchema(workflowId, schemasDir);
+
+  if (!schema) {
+    return {
+      valid: true,
+      errors: [],
+      warnings: [`No schema found for workflow '${workflowId}' — skipping validation.`],
+    };
+  }
+
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const valid = ajv.validate(schema, output);
+
+  if (valid) {
+    return { valid: true, errors: [], warnings: [] };
+  }
+
+  const errors = (ajv.errors ?? []).map((err) => {
+    const loc = err.instancePath || '';
+    return `${loc}: ${err.message ?? 'unknown error'}`.trim();
+  });
+
+  return { valid: false, errors, warnings: [] };
+}
+
+/**
+ * Convenience wrapper that returns a pre-configured validator bound
+ * to the default schemas directory.
+ */
+export function createDefaultValidator() {
+  return {
+    validate: (workflowId: string, output: unknown) =>
+      validateWorkflowOutput(workflowId, output, DEFAULT_SCHEMAS_DIR),
+  };
 }

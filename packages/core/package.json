@@ -66,6 +66,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "ajv": "^8.17.0",
     "date-fns": "^3.6.0",
     "decimal.js": "^10.4.0",
     "sql.js": "^1.14.1",

@@ -10,7 +10,7 @@ For AI agents:
 
 1. `AGENTS.md`
 2. `docs/superpowers/specs/2026-06-18-ai-pm-toolkit-design.md`
-3. `docs/superpowers/plans/2026-06-18-ai-pm-operating-layer.md`
+3. `docs/superpowers/plans/2026-06-19-pm-orchestrator-master-plan.md`
 
 For Claude:
 
@@ -25,7 +25,7 @@ Older documents under `docs/plans/` and `docs/superagent-dashboard-spec.md` are 
 ## Current Canonical Baseline
 
 - Design spec: `docs/superpowers/specs/2026-06-18-ai-pm-toolkit-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-06-18-ai-pm-operating-layer.md`
+- Implementation plan: `docs/superpowers/plans/2026-06-19-pm-orchestrator-master-plan.md`
 
 ## Repository Map
 
@@ -91,4 +91,3 @@ pnpm --filter @ai-pm/desktop dev
 - Do not publish, send, merge, close, or mutate external systems without approval.
 - Do not treat old plan files as active if they conflict with the canonical baseline.
 - Preserve human changes in the worktree.
-

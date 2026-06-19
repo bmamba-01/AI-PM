@@ -1,8 +1,11 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import yaml from "yaml";
 import type { RegistryConfig, ProfileConfig } from "./configTypes.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, "../../../..");
 const DEFAULT_REGISTRY_PATH = path.join(REPO_ROOT, "mcp/registry.yaml");
 const DEFAULT_PROFILES_DIR = path.join(REPO_ROOT, "mcp/profiles");
