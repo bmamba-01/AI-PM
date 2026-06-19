@@ -1,0 +1,20 @@
+version: 1
+defaults:
+  access_mode: read_only
+  mutation_policy: approval_required
+  unavailable_behavior: degrade_gracefully
+servers:
+  github:
+    category: source_control
+    priority: 1
+    contracts: ["source-control"]
+    required_for: ["all_workflows"]
+    read_capabilities: ["list_repos"]
+    mutation_capabilities: []
+  github:
+    category: documentation
+    priority: 2
+    contracts: ["documentation"]
+    required_for: ["daily-briefing"]
+    read_capabilities: ["search"]
+    mutation_capabilities: []

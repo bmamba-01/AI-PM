@@ -14,31 +14,28 @@
       "change": "Impact increased from medium to high due to dependent features blocked"
     }
   ],
-  "improving_risks": [
+  "stale_risks": [
     {
       "title": "RISK-008: Team onboarding delays",
-      "improvement": "New developer fully ramped up, risk now closed"
-    }
-  ],
-  "closure_recommendations": [
-    {
-      "title": "RISK-003: License compliance issues",
-      "reason": "All dependencies reviewed and approved by legal team"
+      "last_reviewed": "2026-05-15T10:00:00Z",
+      "suggestion": "Close - new developer fully ramped up"
     }
   ],
   "escalations": [
     {
       "title": "RISK-022: Client contract deadline may be missed",
-      "evidence": "3 critical blockers with no clear resolution path"
+      "reason": "3 critical blockers with no clear resolution path"
     }
   ],
-  "risk_summary": "2 critical risks requiring immediate attention, 5 medium risks being monitored",
-  "confidence": 80,
-  "proposed_external_actions": [
+  "closed_risks": [
     {
-      "action": "Update RISK-015 status to critical in Jira",
-      "target_system": "jira",
-      "approval_required": false
+      "title": "RISK-003: License compliance issues",
+      "evidence": "All dependencies reviewed and approved by legal team"
     }
-  ]
+  ],
+  "approval_required": [
+    "Update RISK-015 status to critical in Jira",
+    "Close RISK-008 with final status report"
+  ],
+  "confidence": 80
 }

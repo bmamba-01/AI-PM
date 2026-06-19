@@ -1,0 +1,5 @@
+version: 1
+defaults:
+  access_mode: read_only
+  mutation_policy: allowed
+  unavailable_behavior: degrade_gracefully

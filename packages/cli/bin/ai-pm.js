@@ -3,6 +3,8 @@ import { runInit } from '../dist/commands/init.js';
 import { mcpCommand } from '../dist/commands/mcp.js';
 import { methodologyCommand } from '../dist/commands/methodology.js';
 import { dailyCommand } from '../dist/commands/daily.js';
+import { auditCommand } from '../dist/commands/audit.js';
+import { projectCommand } from '../dist/commands/project.js';
 import { Command } from 'commander';
 import chalk from 'chalk';
 
@@ -22,6 +24,8 @@ program
 program.addCommand(mcpCommand);
 program.addCommand(methodologyCommand);
 program.addCommand(dailyCommand);
+program.addCommand(auditCommand);
+program.addCommand(projectCommand);
 
 program.on('command', () => {});
 
@@ -31,8 +35,10 @@ if (!process.argv.slice(2).length) {
   console.log(chalk.blue('AI-PM Toolkit'));
   console.log(chalk.gray('Usage: ai-pm <command>'));
   console.log(chalk.gray('Commands:'));
-  console.log(chalk.gray('  init <name>         Initialize a new AI-PM project'));
-  console.log(chalk.gray('  mcp <subcommand>    Manage MCP server connections'));
+  console.log(chalk.gray('  init <name>              Initialize a new AI-PM project'));
+  console.log(chalk.gray('  mcp <subcommand>         Manage MCP server connections'));
   console.log(chalk.gray('  methodology <subcommand>  Manage project methodology'));
-  console.log(chalk.gray('  daily brief         Generate daily PM briefing'));
+  console.log(chalk.gray('  daily brief              Generate daily PM briefing'));
+  console.log(chalk.gray('  audit list               View workflow audit trail'));
+  console.log(chalk.gray('  project scan             Scan project for readiness'));
 }

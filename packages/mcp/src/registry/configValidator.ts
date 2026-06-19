@@ -24,6 +24,17 @@ export function validateConfigs(
   const issues: ValidationIssue[] = [];
   const checkedAt = new Date().toISOString();
 
+  // Guard: if registry shape is invalid, report error and skip further checks
+  if (!registry || typeof registry !== "object" || !registry.defaults || !registry.servers || typeof registry.servers !== "object") {
+    issues.push({
+      severity: "error",
+      code: "INVALID_REGISTRY_SHAPE",
+      message: "Registry is missing required keys (defaults, servers).",
+    });
+    const summary = "1 error(s), 0 warning(s), 0 info(s) — configuration has violations";
+    return { valid: false, issues, summary, checkedAt };
+  }
+
   validateGlobalApprovalPolicy(registry, issues);
   validateContractReferences(registry, issues);
   validateWorkflowServerReferences(registry, issues);

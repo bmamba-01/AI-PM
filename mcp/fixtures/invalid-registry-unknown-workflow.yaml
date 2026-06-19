@@ -1,0 +1,13 @@
+version: 1
+defaults:
+  access_mode: read_only
+  mutation_policy: approval_required
+  unavailable_behavior: degrade_gracefully
+servers:
+  custom-tool:
+    category: documentation
+    priority: 1
+    contracts: ["documentation"]
+    required_for: ["nonexistent-workflow", "another-fake"]
+    read_capabilities: ["read"]
+    mutation_capabilities: []

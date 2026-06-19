@@ -1,0 +1,5 @@
+version: 1
+name: bad-profile
+enabled_servers:
+  - github
+  - nonexistent-server

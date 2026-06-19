@@ -1,16 +1,14 @@
 {
   "meeting_id": "MTG-2026-042",
   "summary": "Sprint 12 Planning - Discussed API integration timeline and resource allocation for payment module",
-  "key_decisions": [
+  "decisions": [
     {
       "decision": "Approved 2-week timeline for API integration phase",
-      "owner": "tech_lead",
-      "rationale": "Based on complexity analysis and team availability"
+      "owner": "tech_lead"
     },
     {
       "decision": "Added security review gate before production deployment",
-      "owner": "security_lead",
-      "rationale": "Payment processing requires SOC2 compliance verification"
+      "owner": "security_lead"
     }
   ],
   "action_items": [
@@ -18,28 +16,26 @@
       "action": "Create technical design document for payment API integration",
       "owner": "senior_developer",
       "due_date": "2026-06-21T17:00:00Z",
-      "priority": "high"
+      "target_system": "jira"
     },
     {
       "action": "Schedule security review session with InfoSec team",
       "owner": "tech_lead",
       "due_date": "2026-06-22T10:00:00Z",
-      "priority": "high"
+      "target_system": "jira"
     }
   ],
-  "risks_identified": [
+  "risks": [
     "Third-party API rate limits may require caching strategy",
     "PCI DSS compliance requirements not fully defined"
   ],
-  "next_meeting": "2026-06-26T14:00:00Z",
-  "attendees": [
-    "tech_lead",
-    "senior_developer",
-    "product_manager",
-    "security_lead"
+  "open_questions": [
+    "What is the maximum acceptable API response time?",
+    "Should we implement retry logic for failed payments?"
   ],
+  "publish_recommendation": "confluence",
   "confidence": 90,
-  "proposed_external_actions": [
+  "proposed_external_mutations": [
     {
       "action": "Create Jira tickets for action items",
       "target_system": "jira",

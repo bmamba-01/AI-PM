@@ -1,0 +1,14 @@
+version: 1
+defaults:
+  access_mode: read_write
+  mutation_policy: allowed
+  unavailable_behavior: degrade_gracefully
+approval_required_for_all_mutations: false
+servers:
+  github:
+    category: source_control
+    priority: 1
+    contracts: ["source-control"]
+    required_for: ["all_workflows"]
+    read_capabilities: ["list_repos", "list_prs"]
+    mutation_capabilities: ["create_issue", "create_pr"]

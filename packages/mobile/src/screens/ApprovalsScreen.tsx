@@ -1,12 +1,20 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  ScrollView, Alert, Animated, PanResponder, Dimensions,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../App';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Approvals'>;
 
 type ApprovalPriority = 'critical' | 'high' | 'medium' | 'low';
-type ApprovalStatus = 'pending' | 'revision_requested' | 'approved' | 'rejected' | 'cancelled' | 'expired' | 'executing' | 'executed' | 'execution_failed';
+type ApprovalStatus =
+  | 'pending' | 'revision_requested' | 'approved' | 'rejected'
+  | 'cancelled' | 'expired' | 'executing' | 'executed' | 'execution_failed';
+
+type FilterType = 'all' | 'pending' | 'urgent' | 'done';
 
 interface ApprovalItem {
   approval_id: string;
@@ -57,6 +65,18 @@ const STATUS_COLOR: Record<ApprovalStatus, string> = {
   execution_failed: '#ef4444',
 };
 
+const STATUS_LABEL: Record<ApprovalStatus, string> = {
+  pending: 'Pending',
+  revision_requested: 'Needs Revision',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
+  executing: 'Executing',
+  executed: 'Executed',
+  execution_failed: 'Failed',
+};
+
 const PRIORITIES: Record<ApprovalPriority, string> = {
   critical: '#ef4444',
   high: '#f97316',
@@ -64,8 +84,15 @@ const PRIORITIES: Record<ApprovalPriority, string> = {
   low: '#94a3b8',
 };
 
-// Mock data aligned with the approval queue runtime contract and schema.
-// TODO: Replace with live queue data once the approval queue runtime lands.
+const TARGET_ICONS: Record<string, string> = {
+  jira: '🎫',
+  github: '🐙',
+  gmail: '📧',
+  confluence: '📄',
+  notion: '📋',
+};
+
+// Mock data aligned with approval queue runtime contract.
 const mockApprovals: ApprovalItem[] = [
   {
     approval_id: 'a1d5b4c6-7f9c-4d8a-b1e2-3f4a5b6c7d8e',
@@ -221,8 +248,15 @@ const mockApprovals: ApprovalItem[] = [
   },
 ];
 
+const FILTERS: { key: FilterType; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'urgent', label: 'Urgent' },
+  { key: 'done', label: 'Done' },
+];
+
 function timeAgo(iso: string): string {
-  const now = new Date('2026-06-19T09:15:00Z').getTime();
+  const now = Date.now();
   const diffMs = now - new Date(iso).getTime();
   const minutes = Math.max(0, Math.floor(diffMs / 60000));
   if (minutes < 60) return `${minutes}m`;
@@ -232,80 +266,330 @@ function timeAgo(iso: string): string {
   return `${days}d`;
 }
 
-export function ApprovalsScreen(_props: Props) {
+function filterItems(items: ApprovalItem[], filter: FilterType): ApprovalItem[] {
+  switch (filter) {
+    case 'pending':
+      return items.filter(i => i.status === 'pending');
+    case 'urgent':
+      return items.filter(i =>
+        i.status === 'pending' && (i.priority === 'critical' || i.priority === 'high')
+      );
+    case 'done':
+      return items.filter(i =>
+        i.status === 'approved' || i.status === 'rejected' || i.status === 'expired' || i.status === 'executed'
+      );
+    default:
+      return items;
+  }
+}
+
+function filterCounts(items: ApprovalItem[]): Record<FilterType, number> {
+  return {
+    all: items.length,
+    pending: items.filter(i => i.status === 'pending').length,
+    urgent: items.filter(i => i.status === 'pending' && (i.priority === 'critical' || i.priority === 'high')).length,
+    done: items.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'expired' || i.status === 'executed').length,
+  };
+}
+
+function SwipeableRow({
+  item,
+  onSwipeRight,
+  onSwipeLeft,
+  children,
+}: {
+  item: ApprovalItem;
+  onSwipeRight: () => void;
+  onSwipeLeft: () => void;
+  children: React.ReactNode;
+}) {
+  const translateX = React.useRef(new Animated.Value(0)).current;
+  const screenWidth = Dimensions.get('window').width;
+  const threshold = 80;
+  const isActionable = item.status === 'pending' || item.status === 'revision_requested';
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        isActionable && Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx > 0) {
+          translateX.setValue(Math.min(gestureState.dx, threshold * 1.5));
+        } else {
+          translateX.setValue(Math.max(gestureState.dx, -threshold * 1.5));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > threshold) {
+          Animated.spring(translateX, { toValue: screenWidth, useNativeDriver: true }).start(() => {
+            onSwipeRight();
+            translateX.setValue(0);
+          });
+        } else if (gestureState.dx < -threshold) {
+          Animated.spring(translateX, { toValue: -screenWidth, useNativeDriver: true }).start(() => {
+            onSwipeLeft();
+            translateX.setValue(0);
+          });
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    })
+  ).current;
+
+  if (!isActionable) {
+    return <>{children}</>;
+  }
+
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={mockApprovals}
-        keyExtractor={item => item.approval_id}
-        renderItem={({ item }) => (
-          <View style={styles.approvalItem}>
-            <View style={styles.headerRow}>
-              <View style={[styles.priorityDot, { backgroundColor: PRIORITIES[item.priority] }]} />
-              <Text style={styles.approvalTitle} numberOfLines={1}>
-                {item.title}
+    <View>
+      {/* Green approve background (right swipe) */}
+      <View style={[styles.swipeAction, styles.swipeApprove, { right: 0 }]}>
+        <Text style={styles.swipeActionText}>✓ Approve</Text>
+      </View>
+      {/* Red reject background (left swipe) */}
+      <View style={[styles.swipeAction, styles.swipeReject, { left: 0 }]}>
+        <Text style={styles.swipeActionText}>✗ Reject</Text>
+      </View>
+      <Animated.View
+        style={[{ transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
+export function ApprovalsScreen({ navigation }: Props) {
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [, setRefreshKey] = useState(0);
+
+  // Refresh when screen comes into focus (after returning from detail)
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshKey(k => k + 1);
+    }, [])
+  );
+
+  const filtered = filterItems(mockApprovals, activeFilter);
+  const counts = filterCounts(mockApprovals);
+
+  function handleSwipeApprove(item: ApprovalItem) {
+    Alert.alert('Approve', `Approve "${item.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Approve', onPress: () => Alert.alert('Done', 'Approval submitted.') },
+    ]);
+  }
+
+  function handleSwipeReject(item: ApprovalItem) {
+    Alert.alert('Reject', `Reject "${item.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reject',
+        style: 'destructive',
+        onPress: () => Alert.alert('Done', 'Rejection submitted.'),
+      },
+    ]);
+  }
+
+  function renderItem({ item }: { item: ApprovalItem }) {
+    return (
+      <SwipeableRow
+        item={item}
+        onSwipeRight={() => handleSwipeApprove(item)}
+        onSwipeLeft={() => handleSwipeReject(item)}
+      >
+        <TouchableOpacity
+          style={styles.card}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('ApprovalDetail', { approvalId: item.approval_id })}
+        >
+          {/* Header row: priority dot + title + status badge */}
+          <View style={styles.cardHeader}>
+            <View style={[styles.priorityDot, { backgroundColor: PRIORITIES[item.priority] }]} />
+            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: STATUS_COLOR[item.status] + '20' }]}>
+              <Text style={[styles.statusBadgeText, { color: STATUS_COLOR[item.status] }]}>
+                {STATUS_LABEL[item.status]}
               </Text>
-              <Text style={[styles.statusBadge, { color: STATUS_COLOR[item.status] }]}>{item.status}</Text>
-            </View>
-
-            <Text style={styles.approvalMeta} numberOfLines={1}>
-              {item.workflow_id.replace('wf-', '')} · {item.target_system} · {timeAgo(item.created_at)} ago
-            </Text>
-
-            <Text style={styles.approvalRequester}>Requested by {item.requested_by_role}</Text>
-
-            <View style={styles.actions}>
-              {item.status === 'pending' && (
-                <>
-                  <TouchableOpacity style={[styles.btn, styles.btnApprove]}>
-                    <Text style={styles.btnText}>Approve</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.btn, styles.btnReject]}>
-                    <Text style={styles.btnText}>Reject</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.btn, styles.btnSecondary]}>
-                    <Text style={styles.btnText}>Revise</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {item.status === 'revision_requested' && (
-                <TouchableOpacity style={[styles.btn, styles.btnSecondary]}>
-                  <Text style={styles.btnText}>Resubmit</Text>
-                </TouchableOpacity>
-              )}
-
-              {item.status === 'execution_failed' && (
-                <TouchableOpacity style={[styles.btn, styles.btnSecondary]}>
-                  <Text style={styles.btnText}>Retry</Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
-        )}
+
+          {/* Meta row: workflow · target · age */}
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>
+              {TARGET_ICONS[item.target_system] || '🔗'} {item.workflow_id.replace('wf-', '')} · {item.target_system}
+            </Text>
+            <Text style={styles.metaAge}>{timeAgo(item.created_at)} ago</Text>
+          </View>
+
+          {/* Confidence + requester */}
+          <View style={styles.footerRow}>
+            <View style={styles.confidenceBadge}>
+              <Text style={[styles.confidenceText, {
+                color: item.confidence >= 80 ? '#10b981' : item.confidence >= 60 ? '#f59e0b' : '#ef4444',
+              }]}>
+                {item.confidence}%
+              </Text>
+            </View>
+            <Text style={styles.requesterText}>by {item.requested_by_role}</Text>
+            {item.revision_round > 0 && (
+              <View style={styles.revisionBadge}>
+                <Text style={styles.revisionBadgeText}>R{item.revision_round}</Text>
+              </View>
+            )}
+            {item.deadline && (
+              <Text style={styles.deadlineText}>⏰ {new Date(item.deadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+            )}
+          </View>
+        </TouchableOpacity>
+      </SwipeableRow>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Sample Data banner */}
+      <View style={styles.sampleBanner}>
+        <Text style={styles.sampleBannerText}>📋 Sample Data</Text>
+      </View>
+
+      {/* Filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipContainer}>
+        {FILTERS.map(f => (
+          <TouchableOpacity
+            key={f.key}
+            style={[styles.chip, activeFilter === f.key && styles.chipActive]}
+            onPress={() => setActiveFilter(f.key)}
+          >
+            <Text style={[styles.chipText, activeFilter === f.key && styles.chipTextActive]}>
+              {f.label}
+            </Text>
+            {counts[f.key] > 0 && (
+              <View style={[styles.chipCount, activeFilter === f.key && styles.chipCountActive]}>
+                <Text style={[styles.chipCountText, activeFilter === f.key && styles.chipCountTextActive]}>
+                  {counts[f.key]}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Approval list */}
+      <FlatList
+        data={filtered}
+        keyExtractor={item => item.approval_id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No approvals in this filter</Text>
+          </View>
+        }
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', padding: 16 },
-  approvalItem: {
-    backgroundColor: '#1e293b',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
+  container: { flex: 1, backgroundColor: '#0f172a' },
+  sampleBanner: {
+    backgroundColor: '#1e40af30',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e40af50',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  priorityDot: { width: 8, height: 8, borderRadius: 4 },
-  approvalTitle: { flex: 1, fontSize: 15, color: '#ffffff', fontWeight: '500' },
-  statusBadge: { fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
-  approvalMeta: { fontSize: 12, color: '#94a3b8', marginTop: 6 },
-  approvalRequester: { fontSize: 12, color: '#cbd5e1', marginTop: 4 },
-  actions: { flexDirection: 'row', marginTop: 12, alignItems: 'center', gap: 10 },
-  btn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6 },
-  btnApprove: { backgroundColor: '#10b981' },
-  btnReject: { backgroundColor: '#ef4444' },
-  btnSecondary: { backgroundColor: '#334155' },
-  btnText: { color: '#fff', fontSize: 13 },
+  sampleBannerText: { color: '#60a5fa', fontSize: 12, fontWeight: '600' },
+
+  // Filter chips
+  chipContainer: { paddingHorizontal: 12, paddingVertical: 10, maxHeight: 52 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#1e293b',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  chipActive: { backgroundColor: '#3b82f630', borderColor: '#3b82f6' },
+  chipText: { color: '#94a3b8', fontSize: 13, fontWeight: '500' },
+  chipTextActive: { color: '#60a5fa' },
+  chipCount: {
+    marginLeft: 6,
+    backgroundColor: '#334155',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  chipCountActive: { backgroundColor: '#3b82f650' },
+  chipCountText: { color: '#94a3b8', fontSize: 11, fontWeight: '700' },
+  chipCountTextActive: { color: '#93c5fd' },
+
+  // List
+  listContent: { padding: 12, paddingBottom: 24 },
+
+  // Card
+  card: {
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  priorityDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 },
+  cardTitle: { flex: 1, fontSize: 15, color: '#f1f5f9', fontWeight: '600', lineHeight: 20 },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+
+  // Meta
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' },
+  metaText: { color: '#94a3b8', fontSize: 12 },
+  metaAge: { color: '#64748b', fontSize: 11 },
+
+  // Footer
+  footerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
+  confidenceBadge: { flexDirection: 'row', alignItems: 'center' },
+  confidenceText: { fontSize: 12, fontWeight: '700' },
+  requesterText: { color: '#64748b', fontSize: 11, flex: 1 },
+  revisionBadge: {
+    backgroundColor: '#fb923c30',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  revisionBadgeText: { color: '#fb923c', fontSize: 10, fontWeight: '700' },
+  deadlineText: { color: '#f59e0b', fontSize: 11 },
+
+  // Swipe
+  swipeAction: {
+    position: 'absolute',
+    top: 0,
+    bottom: 10,
+    width: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  swipeApprove: { backgroundColor: '#10b981', right: 0 },
+  swipeReject: { backgroundColor: '#ef4444', left: 0 },
+  swipeActionText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  // Empty
+  emptyState: { paddingVertical: 40, alignItems: 'center' },
+  emptyText: { color: '#64748b', fontSize: 14 },
 });

@@ -1,41 +1,37 @@
 {
   "scope_item": "Add advanced filtering capability to user report dashboard",
-  "classification": "new_feature",
-  "impact_analysis": {
-    "effort_estimate": "5 days",
-    "affected_components": [
-      "frontend/dashboard",
-      "backend/reporting-api",
-      "database/reports-schema"
-    ],
-    "dependencies": [
-      "EPIC-045: Reporting module refactor"
-    ],
+  "classification": "scope_change",
+  "source_ref": "EMAIL-2026-06-18-client-request",
+  "baseline_impact": "medium",
+  "timeline_impact": "medium",
+  "budget_impact": "low",
+  "acceptance_criteria_status": "clear",
+  "recommended_action": "Approve with conditions - security review required, performance testing needed",
+  "approval_required": true,
+  "change_request_recommendation": {
+    "title": "CR-008: Advanced Filtering for Report Dashboard",
+    "description": "Add multi-dimensional filtering (status, priority, assignee, date range) to user report dashboard with filter state persistence",
+    "cost_impact": "$5,000 for 5 additional development days",
+    "timeline_impact_days": 5,
     "risk_level": "medium"
   },
-  "approval_recommendation": "approved_with_conditions",
-  "conditions": [
-    "Must complete security review before implementation",
-    "Requires performance testing with 10K+ records",
-    "UX design approval needed for filter UI"
-  ],
-  "alternative_approaches": [
-    "Implement basic filtering first, advanced features in phase 2",
-    "Use existing third-party filtering library instead of custom build"
-  ],
-  "stakeholder_input": [
-    {
-      "stakeholder": "product_owner",
-      "position": "approved",
-      "notes": "Critical for Q3 customer commitments"
-    }
-  ],
-  "confidence": 85,
-  "proposed_external_actions": [
-    {
-      "action": "Update Jira epic EPIC-045 with this new requirement",
-      "target_system": "jira",
-      "approval_required": true
-    }
-  ]
+  "backlog_impact": {
+    "priority_change": "High priority - client commitment for Q3",
+    "affected_items": [
+      "STORY-235: Dashboard performance optimization may need to be deferred"
+    ],
+    "capacity_note": "Will consume 50% of Sprint 13 capacity"
+  },
+  "traceability": {
+    "related_requirements": [
+      "REQ-089: User report dashboard v2"
+    ],
+    "related_issues": [
+      "STORY-156: Basic date range filtering (completed)"
+    ],
+    "related_meetings": [
+      "MTG-2026-040: Client feedback session"
+    ]
+  },
+  "confidence": 85
 }

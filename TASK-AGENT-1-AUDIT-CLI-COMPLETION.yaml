@@ -1,0 +1,199 @@
+task_id: agent-1-audit-cli
+status: completed
+summary: Implemented ai-pm audit list CLI command with LocalProjectStore loader function and comprehensive tests
+
+findings:
+  - severity: info
+    title: Core audit record loader implemented and tested
+    detail: |
+      Added loadWorkflowAuditRecords() method to LocalProjectStore that:
+      - Reads workflow-runs.jsonl file from .ai-pm/audit/
+      - Parses each JSON line with error handling
+      - Skips malformed lines with warnings (no crash)
+      - Returns empty array if file doesn't exist (no error)
+      - Validates record structure before including
+      
+      Added 4 comprehensive tests:
+      - loads empty list when audit file does not exist
+      - loads workflow audit records from jsonl
+      - skips invalid JSON lines and continues loading
+      - appends workflow audit records as json lines (existing test kept)
+      
+      All 5 tests pass in localProjectStore.test.ts
+    source_ref: packages/core/src/runtime/localProjectStore.ts
+  
+  - severity: info
+    title: CLI audit command created with table and JSON output
+    detail: |
+      Created packages/cli/src/commands/audit.ts with:
+      - `audit list` subcommand
+      - --json flag for JSON output
+      - --limit <n> flag (default 20) for pagination
+      - Table output with color-coded status (green=completed, red=failed, yellow=blocked)
+      - Bilingual messages (English + Vietnamese)
+      - Follows exact pattern from daily.ts (Commander + chalk + ora + table)
+      - Sorts by startedAt descending (newest first)
+      
+      Command registered in:
+      - packages/cli/src/index.ts (export)
+      - packages/cli/bin/ai-pm.js (program.addCommand)
+    source_ref: packages/cli/src/commands/audit.ts
+  
+  - severity: warning
+    title: Pre-existing MCP ESM bug blocks main CLI entry point
+    detail: |
+      The main CLI bin file (packages/cli/bin/ai-pm.js) cannot run due to a
+      pre-existing bug in packages/mcp/src/registry/configLoader.ts that uses
+      __dirname in an ES module context.
+      
+      Error: "ReferenceError: __dirname is not defined in ES module scope"
+      
+      This occurs because:
+      1. daily.ts imports loadMcpConfig from @ai-pm/mcp/connectionManager
+      2. This transitively loads configLoader.ts which uses __dirname
+      3. __dirname is not available in ESM (should use import.meta.url)
+      
+      IMPACT: The audit command implementation is correct and fully functional
+      (verified via standalone entry point), but blocked by this unrelated issue.
+      
+      WORKAROUND DEMONSTRATED:
+      Created packages/cli/bin/ai-pm-audit-standalone.js that loads only the
+      audit command without the problematic daily command. This proves the
+      implementation works correctly.
+      
+      MCP TESTS ARE GREEN: pnpm --filter @ai-pm/mcp test passes (26/26 tests)
+      
+      Per task spec: "Do NOT modify packages/mcp/ — it is already green"
+      
+      RECOMMENDATION: The MCP ESM issue should be fixed separately by updating
+      configLoader.ts to use import.meta.url instead of __dirname.
+    source_ref: packages/mcp/src/registry/configLoader.ts
+
+recommendations:
+  - action: Fix MCP configLoader.ts ESM issue to unblock main CLI
+    owner: mcp_maintainer
+    priority: high
+    detail: |
+      Replace __dirname with import.meta.url-based path resolution:
+      ```typescript
+      import { fileURLToPath } from 'url';
+      import { dirname } from 'path';
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      ```
+  
+  - action: Main thread can proceed to Task 3 (Project Scan CLI)
+    owner: main_thread
+    priority: medium
+    detail: |
+      The audit CLI implementation is complete and functional. Task 3 can
+      proceed while the MCP ESM issue is fixed in parallel.
+  
+  - action: Integrate audit list into daily workflow
+    owner: workflow_team
+    priority: low
+    detail: |
+      Once MCP issue is fixed, the audit command can be used to review
+      past workflow runs and their audit trails.
+
+artifacts:
+  - path_or_url: packages/core/src/runtime/localProjectStore.ts
+    type: diff
+    description: Added loadWorkflowAuditRecords() method and isValidAuditRecord() validator
+  
+  - path_or_url: packages/core/src/runtime/localProjectStore.test.ts
+    type: diff
+    description: Added 3 new test cases for audit record loading
+  
+  - path_or_url: packages/cli/src/commands/audit.ts
+    type: file
+    description: New CLI command for audit trail inspection
+  
+  - path_or_url: packages/cli/src/index.ts
+    type: diff
+    description: Exported auditCommand
+  
+  - path_or_url: packages/cli/bin/ai-pm.js
+    type: diff
+    description: Registered audit command (blocked by MCP ESM issue)
+  
+  - path_or_url: packages/cli/bin/ai-pm-audit-standalone.js
+    type: file
+    description: Standalone entry point demonstrating working implementation
+
+confidence: 95
+
+open_questions:
+  - question: Should the audit command show more fields (confidence, assumptions) by default or only in verbose mode?
+    context: Current table shows only core fields (runId, workflow, project, status, started). Full details available via --json.
+
+audit:
+  sources_used:
+    - packages/core/src/runtime/localProjectStore.ts
+    - packages/core/src/runtime/localProjectStore.test.ts
+    - packages/core/src/runtime/index.ts
+    - packages/cli/src/commands/daily.ts
+    - packages/cli/src/index.ts
+    - packages/cli/bin/ai-pm.js
+    - schemas/audit/audit-record.schema.json
+    - docs/superpowers/plans/2026-06-19-next-runtime-functions.md
+    - .ai-pm/audit/workflow-runs.jsonl
+  
+  assumptions:
+    - JSONL format (one JSON object per line) for audit records is correct
+    - Missing audit file should return empty list (graceful degradation)
+    - Invalid JSON lines should be skipped with warnings, not crash
+    - Sorting by startedAt descending shows most recent runs first
+    - Table package is already installed in CLI dependencies (verified)
+    - MCP ESM issue is pre-existing and out of scope for this task
+    - Tests using temp directories is the correct pattern (verified)
+  
+  approvals_required: []
+  
+  next_agent_suggested: |
+    Task 2 (Audit Inspection CLI) is functionally complete. The implementation
+    works correctly as demonstrated by:
+    1. Core tests: 5/5 passing
+    2. Core build: successful
+    3. CLI build: successful
+    4. Standalone demo: both JSON and table output working
+    
+    A pre-existing MCP ESM bug blocks the main CLI entry point, but this is
+    outside the scope of this task and should be fixed separately.
+    
+    Main thread can proceed to Task 3 (Project Scan CLI) while the MCP issue
+    is resolved in parallel by updating configLoader.ts to use import.meta.url
+    instead of __dirname.
+
+verification:
+  tests_run:
+    - command: pnpm --filter @ai-pm/core test -- src/runtime/localProjectStore.test.ts
+      result: 5/5 tests passed
+      output: |
+        ✓ loads daily briefing items from local project memory
+        ✓ appends workflow audit records as json lines
+        ✓ loads empty list when audit file does not exist
+        ✓ loads workflow audit records from jsonl
+        ✓ skips invalid JSON lines and continues loading
+  
+  builds_run:
+    - command: pnpm --filter @ai-pm/core build
+      result: success
+    - command: pnpm --filter @ai-pm/cli build
+      result: success
+    - command: pnpm build
+      result: success (all 7 packages built)
+  
+  cli_demos:
+    - command: node packages/cli/bin/ai-pm-audit-standalone.js audit list --json
+      result: success
+      description: JSON output with 2 existing audit records
+    - command: node packages/cli/bin/ai-pm-audit-standalone.js audit list
+      result: success
+      description: Table output with color-coded status
+  
+  known_issues:
+    - issue: Main CLI entry point blocked by MCP ESM __dirname usage
+      severity: high
+      workaround: Standalone entry point created to demonstrate functionality
+      fix_needed: Update packages/mcp/src/registry/configLoader.ts to use import.meta.url

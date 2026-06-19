@@ -54,6 +54,31 @@ export class LocalProjectStore {
     await appendFile(auditPath, `${JSON.stringify(record)}\n`, 'utf-8');
     return auditPath;
   }
+
+  async loadWorkflowAuditRecords(): Promise<WorkflowAuditRecord[]> {
+    const auditPath = path.join(this.auditDir, 'workflow-runs.jsonl');
+    try {
+      const raw = await readFile(auditPath, 'utf-8');
+      const lines = raw.trim().split('\n').filter(line => line.length > 0);
+      const records: WorkflowAuditRecord[] = [];
+      for (const line of lines) {
+        try {
+          const parsed = JSON.parse(line);
+          if (isValidAuditRecord(parsed)) {
+            records.push(parsed);
+          } else {
+            console.warn(`[audit] Skipping invalid record: ${line.slice(0, 80)}...`);
+          }
+        } catch {
+          console.warn(`[audit] Skipping malformed JSON line: ${line.slice(0, 80)}...`);
+        }
+      }
+      return records;
+    } catch (error) {
+      if (isNodeError(error) && error.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
 }
 
 function isDailyBriefingInputItem(value: unknown): value is DailyBriefingInputItem {
@@ -66,5 +91,16 @@ function isDailyBriefingInputItem(value: unknown): value is DailyBriefingInputIt
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && 'code' in error;
+}
+
+function isValidAuditRecord(value: unknown): value is WorkflowAuditRecord {
+  if (!value || typeof value !== 'object') return false;
+  const r = value as Record<string, unknown>;
+  return typeof r.runId === 'string'
+    && typeof r.workflowId === 'string'
+    && typeof r.projectId === 'string'
+    && typeof r.status === 'string'
+    && typeof r.startedAt === 'string'
+    && typeof r.completedAt === 'string';
 }
 

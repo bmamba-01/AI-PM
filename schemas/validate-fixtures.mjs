@@ -15,7 +15,7 @@
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import Ajv from 'ajv';
+import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -44,6 +44,10 @@ function findSchemaForFixture(fixturePath) {
 
 function main() {
   const ajv = new Ajv({ allErrors: true });
+  addFormats(ajv);
+
+  // Cache compiled schemas to avoid re-compiling
+  const schemaCache = new Map();
 
   // Find all fixture files
   const fixtureFiles = [];
@@ -73,9 +77,17 @@ function main() {
       continue;
     }
 
-    const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'));
+    // Get or compile schema
+    let validate;
+    if (schemaCache.has(schemaPath)) {
+      validate = schemaCache.get(schemaPath);
+    } else {
+      const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'));
+      validate = ajv.compile(schema);
+      schemaCache.set(schemaPath, validate);
+    }
+
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf-8'));
-    const validate = ajv.compile(schema);
 
     // Strip _violation field before validation
     const { _violation, ...testData } = fixture;
