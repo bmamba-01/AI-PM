@@ -270,7 +270,7 @@ function ActivityFeed() {
               <p className="text-sm text-foreground">
                 <span className="font-medium">{a.user}</span>{" "}
                 <span className="text-muted-foreground">{a.action}</span>{" "}
-                <span className="font-medium text-primary">{a.target}</p>
+                <span className="font-medium text-primary">{a.target}</span>
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">{a.time}</p>
             </div>

@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 import {
   LayoutDashboard, CalendarClock, Columns3, Users,
   ListOrdered, GanttChart, ShieldAlert,
-  GitPullRequest, FileBarChart,
+  GitPullRequest, FileBarChart, ClipboardCheck,
   Server, Bot, Settings, FolderOpen, Plus, Zap
 } from "lucide-react";
 
@@ -26,6 +26,7 @@ const navSections: NavSection[] = [
       { id: "daily-brief", label: "Daily Brief", icon: CalendarClock },
       { id: "sprint", label: "Sprint Board", icon: Columns3 },
       { id: "meeting", label: "Meeting Center", icon: Users },
+      { id: "approvals", label: "Approvals", icon: ClipboardCheck },
     ],
   },
   {

@@ -5,7 +5,7 @@ import { CostModel, Methodology, ProjectType, RoleType, Status, type Project, ty
 export type ActiveView =
   | "dashboard" | "daily-brief" | "sprint" | "meeting"
   | "backlog" | "timeline" | "risks"
-  | "code-review" | "reports"
+  | "code-review" | "reports" | "approvals"
   | "mcp-servers" | "agents" | "settings";
 
 interface ProjectState {

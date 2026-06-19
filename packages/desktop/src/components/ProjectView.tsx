@@ -11,6 +11,7 @@ import { ReportsTab } from "./tabs/ReportsTab";
 import { McpServersTab } from "./tabs/McpServersTab";
 import { AgentsTab } from "./tabs/AgentsTab";
 import { SettingsTab } from "./tabs/SettingsTab";
+import { ApprovalsTab } from "./tabs/ApprovalsTab";
 import { FolderOpen } from "lucide-react";
 
 export function ProjectView() {
@@ -44,6 +45,7 @@ export function ProjectView() {
     "risks": <RisksTab project={currentProject} />,
     "code-review": <CodeReviewTab project={currentProject} />,
     "reports": <ReportsTab project={currentProject} />,
+    "approvals": <ApprovalsTab project={currentProject} />,
   };
 
   return (

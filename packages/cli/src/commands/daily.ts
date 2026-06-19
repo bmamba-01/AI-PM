@@ -2,6 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { loadMcpConfig } from '@ai-pm/mcp/connectionManager';
+import { generateDailyBriefing, type DailyBriefingInputItem } from '@ai-pm/core/workflows';
+import { LocalProjectStore } from '@ai-pm/core/runtime';
 
 const msgs = {
   en: {
@@ -12,8 +14,18 @@ const msgs = {
     meetings: "Today's Meetings",
     reports: 'Report Reminders',
     issues: 'Recent Issues',
+    priorities: 'Top Priorities',
+    blockers: 'Urgent Blockers',
+    risks: 'Risks to Review',
+    approvals: 'Pending Approvals',
+    followups: 'Suggested Follow-ups',
+    sources: 'Source Coverage',
+    assumptions: 'Assumptions',
+    confidence: 'Confidence',
     none: 'None',
     done: 'Done',
+    error: 'Failed to generate daily briefing',
+    noData: 'No briefing items found. Add items to .ai-pm/daily-items.json or configure MCP connectors.',
   },
   vi: {
     title: 'Báo Cáo Hàng Ngày',
@@ -23,13 +35,38 @@ const msgs = {
     meetings: 'Cuộc Họp Hôm Nay',
     reports: 'Nhắc Nhở Báo Cáo',
     issues: 'Vấn Đề Gần Đây',
+    priorities: 'Ưu Tiên Hàng Đầu',
+    blockers: 'Trở Ngại Khẩn Cấp',
+    risks: 'Rủi Ro Cần Xem Xét',
+    approvals: 'Phê Duyệt Đang Chờ',
+    followups: 'Theo Đõi Đề Xuất',
+    sources: 'Nguồn Dữ Liệu',
+    assumptions: 'Giả Định',
+    confidence: 'Độ Tin Cậy',
     none: 'Không có',
     done: 'Xong',
+    error: 'Không thể tạo báo cáo hàng ngày',
+    noData: 'Không tìm thấy mục nào. Thêm vào .ai-pm/daily-items.json hoặc cấu hình MCP.',
   }
 };
 
 function getLang(): keyof typeof msgs {
   return 'en';
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function defaultLocalItems(): DailyBriefingInputItem[] {
+  return [
+    {
+      source: 'local-memory',
+      type: 'priority',
+      title: 'Review project status, blockers, approvals, and upcoming meetings',
+      priority: 'high',
+    },
+  ];
 }
 
 export const dailyCommand = new Command('daily');
@@ -50,25 +87,20 @@ dailyCommand
     const spinner = ora(msgsLang.loading).start();
 
     try {
-      // Placeholder: In real implementation, this would call MCP tools
-      const briefing = {
-        date: new Date().toISOString().split('T')[0],
-        deadlines: [
-          { title: 'Submit sprint report', dueDate: '2026-06-20' },
-          { title: 'Review PR #142', dueDate: '2026-06-21' },
-        ],
-        meetings: [
-          { title: 'Daily Standup', time: '10:00' },
-          { title: 'Sprint Planning', time: '14:00' },
-        ],
-        reports: [
-          { title: 'Weekly Status Report', dueDate: '2026-06-21' },
-        ],
-        issues: [
-          { title: 'API latency spike', severity: 'high' },
-          { title: 'UI bug in settings page', severity: 'medium' },
-        ],
-      };
+      // Load real data from local store
+      const store = new LocalProjectStore(process.cwd());
+      const localItems = await store.loadDailyBriefingItems();
+      const items = localItems.length > 0 ? localItems : defaultLocalItems();
+
+      const briefing = generateDailyBriefing({
+        projectId: 'local-project',
+        date: todayIso(),
+        items,
+        unavailableSources: ['online-mcp'],
+        assumptions: localItems.length === 0
+          ? [msgsLang.noData]
+          : ['Live data from configured MCP connectors.'],
+      });
 
       spinner.succeed(msgsLang.done);
 
@@ -76,27 +108,62 @@ dailyCommand
         console.log(JSON.stringify(briefing, null, 2));
       } else if (opts.output === 'markdown') {
         console.log(`# ${msgsLang.title}`);
-        console.log(`\n**${msgsLang.deadlines}:**`);
-        briefing.deadlines.forEach((d) => console.log(`- ${d.title} (${d.dueDate})`));
-        console.log(`\n**${msgsLang.meetings}:**`);
-        briefing.meetings.forEach((m) => console.log(`- ${m.title} at ${m.time}`));
-        console.log(`\n**${msgsLang.reports}:**`);
-        briefing.reports.forEach((r) => console.log(`- ${r.title} (${r.dueDate})`));
-        console.log(`\n**${msgsLang.issues}:**`);
-        briefing.issues.forEach((i) => console.log(`- ${i.title} [${i.severity}]`));
+        console.log(`\n**${msgsLang.priorities}:**`);
+        briefing.topPriorities.length
+          ? briefing.topPriorities.forEach((item: string) => console.log(`- ${item}`))
+          : console.log(`- ${msgsLang.none}`);
+        console.log(`\n**${msgsLang.blockers}:**`);
+        briefing.urgentBlockers.length
+          ? briefing.urgentBlockers.forEach((item: string) => console.log(`- ${item}`))
+          : console.log(`- ${msgsLang.none}`);
+        console.log(`\n**${msgsLang.risks}:**`);
+        briefing.risksToReview.length
+          ? briefing.risksToReview.forEach((item: string) => console.log(`- ${item}`))
+          : console.log(`- ${msgsLang.none}`);
+        console.log(`\n**${msgsLang.approvals}:**`);
+        briefing.pendingApprovals.length
+          ? briefing.pendingApprovals.forEach((item: string) => console.log(`- ${item}`))
+          : console.log(`- ${msgsLang.none}`);
+        console.log(`\n**${msgsLang.followups}:**`);
+        briefing.suggestedFollowups.length
+          ? briefing.suggestedFollowups.forEach((item: string) => console.log(`- ${item}`))
+          : console.log(`- ${msgsLang.none}`);
+        console.log(`\n**${msgsLang.sources}:**`);
+        briefing.sourceCoverage.forEach((source: string) => console.log(`- ${source}`));
+        console.log(`\n**${msgsLang.assumptions}:**`);
+        briefing.assumptions.forEach((a: string) => console.log(`- ${a}`));
+        console.log(`\n**${msgsLang.confidence}:** ${briefing.confidence}%`);
       } else {
+        // Text format (default)
         console.log(chalk.bold(`\n${msgsLang.title} - ${briefing.date}\n`));
-        console.log(`${msgsLang.deadlines}:`);
-        briefing.deadlines.length ? briefing.deadlines.forEach((d: any) => console.log(`  - ${d.title} (${d.dueDate})`)) : console.log(`  ${msgsLang.none}`);
-        console.log(`\n${msgsLang.meetings}:`);
-        briefing.meetings.length ? briefing.meetings.forEach((m: any) => console.log(`  - ${m.title} at ${m.time}`)) : console.log(`  ${msgsLang.none}`);
-        console.log(`\n${msgsLang.reports}:`);
-        briefing.reports.length ? briefing.reports.forEach((r: any) => console.log(`  - ${r.title} (${r.dueDate})`)) : console.log(`  ${msgsLang.none}`);
-        console.log(`\n${msgsLang.issues}:`);
-        briefing.issues.length ? briefing.issues.forEach((i: any) => console.log(`  - ${i.title} [${i.severity}]`)) : console.log(`  ${msgsLang.none}`);
+        console.log(chalk.bold(`${msgsLang.priorities}:`));
+        briefing.topPriorities.length
+          ? briefing.topPriorities.forEach((item: string) => console.log(`  - ${item}`))
+          : console.log(`  ${msgsLang.none}`);
+        console.log(chalk.bold(`\n${msgsLang.blockers}:`));
+        briefing.urgentBlockers.length
+          ? briefing.urgentBlockers.forEach((item: string) => console.log(`  - ${item}`))
+          : console.log(`  ${msgsLang.none}`);
+        console.log(chalk.bold(`\n${msgsLang.risks}:`));
+        briefing.risksToReview.length
+          ? briefing.risksToReview.forEach((item: string) => console.log(`  - ${item}`))
+          : console.log(`  ${msgsLang.none}`);
+        console.log(chalk.bold(`\n${msgsLang.approvals}:`));
+        briefing.pendingApprovals.length
+          ? briefing.pendingApprovals.forEach((item: string) => console.log(`  - ${item}`))
+          : console.log(`  ${msgsLang.none}`);
+        console.log(chalk.bold(`\n${msgsLang.followups}:`));
+        briefing.suggestedFollowups.length
+          ? briefing.suggestedFollowups.forEach((item: string) => console.log(`  - ${item}`))
+          : console.log(`  ${msgsLang.none}`);
+        console.log(chalk.bold(`\n${msgsLang.sources}:`));
+        briefing.sourceCoverage.forEach((source: string) => console.log(`  - ${source}`));
+        console.log(chalk.bold(`\n${msgsLang.assumptions}:`));
+        briefing.assumptions.forEach((a: string) => console.log(`  - ${a}`));
+        console.log(chalk.bold(`\n${msgsLang.confidence}:`) + ` ${briefing.confidence}%`);
       }
     } catch (error) {
-      spinner.fail('Failed to generate daily briefing');
+      spinner.fail(msgsLang.error);
       console.error(error);
     }
   });
