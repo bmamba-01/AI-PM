@@ -1,0 +1,881 @@
+openapi: 3.0.3
+info:
+  title: AI-PM Local Server API
+  description: |
+    Local server runtime API for the AI-PM Toolkit. Exposes the approval queue,
+    memory store, and project health to desktop, mobile, and chat clients.
+
+    ## Authentication
+
+    Phase 1 (localhost): No authentication required.
+    Phase 2 (network): Bearer token in `Authorization` header.
+
+    ## Base URL
+
+    Development: `http://localhost:3847`
+  version: 0.1.0
+  contact:
+    name: AI-PM Toolkit
+    url: https://github.com/anthropics/ai-pm-toolkit
+
+servers:
+  - url: http://localhost:3847
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Server health check
+  - name: Approvals
+    description: Approval queue management
+  - name: Memory
+    description: Project runtime memory (tasks, artifacts)
+
+paths:
+  # ── Health ───────────────────────────────────────────────────────────────
+
+  /api/health:
+    get:
+      operationId: healthCheck
+      tags: [Health]
+      summary: Health check
+      description: Returns server status and version.
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                version: 0.1.0
+
+  # ── Approval Queue ───────────────────────────────────────────────────────
+
+  /api/approvals:
+    get:
+      operationId: listApprovals
+      tags: [Approvals]
+      summary: List approval items
+      description: |
+        Returns all approval items, sorted by priority then created_at.
+        Supports optional status and priority filters.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, pending, revision_requested, approved, rejected, cancelled, expired, executing, executed, execution_failed]
+          description: Filter by approval status
+          example: pending
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+          description: Filter by priority level
+          example: high
+      responses:
+        '200':
+          description: List of approval items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApprovalItem'
+      x-codegen-requestBody:
+        type: none
+
+    post:
+      operationId: createApproval
+      tags: [Approvals]
+      summary: Create an approval item
+      description: |
+        Creates a new approval item in `pending` status.
+        Required fields: `title`, `project_id`, `action_type`, `target_system`, `target_id`.
+        Confidence must be 0-100.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApprovalInput'
+      responses:
+        '201':
+          description: Approval item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalItem'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/approvals/count:
+    get:
+      operationId: getApprovalCountAlias
+      tags: [Approvals]
+      summary: Get approval counts (alias)
+      description: Alias for `/api/approvals/counts`. Returns the same response.
+      responses:
+        '200':
+          description: Approval status counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalCounts'
+
+  /api/approvals/counts:
+    get:
+      operationId: getApprovalCounts
+      tags: [Approvals]
+      summary: Get approval counts
+      description: Returns a count of approval items grouped by status.
+      responses:
+        '200':
+          description: Approval status counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalCounts'
+              example:
+                pending: 5
+                approved: 3
+                rejected: 1
+                revision_requested: 2
+                expired: 0
+                executing: 1
+                executed: 12
+                execution_failed: 1
+
+  /api/approvals/{id}:
+    get:
+      operationId: getApprovalById
+      tags: [Approvals]
+      summary: Get a single approval item
+      description: Returns a single approval item by its UUID.
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      responses:
+        '200':
+          description: Approval item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalItem'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/approvals/{id}/decide:
+    post:
+      operationId: decideApproval
+      tags: [Approvals]
+      summary: Decide on an approval item
+      description: |
+        Submit a decision on a pending or revision_requested item.
+
+        - `approve`: transitions to `approved`
+        - `reject`: transitions to `rejected` (requires `reason`, min 10 chars)
+        - `revision_requested`: transitions to `revision_requested` (requires `notes`, min 10 chars)
+        - `cancel`: transitions to `cancelled`
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecidePayload'
+      responses:
+        '200':
+          description: Updated approval item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalItem'
+        '400':
+          description: Invalid transition or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/approvals/{id}/resubmit:
+    post:
+      operationId: resubmitApproval
+      tags: [Approvals]
+      summary: Resubmit after revision
+      description: |
+        Re-submits an item in `revision_requested` status back to `pending`.
+        Increments `revision_round`. Maximum 3 rounds — after that the item
+        is escalated to PM Commander.
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [summary_diff]
+              properties:
+                summary_diff:
+                  type: string
+                  description: Updated summary of what will change
+                  example: "Updated with budget impact analysis"
+      responses:
+        '200':
+          description: Updated approval item (status=pending, revision_round incremented)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalItem'
+        '400':
+          description: Invalid state or revision limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Memory Store ─────────────────────────────────────────────────────────
+
+  /api/memory/summary:
+    get:
+      operationId: getMemorySummary
+      tags: [Memory]
+      summary: Memory summary
+      description: Returns aggregate counts of tasks and artifacts.
+      responses:
+        '200':
+          description: Memory summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemorySummary'
+              example:
+                totalTasks: 12
+                completedTasks: 5
+                totalArtifacts: 8
+                archivedArtifacts: 2
+                staleArtifacts: 1
+
+  /api/memory/tasks:
+    get:
+      operationId: listMemoryTasks
+      tags: [Memory]
+      summary: List memory tasks
+      description: Returns all tasks, with optional status filter.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, failed, cancelled]
+          description: Filter by task status
+          example: pending
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MemoryTask'
+                  total:
+                    type: integer
+
+    post:
+      operationId: createMemoryTask
+      tags: [Memory]
+      summary: Create a task
+      description: |
+        Creates a new task. Required fields: `project_id`, `name`.
+        Status defaults to `pending`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskInput'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryTask'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/memory/tasks/{id}:
+    get:
+      operationId: getMemoryTask
+      tags: [Memory]
+      summary: Get a single task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryTask'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/memory/tasks/{id}/complete:
+    put:
+      operationId: completeMemoryTask
+      tags: [Memory]
+      summary: Mark task as completed
+      description: Sets status to `completed` and records `completed_at`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryTask'
+        '400':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/memory/artifacts:
+    get:
+      operationId: listMemoryArtifacts
+      tags: [Memory]
+      summary: List memory artifacts
+      description: Returns all artifacts, with optional status and type filters.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, archived, deleted]
+          description: Filter by artifact status
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Filter by artifact type (e.g., doc, schema, code)
+      responses:
+        '200':
+          description: Artifact list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artifacts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MemoryArtifact'
+                  total:
+                    type: integer
+
+  /api/memory/artifacts/{id}/archive:
+    post:
+      operationId: archiveMemoryArtifact
+      tags: [Memory]
+      summary: Archive an artifact
+      description: Sets status to `archived` and records the reason.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Artifact UUID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Archive reason
+                  default: "Archived via API"
+      responses:
+        '200':
+          description: Updated artifact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryArtifact'
+        '400':
+          description: Artifact not found or invalid state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/memory/artifacts/archive/{id}:
+    post:
+      operationId: archiveMemoryArtifactCompat
+      tags: [Memory]
+      summary: Archive an artifact (legacy path)
+      description: |
+        Backward-compatible alias for `POST /api/memory/artifacts/{id}/archive`.
+        Prefer the canonical path above.
+      deprecated: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Updated artifact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryArtifact'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ── Components ─────────────────────────────────────────────────────────────
+
+components:
+  parameters:
+    ApprovalId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Approval item UUID
+      example: a1d5b4c6-7f9c-4d8a-b1e2-3f4a5b6c7d8e
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: 0.1.0
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Not found
+
+    # ── Approval schemas ─────────────────────────────────────────────────
+
+    ApprovalItem:
+      type: object
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+        action_type:
+          type: string
+        target_system:
+          type: string
+        target_id:
+          type: string
+        workflow_id:
+          type: string
+        run_id:
+          type: string
+        requested_by_agent:
+          type: string
+        requested_by_role:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        summary_diff:
+          type: string
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        source_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        priority:
+          type: string
+          enum: [critical, high, medium, low]
+        status:
+          type: string
+          enum: [draft, pending, revision_requested, approved, rejected, cancelled, expired, executing, executed, execution_failed]
+        revision_round:
+          type: integer
+        deadline:
+          type: string
+          nullable: true
+          format: date-time
+        ttl_seconds:
+          type: integer
+          nullable: true
+        assigned_approvers:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          nullable: true
+          format: date-time
+        decided_by:
+          type: string
+          nullable: true
+        decision:
+          type: string
+          nullable: true
+          enum: [approve, reject, revision_requested, cancel]
+        rejection_reason:
+          type: string
+          nullable: true
+        revision_notes:
+          type: string
+          nullable: true
+        delegated_to:
+          type: string
+          nullable: true
+        execution_status:
+          type: string
+          enum: [pending, executing, executed, execution_failed]
+        execution_error:
+          type: string
+          nullable: true
+        execution_target_response:
+          type: string
+          nullable: true
+        retry_count:
+          type: integer
+        policy_rule_id:
+          type: string
+          nullable: true
+      required:
+        - approval_id
+        - project_id
+        - title
+        - status
+        - priority
+        - created_at
+
+    SourceRef:
+      type: object
+      properties:
+        type:
+          type: string
+        id:
+          type: string
+        title:
+          type: string
+        accessed_at:
+          type: string
+          format: date-time
+
+    CreateApprovalInput:
+      type: object
+      required:
+        - title
+        - project_id
+        - action_type
+        - target_system
+        - target_id
+      properties:
+        project_id:
+          type: string
+        action_type:
+          type: string
+        target_system:
+          type: string
+        target_id:
+          type: string
+        workflow_id:
+          type: string
+        run_id:
+          type: string
+        requested_by_agent:
+          type: string
+        requested_by_role:
+          type: string
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        summary_diff:
+          type: string
+          maxLength: 4000
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        source_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+        priority:
+          type: string
+          enum: [critical, high, medium, low]
+        deadline:
+          type: string
+          nullable: true
+        ttl_seconds:
+          type: integer
+          nullable: true
+        assigned_approvers:
+          type: array
+          items:
+            type: string
+
+    DecidePayload:
+      type: object
+      required:
+        - decided_by
+        - decision
+      properties:
+        decided_by:
+          type: string
+          description: User ID of the decision maker
+          example: pm-user-01
+        decision:
+          type: string
+          enum: [approve, reject, revision_requested, cancel]
+        reason:
+          type: string
+          description: Required for `reject` (min 10 chars)
+          minLength: 10
+        notes:
+          type: string
+          description: Required for `revision_requested` (min 10 chars)
+          minLength: 10
+
+    ApprovalCounts:
+      type: object
+      additionalProperties:
+        type: integer
+      example:
+        pending: 5
+        approved: 3
+        rejected: 1
+        revision_requested: 2
+        expired: 0
+        executed: 12
+
+    # ── Memory schemas ───────────────────────────────────────────────────
+
+    MemorySummary:
+      type: object
+      properties:
+        totalTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        totalArtifacts:
+          type: integer
+        archivedArtifacts:
+          type: integer
+        staleArtifacts:
+          type: integer
+
+    MemoryTask:
+      type: object
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, cancelled]
+        assigned_to:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          nullable: true
+          format: date-time
+        dependencies:
+          type: array
+          items:
+            type: string
+        artifacts:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - task_id
+        - project_id
+        - name
+        - status
+        - created_at
+
+    CreateTaskInput:
+      type: object
+      required:
+        - project_id
+        - name
+      properties:
+        project_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, cancelled]
+          default: pending
+        assigned_to:
+          type: string
+        dependencies:
+          type: array
+          items:
+            type: string
+        artifacts:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    MemoryArtifact:
+      type: object
+      properties:
+        artifact_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, archived, deleted]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        archived_at:
+          type: string
+          nullable: true
+          format: date-time
+        archive_reason:
+          type: string
+          nullable: true
+        task_id:
+          type: string
+          nullable: true
+        version:
+          type: integer
+      required:
+        - artifact_id
+        - project_id
+        - name
+        - status
+        - created_at

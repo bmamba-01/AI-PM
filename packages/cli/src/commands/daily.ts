@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { loadMcpConfig } from '@ai-pm/mcp/connectionManager';
 import { generateDailyBriefing, type DailyBriefingInputItem } from '@ai-pm/core/workflows';
-import { LocalProjectStore } from '@ai-pm/core/runtime';
+import { LocalProjectStore, MemoryStore, ApprovalQueue } from '@ai-pm/core/runtime';
+import { loadMcpConfig } from '@ai-pm/mcp/connectionManager';
 
 const msgs = {
   en: {

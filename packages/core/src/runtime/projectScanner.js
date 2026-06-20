@@ -1,0 +1,50 @@
+import { access } from 'node:fs/promises';
+import path from 'node:path';
+const REQUIRED_CHECKS = [
+    { id: 'agents-md', label: 'AGENTS.md', path: 'AGENTS.md', required: true },
+    { id: 'readme-md', label: 'README.md', path: 'README.md', required: true },
+    { id: 'design-spec', label: 'Design spec', path: 'docs/superpowers/specs', required: true },
+    { id: 'active-plan', label: 'Active plan', path: 'docs/superpowers/plans', required: true },
+    { id: 'workflows-dir', label: 'Workflows', path: 'workflows', required: true },
+    { id: 'playbooks-dir', label: 'Playbooks', path: 'playbooks', required: true },
+    { id: 'mcp-registry', label: 'MCP registry', path: 'mcp/registry.yaml', required: true },
+    { id: 'templates-dir', label: 'Templates', path: 'templates', required: false },
+    { id: 'schemas-dir', label: 'JSON schemas', path: 'schemas', required: false },
+    { id: 'operating-model', label: 'Operating model docs', path: 'docs/operating-model', required: false },
+    { id: 'claude-md', label: 'CLAUDE.md', path: 'CLAUDE.md', required: false },
+    { id: 'codex-md', label: 'CODEX.md', path: 'CODEX.md', required: false },
+];
+async function pathExists(projectRoot, relativePath) {
+    try {
+        await access(path.join(projectRoot, relativePath));
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+export async function scanProject(projectRoot) {
+    const checks = [];
+    for (const check of REQUIRED_CHECKS) {
+        const present = await pathExists(projectRoot, check.path);
+        checks.push({ ...check, present });
+    }
+    const requiredChecks = checks.filter(c => c.required);
+    const optionalChecks = checks.filter(c => !c.required);
+    const passedRequired = requiredChecks.filter(c => c.present).length;
+    const passedOptional = optionalChecks.filter(c => c.present).length;
+    const score = requiredChecks.length > 0
+        ? Math.round((passedRequired / requiredChecks.length) * 100)
+        : 100;
+    return {
+        projectRoot,
+        score,
+        totalRequired: requiredChecks.length,
+        passedRequired,
+        totalOptional: optionalChecks.length,
+        passedOptional,
+        checks,
+        ready: passedRequired === requiredChecks.length,
+    };
+}
+//# sourceMappingURL=projectScanner.js.map

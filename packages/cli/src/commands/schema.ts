@@ -52,6 +52,13 @@ function getLang(): keyof typeof msgs {
 
 export const schemaCommand = new Command('schema');
 
+schemaCommand.exitOverride();
+schemaCommand.on('command:*', () => {
+  console.error(undefined);
+  schemaCommand.outputHelp();
+  process.exit(1);
+});
+
 schemaCommand
   .description('Validate workflow outputs against JSON schemas')
   .addCommand(
@@ -131,7 +138,19 @@ schemaCommand
           // Load input file
           let inputData: unknown;
           try {
-            const raw = await readFile(opts.input, 'utf-8');
+            let raw: string;
+            if (opts.input === '-') {
+              // Read from stdin
+              raw = await new Promise<string>((resolve, reject) => {
+                let data = '';
+                process.stdin.setEncoding('utf8');
+                process.stdin.on('data', (chunk) => data += chunk);
+                process.stdin.on('end', () => resolve(data));
+                process.stdin.on('error', reject);
+              });
+            } else {
+              raw = await readFile(opts.input, 'utf-8');
+            }
             inputData = JSON.parse(raw);
           } catch (err) {
             spinner.fail();
@@ -143,24 +162,20 @@ schemaCommand
           const result = await validateWorkflowOutput(opts.workflow, inputData);
           spinner.succeed();
 
-          if (result.valid) {
-            console.log(chalk.green(`✓ ${msgsLang.validationPassed}`));
-            if (result.warnings.length > 0) {
-              console.log(chalk.yellow(`⚠ ${result.warnings.join('\n⚠ ')}`));
-            }
-            if (opts.json) {
-              console.log(JSON.stringify(result, null, 2));
-            }
-            process.exit(0);
+          if (opts.json) {
+            console.log(JSON.stringify(result, null, 2));
           } else {
-            console.log(chalk.red(`✗ ${msgsLang.validationFailed}`));
-            if (opts.json) {
-              console.log(JSON.stringify(result, null, 2));
+            if (result.valid) {
+              console.log(chalk.green(`✓ ${msgsLang.validationPassed}`));
+              if (result.warnings.length > 0) {
+                console.log(chalk.yellow(`⚠ ${result.warnings.join('\n⚠ ')}`));
+              }
             } else {
+              console.log(chalk.red(`✗ ${msgsLang.validationFailed}`));
               console.log(chalk.red(result.errors.map(e => `  - ${e}`).join('\n')));
             }
-            process.exit(1);
           }
+          process.exit(result.valid ? 0 : 1);
         } catch (error) {
           spinner.fail();
           console.error(error);

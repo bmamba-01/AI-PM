@@ -300,18 +300,30 @@ export function ApprovalsScreen({ navigation }: Props) {
   const {
     items, isLoading, dataSource, isRefreshing,
     searchQuery, activeFilter, counts,
+    queuedCount, syncResult,
     loadItems, decide, refresh, create,
     setSearchQuery, setActiveFilter, getFilteredItems, getPendingCount, exportToJson,
+    syncOfflineQueue,
   } = useApprovalStore();
 
   const [createVisible, setCreateVisible] = useState(false);
+  const [syncDismissed, setSyncDismissed] = useState(false);
   const [, setRefreshKey] = useState(0);
+
+  // Reset dismissed state when syncResult changes
+  React.useEffect(() => {
+    if (syncResult) setSyncDismissed(false);
+  }, [syncResult]);
 
   useFocusEffect(
     useCallback(() => {
       loadItems();
       setRefreshKey(k => k + 1);
-    }, [loadItems])
+      // Auto-sync queued actions when screen comes into focus
+      if (dataSource === 'local_server') {
+        syncOfflineQueue();
+      }
+    }, [loadItems, dataSource, syncOfflineQueue])
   );
 
   const filtered = getFilteredItems();
@@ -432,6 +444,35 @@ export function ApprovalsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      {/* Sync result banner — shown after successful sync */}
+      {syncResult && !syncDismissed && (
+        <View style={styles.syncBanner}>
+          <Text style={styles.syncBannerText}>✓ {syncResult}</Text>
+          <TouchableOpacity onPress={() => setSyncDismissed(true)} style={styles.syncDismiss}>
+            <Text style={styles.syncDismissText}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Offline queue banner — shown when actions are queued */}
+      {queuedCount > 0 && (
+        <View style={styles.queueBanner}>
+          <Text style={styles.queueBannerText}>
+            ⟳ {queuedCount} action{queuedCount !== 1 ? 's' : ''} queued — will sync when online
+          </Text>
+          <TouchableOpacity
+            style={styles.syncNowBtn}
+            onPress={async () => {
+              if (dataSource === 'local_server') {
+                await syncOfflineQueue();
+              }
+            }}
+          >
+            <Text style={styles.syncNowBtnText}>Sync now</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Data source indicator + notification badge + export */}
       <View style={styles.topBar}>
         <View style={styles.dataSourceIndicator}>
@@ -510,11 +551,33 @@ export function ApprovalsScreen({ navigation }: Props) {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {isLoading ? 'Loading approvals...' :
-               searchQuery ? `No results for "${searchQuery}"` :
-               'No approvals in this filter'}
-            </Text>
+            {isLoading ? (
+              <>
+                <Text style={styles.emptyIcon}>⏳</Text>
+                <Text style={styles.emptyText}>Loading approvals...</Text>
+              </>
+            ) : searchQuery ? (
+              <>
+                <Text style={styles.emptyIcon}>🔍</Text>
+                <Text style={styles.emptyText}>No results for "{searchQuery}"</Text>
+              </>
+            ) : items.length === 0 ? (
+              <>
+                <Text style={styles.emptyIcon}>✓</Text>
+                <Text style={styles.emptyTitle}>No approvals yet</Text>
+                <Text style={styles.emptyHint}>
+                  New approval requests from agents will appear here{'\n'}when they need your review.
+                </Text>
+                <TouchableOpacity style={styles.emptyCreateBtn} onPress={() => setCreateVisible(true)}>
+                  <Text style={styles.emptyCreateBtnText}>+ Create one</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyIcon}>📋</Text>
+                <Text style={styles.emptyText}>No approvals in this filter</Text>
+              </>
+            )}
           </View>
         }
       />
@@ -539,6 +602,45 @@ export function ApprovalsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a' },
+
+  // Sync banners
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#10b98120',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#10b98130',
+  },
+  syncBannerText: { color: '#10b981', fontSize: 13, fontWeight: '500', flex: 1 },
+  syncDismiss: { padding: 4 },
+  syncDismissText: { color: '#10b981', fontSize: 14 },
+  queueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f59e0b20',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f59e0b30',
+  },
+  queueBannerText: { color: '#f59e0b', fontSize: 13, fontWeight: '500', flex: 1 },
+  syncNowBtn: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  syncNowBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
   // Top bar
   topBar: {
@@ -690,7 +792,18 @@ const styles = StyleSheet.create({
 
   // Empty
   emptyState: { paddingVertical: 40, alignItems: 'center' },
-  emptyText: { color: '#64748b', fontSize: 14 },
+  emptyIcon: { fontSize: 32, marginBottom: 12 },
+  emptyTitle: { color: '#f1f5f9', fontSize: 16, fontWeight: '600', marginBottom: 6 },
+  emptyText: { color: '#64748b', fontSize: 14, textAlign: 'center' },
+  emptyHint: { color: '#64748b', fontSize: 13, textAlign: 'center', marginTop: 4, lineHeight: 18 },
+  emptyCreateBtn: {
+    marginTop: 16,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  emptyCreateBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
   // Create sheet
   sheetOverlay: {

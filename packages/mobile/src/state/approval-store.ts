@@ -55,6 +55,131 @@ export interface DecidePayload {
 export type DataSource = 'local_server' | 'mock_fallback';
 
 // ---------------------------------------------------------------------------
+// Offline queue — persists write actions taken while server is unreachable.
+// ---------------------------------------------------------------------------
+
+const QUEUE_STORAGE_KEY = 'ai-pm-queued-actions';
+const QUEUE_MAX_SIZE = 50;
+const QUEUE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+export interface QueuedAction {
+  id: string;
+  type: 'decide' | 'create' | 'resubmit';
+  /** The item ID targeted by decide/resubmit, or null for create */
+  itemId: string | null;
+  payload: DecidePayload | Record<string, unknown> | { summary_diff: string };
+  timestamp: string;
+  status: 'pending' | 'synced' | 'failed';
+  error?: string;
+}
+
+export async function loadQueuedActions(): Promise<QueuedAction[]> {
+  try {
+    const raw = await SecureStore.getItemAsync(QUEUE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as QueuedAction[];
+  } catch {
+    return [];
+  }
+}
+
+async function saveQueuedActions(actions: QueuedAction[]): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(QUEUE_STORAGE_KEY, JSON.stringify(actions));
+  } catch {
+    // best-effort
+  }
+}
+
+async function enqueueAction(action: QueuedAction): Promise<void> {
+  const queue = await loadQueuedActions();
+
+  // Purge expired items
+  const now = Date.now();
+  const alive = queue.filter(
+    a => a.status === 'pending' && now - new Date(a.timestamp).getTime() < QUEUE_TTL_MS,
+  );
+
+  // Enforce max size — drop oldest pending actions first
+  if (alive.length >= QUEUE_MAX_SIZE) {
+    const pending = alive.filter(a => a.status === 'pending');
+    const overflow = pending.length - QUEUE_MAX_SIZE + 1;
+    if (overflow > 0) {
+      const sorted = pending.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      const toRemove = new Set(sorted.slice(0, overflow).map(a => a.id));
+      alive.splice(0, alive.length, ...alive.filter(a => !toRemove.has(a.id)));
+      console.warn(`[offline-queue] Discarded ${overflow} oldest action(s) to stay within limit`);
+    }
+  }
+
+  alive.push(action);
+  await saveQueuedActions(alive);
+}
+
+export async function getQueuedCount(): Promise<number> {
+  const queue = await loadQueuedActions();
+  return queue.filter(a => a.status === 'pending').length;
+}
+
+// ---------------------------------------------------------------------------
+// Sync — replay queued actions against the server
+// ---------------------------------------------------------------------------
+
+async function processQueuedAction(action: QueuedAction): Promise<void> {
+  switch (action.type) {
+    case 'decide':
+      await apiFetch(`/api/approvals/${action.itemId}/decide`, {
+        method: 'POST',
+        body: JSON.stringify(action.payload),
+      });
+      break;
+    case 'create':
+      await apiFetch('/api/approvals', {
+        method: 'POST',
+        body: JSON.stringify(action.payload),
+      });
+      break;
+    case 'resubmit':
+      await apiFetch(`/api/approvals/${action.itemId}/resubmit`, {
+        method: 'POST',
+        body: JSON.stringify(action.payload),
+      });
+      break;
+  }
+}
+
+export async function syncQueuedActions(): Promise<{ synced: number; failed: number; total: number }> {
+  if (!_baseUrl) return { synced: 0, failed: 0, total: 0 };
+
+  const queue = await loadQueuedActions();
+  const pending = queue.filter(a => a.status === 'pending');
+  if (pending.length === 0) return { synced: 0, failed: 0, total: 0 };
+
+  let synced = 0;
+  let failed = 0;
+
+  for (const action of pending) {
+    try {
+      await processQueuedAction(action);
+      action.status = 'synced';
+      synced++;
+    } catch (err) {
+      action.status = 'failed';
+      action.error = err instanceof Error ? err.message : String(err);
+      failed++;
+    }
+  }
+
+  // Keep only pending + failed (for retry) — purge synced
+  const remaining = queue.filter(a => a.status !== 'synced');
+  await saveQueuedActions(remaining);
+
+  return { synced, failed, total: pending.length };
+}
+
+// ---------------------------------------------------------------------------
 // API client
 // ---------------------------------------------------------------------------
 
@@ -355,6 +480,8 @@ interface ApprovalState {
   searchQuery: string;
   activeFilter: string;
   isRefreshing: boolean;
+  queuedCount: number;
+  syncResult: string | null;
 
   loadItems: (filter?: { status?: string; priority?: string }) => Promise<void>;
   loadCounts: () => Promise<void>;
@@ -362,6 +489,7 @@ interface ApprovalState {
   create: (input: Omit<ApprovalItem, 'approval_id' | 'created_at' | 'updated_at' | 'revision_round' | 'decided_at' | 'decided_by' | 'decision' | 'rejection_reason' | 'revision_notes' | 'delegated_to' | 'execution_status' | 'execution_error' | 'execution_target_response' | 'retry_count' | 'policy_rule_id'>) => Promise<ApprovalItem>;
   refresh: () => Promise<void>;
   configureServer: (url: string | null) => Promise<void>;
+  syncOfflineQueue: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   setActiveFilter: (filter: string) => void;
   getFilteredItems: () => ApprovalItem[];
@@ -379,6 +507,8 @@ export const useApprovalStore = create<ApprovalState>()((set, get) => ({
   searchQuery: '',
   activeFilter: 'all',
   isRefreshing: false,
+  queuedCount: 0,
+  syncResult: null,
 
   loadItems: async (filter?) => {
     set({ isLoading: true, error: null });
@@ -437,10 +567,42 @@ export const useApprovalStore = create<ApprovalState>()((set, get) => ({
         set({ counts: counts ?? computeCounts(items), items: sortByPriority(items), error: null });
         return item;
       } catch (err) {
-        // Write operations must surface errors — do NOT silently fall back to mock
         const msg = err instanceof Error ? err.message : String(err);
         set({ error: msg, serverStatus: 'unreachable' });
-        throw new Error(`Server write failed: ${msg}`);
+
+        // Queue the action for later sync instead of just throwing
+        const queued: QueuedAction = {
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: 'decide',
+          itemId: id,
+          payload,
+          timestamp: new Date().toISOString(),
+          status: 'pending',
+        };
+        await enqueueAction(queued);
+        const count = await getQueuedCount();
+        set({ queuedCount: count });
+
+        // Apply optimistic local update to mock data so the UI reflects the change
+        const mockItems = getMockItems();
+        const idx = mockItems.findIndex(i => i.approval_id === id || i.approval_id.startsWith(id));
+        if (idx !== -1) {
+          const nextStatus =
+            payload.decision === 'approve' ? 'approved' :
+            payload.decision === 'reject' ? 'rejected' :
+            payload.decision === 'revision_requested' ? 'revision_requested' :
+            'cancelled';
+          mockItems[idx].status = nextStatus as ApprovalItem['status'];
+          mockItems[idx].decision = payload.decision;
+          mockItems[idx].decided_by = payload.decided_by;
+          mockItems[idx].decided_at = new Date().toISOString();
+          mockItems[idx].updated_at = new Date().toISOString();
+          mockItems[idx].rejection_reason = payload.reason ?? null;
+          mockItems[idx].revision_notes = payload.notes ?? null;
+          set({ items: sortByPriority([...mockItems]), counts: computeCounts(mockItems) });
+        }
+
+        throw new Error(`Queued for sync — will retry when server is available`);
       }
     }
 
@@ -528,7 +690,26 @@ export const useApprovalStore = create<ApprovalState>()((set, get) => ({
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         set({ error: msg, serverStatus: 'unreachable' });
-        throw new Error(`Server write failed: ${msg}`);
+
+        // Queue the action for later sync
+        const queued: QueuedAction = {
+          id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: 'create',
+          itemId: null,
+          payload: newItem as unknown as Record<string, unknown>,
+          timestamp: new Date().toISOString(),
+          status: 'pending',
+        };
+        await enqueueAction(queued);
+        const count = await getQueuedCount();
+        set({ queuedCount: count });
+
+        // Optimistic local update
+        const items = getMockItems();
+        items.push(newItem);
+        set({ items: sortByPriority([...items]), counts: computeCounts(items) });
+
+        throw new Error(`Queued for sync — will retry when server is available`);
       }
     }
 
@@ -547,6 +728,23 @@ export const useApprovalStore = create<ApprovalState>()((set, get) => ({
           apiFetch<Record<string, number>>('/api/approvals/counts'),
         ]);
         set({ items: sortByPriority(items), counts, dataSource: 'local_server', error: null, isRefreshing: false });
+        // Auto-sync queued actions when server is reachable
+        const result = await syncQueuedActions();
+        if (result.total > 0) {
+          const qc = await getQueuedCount();
+          set({ queuedCount: qc });
+          if (result.synced > 0 && result.failed === 0) {
+            set({ syncResult: `Synced ${result.synced} action(s)` });
+          } else if (result.failed > 0) {
+            set({ syncResult: `Synced ${result.synced}, failed ${result.failed}` });
+          }
+          // Reload after sync
+          const [items2, counts2] = await Promise.all([
+            apiFetch<ApprovalItem[]>('/api/approvals'),
+            apiFetch<Record<string, number>>('/api/approvals/counts'),
+          ]);
+          set({ items: sortByPriority(items2), counts: counts2 });
+        }
       } else {
         const all = getMockItems();
         set({ items: sortByPriority(all), counts: computeCounts(all), dataSource: 'mock_fallback', error: null, isRefreshing: false });
@@ -563,12 +761,43 @@ export const useApprovalStore = create<ApprovalState>()((set, get) => ({
 
   setActiveFilter: (filter: string) => set({ activeFilter: filter }),
 
+  syncOfflineQueue: async () => {
+    if (!_baseUrl) return;
+    try {
+      const health = await checkServerHealth(_baseUrl);
+      if (health !== 'connected') {
+        set({ syncResult: null });
+        return;
+      }
+      const result = await syncQueuedActions();
+      const qc = await getQueuedCount();
+      set({ queuedCount: qc, syncResult: null });
+      if (result.total > 0) {
+        const msg = result.failed === 0
+          ? `Synced ${result.synced} action(s)`
+          : `Synced ${result.synced}, failed ${result.failed}`;
+        set({ syncResult: msg });
+        // Reload from server after sync
+        const [items, counts] = await Promise.all([
+          apiFetch<ApprovalItem[]>('/api/approvals'),
+          apiFetch<Record<string, number>>('/api/approvals/counts'),
+        ]);
+        set({ items: sortByPriority(items), counts, dataSource: 'local_server' });
+      }
+    } catch {
+      // sync failed silently — user will see queue count unchanged
+    }
+  },
+
   configureServer: async (url: string | null) => {
     await setApprovalBaseUrl(url);
     if (url) {
       set({ isLoading: true, error: null });
       const status = await checkServerHealth(url);
       set({ serverStatus: status });
+      // Load queued count regardless of connectivity
+      const qc = await getQueuedCount();
+      set({ queuedCount: qc });
       if (status === 'connected') {
         // Load real data from server
         try {

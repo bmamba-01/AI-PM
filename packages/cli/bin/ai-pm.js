@@ -3,6 +3,7 @@ import { runInit } from '../dist/commands/init.js';
 import { mcpCommand } from '../dist/commands/mcp.js';
 import { methodologyCommand } from '../dist/commands/methodology.js';
 import { dailyCommand } from '../dist/commands/daily.js';
+import { weeklyCommand } from '../dist/commands/weekly.js';
 import { auditCommand } from '../dist/commands/audit.js';
 import { projectCommand } from '../dist/commands/project.js';
 import { approvalCommand } from '../dist/commands/approval.js';
@@ -27,6 +28,7 @@ program
 program.addCommand(mcpCommand);
 program.addCommand(methodologyCommand);
 program.addCommand(dailyCommand);
+program.addCommand(weeklyCommand);
 program.addCommand(auditCommand);
 program.addCommand(projectCommand);
 program.addCommand(approvalCommand);
@@ -45,6 +47,7 @@ if (!process.argv.slice(2).length) {
   console.log(chalk.gray('  mcp <subcommand>         Manage MCP server connections'));
   console.log(chalk.gray('  methodology <subcommand>  Manage project methodology'));
   console.log(chalk.gray('  daily brief              Generate daily PM briefing'));
+  console.log(chalk.gray('  weekly report            Generate weekly status report draft'));
   console.log(chalk.gray('  audit list               View workflow audit trail'));
   console.log(chalk.gray('  project scan             Scan project for readiness'));
   console.log(chalk.gray('  approval <subcommand>    Manage approval queue'));

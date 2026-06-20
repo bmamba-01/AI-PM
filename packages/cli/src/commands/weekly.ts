@@ -60,7 +60,9 @@ weeklyCommand
       const config = loadMcpConfig(projectRoot);
       const enabledServers = config.servers.filter(s => s.enabled).length;
 
-      const [start, end] = opts.start && opts.end ? [opts.start, opts.end] : currentWeekBounds();
+      const weekBounds = opts.start && opts.end ? { start: opts.start, end: opts.end } : currentWeekBounds();
+      const start = weekBounds.start;
+      const end = weekBounds.end;
       const store = new LocalProjectStore(projectRoot) as any;
       const approvalQueue = new ApprovalQueue(projectRoot) as any;
 
