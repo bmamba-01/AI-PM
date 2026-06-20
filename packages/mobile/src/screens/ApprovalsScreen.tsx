@@ -2,11 +2,12 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ScrollView, Alert, Animated, PanResponder, Dimensions,
+  TextInput, RefreshControl, Share, Modal,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../App';
-import { useApprovalStore, type ApprovalItem } from '../state/approval-store';
+import { useApprovalStore, type ApprovalItem, type ApprovalPriority } from '../state/approval-store';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Approvals'>;
 
@@ -69,32 +70,6 @@ function timeAgo(iso: string): string {
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
   return `${days}d`;
-}
-
-function filterItems(items: ApprovalItem[], filter: FilterType): ApprovalItem[] {
-  switch (filter) {
-    case 'pending':
-      return items.filter(i => i.status === 'pending');
-    case 'urgent':
-      return items.filter(i =>
-        i.status === 'pending' && (i.priority === 'critical' || i.priority === 'high')
-      );
-    case 'done':
-      return items.filter(i =>
-        i.status === 'approved' || i.status === 'rejected' || i.status === 'expired' || i.status === 'executed'
-      );
-    default:
-      return items;
-  }
-}
-
-function filterCounts(items: ApprovalItem[]): Record<FilterType, number> {
-  return {
-    all: items.length,
-    pending: items.filter(i => i.status === 'pending').length,
-    urgent: items.filter(i => i.status === 'pending' && (i.priority === 'critical' || i.priority === 'high')).length,
-    done: items.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'expired' || i.status === 'executed').length,
-  };
 }
 
 function SwipeableRow({
@@ -164,12 +139,174 @@ function SwipeableRow({
   );
 }
 
+// ─── Create Approval Modal ──────────────────────────────────────────────────
+
+function CreateApprovalSheet({
+  visible,
+  onClose,
+  onCreate,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreate: (input: {
+    title: string;
+    description: string;
+    summary_diff: string;
+    priority: ApprovalPriority;
+    target_system: string;
+    target_id: string;
+    action_type: string;
+    workflow_id: string;
+    run_id: string;
+    requested_by_agent: string;
+    requested_by_role: string;
+    confidence: number;
+    source_refs: ApprovalItem['source_refs'];
+    project_id: string;
+  }) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [summaryDiff, setSummaryDiff] = useState('');
+  const [priority, setPriority] = useState<ApprovalPriority>('medium');
+  const [targetSystem, setTargetSystem] = useState('jira');
+  const [targetId, setTargetId] = useState('');
+
+  const valid = title.trim().length > 0 && description.trim().length > 0;
+
+  function handleCreate() {
+    if (!valid) return;
+    onCreate({
+      title: title.trim(),
+      description: description.trim(),
+      summary_diff: summaryDiff.trim() || `Manual approval request: ${title.trim()}`,
+      priority,
+      target_system: targetSystem,
+      target_id: targetId.trim() || 'manual',
+      action_type: 'custom',
+      workflow_id: 'manual-approval',
+      run_id: `run-${Date.now()}`,
+      requested_by_agent: 'mobile-user',
+      requested_by_role: 'pm_commander',
+      confidence: 100,
+      source_refs: [],
+      project_id: 'proj-001',
+    });
+    setTitle('');
+    setDescription('');
+    setSummaryDiff('');
+    setPriority('medium');
+    setTargetSystem('jira');
+    setTargetId('');
+    onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <View style={styles.sheetOverlay}>
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>New Approval Request</Text>
+
+          <Text style={styles.inputLabel}>Title *</Text>
+          <TextInput
+            style={styles.sheetInput}
+            placeholder="Brief description of the action"
+            placeholderTextColor="#64748b"
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          <Text style={styles.inputLabel}>Description *</Text>
+          <TextInput
+            style={[styles.sheetInput, { minHeight: 60 }]}
+            placeholder="Detailed explanation"
+            placeholderTextColor="#64748b"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <Text style={styles.inputLabel}>What will change</Text>
+          <TextInput
+            style={[styles.sheetInput, { minHeight: 60 }]}
+            placeholder="Summary of changes"
+            placeholderTextColor="#64748b"
+            value={summaryDiff}
+            onChangeText={setSummaryDiff}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <Text style={styles.inputLabel}>Priority</Text>
+          <View style={styles.priorityRow}>
+            {(['low', 'medium', 'high', 'critical'] as ApprovalPriority[]).map(p => (
+              <TouchableOpacity
+                key={p}
+                style={[styles.priorityChip, priority === p && { backgroundColor: PRIORITIES[p] + '30', borderColor: PRIORITIES[p] }]}
+                onPress={() => setPriority(p)}
+              >
+                <Text style={[styles.priorityChipText, priority === p && { color: PRIORITIES[p] }]}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.inputLabel}>Target system</Text>
+          <View style={styles.priorityRow}>
+            {['jira', 'github', 'gmail', 'notion', 'confluence'].map(sys => (
+              <TouchableOpacity
+                key={sys}
+                style={[styles.priorityChip, targetSystem === sys && styles.chipActive]}
+                onPress={() => setTargetSystem(sys)}
+              >
+                <Text style={[styles.priorityChipText, targetSystem === sys && styles.chipTextActive]}>
+                  {TARGET_ICONS[sys]} {sys}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.inputLabel}>Target ID</Text>
+          <TextInput
+            style={styles.sheetInput}
+            placeholder="e.g. PROJ-123, PR-456"
+            placeholderTextColor="#64748b"
+            value={targetId}
+            onChangeText={setTargetId}
+          />
+
+          <View style={styles.sheetActions}>
+            <TouchableOpacity style={styles.sheetCancel} onPress={onClose}>
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.sheetSubmit, !valid && styles.sheetSubmitDisabled]}
+              onPress={valid ? handleCreate : undefined}
+            >
+              <Text style={styles.sheetSubmitText}>Create</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Main Screen ────────────────────────────────────────────────────────────
+
 export function ApprovalsScreen({ navigation }: Props) {
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
-  const { items, isLoading, dataSource, loadItems, decide, refresh } = useApprovalStore();
+  const {
+    items, isLoading, dataSource, isRefreshing,
+    searchQuery, activeFilter, counts,
+    loadItems, decide, refresh, create,
+    setSearchQuery, setActiveFilter, getFilteredItems, getPendingCount, exportToJson,
+  } = useApprovalStore();
+
+  const [createVisible, setCreateVisible] = useState(false);
   const [, setRefreshKey] = useState(0);
 
-  // Refresh when screen comes into focus (after returning from detail)
   useFocusEffect(
     useCallback(() => {
       loadItems();
@@ -177,8 +314,13 @@ export function ApprovalsScreen({ navigation }: Props) {
     }, [loadItems])
   );
 
-  const filtered = filterItems(items, activeFilter);
-  const counts = filterCounts(items);
+  const filtered = getFilteredItems();
+  const filterCounts = {
+    all: items.length,
+    pending: items.filter(i => i.status === 'pending').length,
+    urgent: items.filter(i => i.status === 'pending' && (i.priority === 'critical' || i.priority === 'high')).length,
+    done: items.filter(i => i.status === 'approved' || i.status === 'rejected' || i.status === 'expired' || i.status === 'executed').length,
+  };
 
   function handleSwipeApprove(item: ApprovalItem) {
     Alert.alert('Approve', `Approve "${item.title}"?`, [
@@ -205,7 +347,6 @@ export function ApprovalsScreen({ navigation }: Props) {
         text: 'Reject',
         style: 'destructive',
         onPress: () => {
-          // Simple prompt — in production use a modal
           Alert.prompt?.(
             'Rejection Reason',
             'Min 10 characters:',
@@ -226,6 +367,15 @@ export function ApprovalsScreen({ navigation }: Props) {
         },
       },
     ]);
+  }
+
+  async function handleExport() {
+    try {
+      const json = exportToJson();
+      await Share.share({ message: json, title: 'Approval Queue Export' });
+    } catch (error) {
+      Alert.alert('Export Error', String(error));
+    }
   }
 
   function renderItem({ item }: { item: ApprovalItem }) {
@@ -282,12 +432,44 @@ export function ApprovalsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Data source indicator */}
-      <View style={styles.dataSourceBar}>
-        <View style={[styles.dataSourceDot, { backgroundColor: dataSource === 'local_server' ? '#10b981' : '#f59e0b' }]} />
-        <Text style={styles.dataSourceText}>
-          {dataSource === 'local_server' ? 'Local server' : 'Mock fallback'}
-        </Text>
+      {/* Data source indicator + notification badge + export */}
+      <View style={styles.topBar}>
+        <View style={styles.dataSourceIndicator}>
+          <View style={[styles.dataSourceDot, { backgroundColor: dataSource === 'local_server' ? '#10b981' : '#f59e0b' }]} />
+          <Text style={[styles.dataSourceText, { color: dataSource === 'local_server' ? '#10b981' : '#f59e0b' }]}>
+            {dataSource === 'local_server' ? '⚡ Live — local server' : '🧪 Demo — mock data'}
+          </Text>
+        </View>
+        <View style={styles.topBarRight}>
+          {getPendingCount() > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>{getPendingCount()}</Text>
+            </View>
+          )}
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+            <Text style={styles.exportBtnText}>📤 Export</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.createBtn} onPress={() => setCreateVisible(true)}>
+            <Text style={styles.createBtnText}>+ New</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search approvals..."
+          placeholderTextColor="#64748b"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity style={styles.searchClear} onPress={() => setSearchQuery('')}>
+            <Text style={styles.searchClearText}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Filter chips */}
@@ -301,10 +483,10 @@ export function ApprovalsScreen({ navigation }: Props) {
             <Text style={[styles.chipText, activeFilter === f.key && styles.chipTextActive]}>
               {f.label}
             </Text>
-            {counts[f.key] > 0 && (
+            {filterCounts[f.key] > 0 && (
               <View style={[styles.chipCount, activeFilter === f.key && styles.chipCountActive]}>
                 <Text style={[styles.chipCountText, activeFilter === f.key && styles.chipCountTextActive]}>
-                  {counts[f.key]}
+                  {filterCounts[f.key]}
                 </Text>
               </View>
             )}
@@ -312,19 +494,44 @@ export function ApprovalsScreen({ navigation }: Props) {
         ))}
       </ScrollView>
 
-      {/* Approval list */}
+      {/* Approval list with pull-to-refresh */}
       <FlatList
         data={filtered}
         keyExtractor={item => item.approval_id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={refresh}
+            tintColor="#60a5fa"
+            colors={['#10b981']}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
-              {isLoading ? 'Loading approvals...' : 'No approvals in this filter'}
+              {isLoading ? 'Loading approvals...' :
+               searchQuery ? `No results for "${searchQuery}"` :
+               'No approvals in this filter'}
             </Text>
           </View>
         }
+      />
+
+      {/* Create approval sheet */}
+      <CreateApprovalSheet
+        visible={createVisible}
+        onClose={() => setCreateVisible(false)}
+        onCreate={async (input) => {
+          try {
+            await create({ ...input, status: 'pending', deadline: null, ttl_seconds: null, assigned_approvers: [] });
+            await refresh();
+            Alert.alert('Created', 'Approval request created successfully.');
+          } catch (error) {
+            Alert.alert('Error', String(error));
+          }
+        }}
       />
     </View>
   );
@@ -333,15 +540,68 @@ export function ApprovalsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a' },
 
-  // Data source indicator
-  dataSourceBar: {
+  // Top bar
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
+  dataSourceIndicator: { flexDirection: 'row', alignItems: 'center' },
   dataSourceDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
   dataSourceText: { color: '#64748b', fontSize: 11 },
+  topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  notificationBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  notificationBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  exportBtn: {
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  exportBtnText: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
+  createBtn: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  createBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+
+  // Search
+  searchContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+    position: 'relative',
+  },
+  searchInput: {
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#f1f5f9',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  searchClear: {
+    position: 'absolute',
+    right: 22,
+    top: 7,
+    padding: 4,
+  },
+  searchClearText: { color: '#64748b', fontSize: 14 },
 
   // Filter chips
   chipContainer: { paddingHorizontal: 12, paddingVertical: 10, maxHeight: 52 },
@@ -431,4 +691,47 @@ const styles = StyleSheet.create({
   // Empty
   emptyState: { paddingVertical: 40, alignItems: 'center' },
   emptyText: { color: '#64748b', fontSize: 14 },
+
+  // Create sheet
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#1e293b',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    paddingBottom: 32,
+    maxHeight: '85%',
+  },
+  sheetTitle: { color: '#f1f5f9', fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  inputLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '600', marginBottom: 4, marginTop: 8 },
+  sheetInput: {
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    padding: 10,
+    color: '#f1f5f9',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#334155',
+    minHeight: 36,
+  },
+  priorityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  priorityChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  priorityChipText: { color: '#94a3b8', fontSize: 12, fontWeight: '500' },
+  sheetActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
+  sheetCancel: { paddingVertical: 10, paddingHorizontal: 16 },
+  sheetCancelText: { color: '#94a3b8', fontSize: 14 },
+  sheetSubmit: { backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 10, paddingHorizontal: 20 },
+  sheetSubmitDisabled: { opacity: 0.4 },
+  sheetSubmitText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

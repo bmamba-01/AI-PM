@@ -16,10 +16,7 @@ export default defineConfig({
     minify: "esbuild",
     sourcemap: true,
     rollupOptions: {
-      input: {
-        main: path.join(__dirname, "index.html"),
-        preload: path.join(__dirname, "preload.ts")
-      }
+      input: path.join(__dirname, "index.html")
     }
   },
   resolve: {

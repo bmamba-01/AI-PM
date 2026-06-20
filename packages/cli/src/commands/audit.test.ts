@@ -104,4 +104,87 @@ describe('audit CLI — store layer', () => {
     const records = await store.loadWorkflowAuditRecords();
     expect(records).toEqual([]);
   });
+
+  it('multiple jsonl lines loaded in order', async () => {
+    const root = await tempRoot();
+    const store = new LocalProjectStore(root);
+    await store.ensureProjectDirs();
+
+    const lines = [
+      JSON.stringify({ runId: 'r1', workflowId: 'w1', projectId: 'p1', status: 'completed', startedAt: '2026-01-01T00:00:00Z', completedAt: '2026-01-01T00:00:01Z', outputSummary: 'a', sourceCoverage: [], assumptions: [] }),
+      JSON.stringify({ runId: 'r2', workflowId: 'w2', projectId: 'p2', status: 'blocked', startedAt: '2026-01-01T00:01:00Z', completedAt: '2026-01-01T00:01:01Z', outputSummary: 'b', sourceCoverage: [], assumptions: [] }),
+      JSON.stringify({ runId: 'r3', workflowId: 'w3', projectId: 'p3', status: 'failed', startedAt: '2026-01-01T00:02:00Z', completedAt: '2026-01-01T00:02:01Z', outputSummary: 'c', sourceCoverage: [], assumptions: [] }),
+    ];
+
+    await writeFile(path.join(root, '.ai-pm', 'audit', 'workflow-runs.jsonl'), lines.join('\n') + '\n', 'utf-8');
+
+    const records = await store.loadWorkflowAuditRecords();
+    expect(records).toHaveLength(3);
+    expect(records[0].status).toBe('completed');
+    expect(records[1].status).toBe('blocked');
+    expect(records[2].status).toBe('failed');
+  });
+
+  it('empty jsonl file returns empty array', async () => {
+    const root = await tempRoot();
+    const store = new LocalProjectStore(root);
+    await store.ensureProjectDirs();
+    await writeFile(path.join(root, '.ai-pm', 'audit', 'workflow-runs.jsonl'), '', 'utf-8');
+
+    const records = await store.loadWorkflowAuditRecords();
+    expect(records).toEqual([]);
+  });
+
+  it('jsonl with only blank lines returns empty array', async () => {
+    const root = await tempRoot();
+    const store = new LocalProjectStore(root);
+    await store.ensureProjectDirs();
+    await writeFile(path.join(root, '.ai-pm', 'audit', 'workflow-runs.jsonl'), '\n\n\n', 'utf-8');
+
+    const records = await store.loadWorkflowAuditRecords();
+    expect(records).toEqual([]);
+  });
+
+  it('appendWorkflowAudit creates file and returns path', async () => {
+    const root = await tempRoot();
+    const store = new LocalProjectStore(root);
+    const auditPath = await store.appendWorkflowAudit({
+      workflowId: 'test-wf',
+      projectId: 'test-proj',
+      status: 'completed',
+      startedAt: '2026-06-19T00:00:00Z',
+      completedAt: '2026-06-19T00:00:01Z',
+      outputSummary: 'Test run completed',
+      sourceCoverage: ['local-memory'],
+      assumptions: [],
+    });
+
+    expect(auditPath).toContain('workflow-runs.jsonl');
+
+    const records = await store.loadWorkflowAuditRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0].workflowId).toBe('test-wf');
+    expect(records[0].runId).toContain('test-wf-');
+  });
+
+  it('consecutive appends accumulate records', async () => {
+    const root = await tempRoot();
+    const store = new LocalProjectStore(root);
+
+    await store.appendWorkflowAudit({
+      workflowId: 'wf-1', projectId: 'p1', status: 'completed',
+      startedAt: '2026-06-19T01:00:00Z', completedAt: '2026-06-19T01:00:01Z',
+      outputSummary: 'First', sourceCoverage: [], assumptions: [],
+    });
+    await store.appendWorkflowAudit({
+      workflowId: 'wf-2', projectId: 'p2', status: 'failed',
+      startedAt: '2026-06-19T02:00:00Z', completedAt: '2026-06-19T02:00:01Z',
+      outputSummary: 'Second', sourceCoverage: [], assumptions: [],
+    });
+
+    const records = await store.loadWorkflowAuditRecords();
+    expect(records).toHaveLength(2);
+    expect(records[0].workflowId).toBe('wf-1');
+    expect(records[1].workflowId).toBe('wf-2');
+  });
 });

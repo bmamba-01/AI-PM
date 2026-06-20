@@ -1,124 +1,121 @@
-# Next Runtime Functions Implementation Plan
+# Runtime Functions Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` before implementation. Track tasks with checkbox syntax and report using `docs/operating-model/subagent-protocol.md`.
 
-**Goal:** Stabilize the Phase 2 runtime layer, then move from local MVP stores toward real project-scoped runtime bridges for CLI, desktop, mobile, memory, and future chat orchestration.
+**Goal:** Keep the runtime layer green while moving from local approval/memory primitives toward a project-scoped PM Orchestrator that can serve CLI, desktop, mobile, chat, and later Hermes/OpenClaw-style command gateways.
 
-**Architecture:** Keep durable PM workflow logic in `packages/core`; expose it through CLI, Electron IPC, and later local-server APIs. UI packages must not own business rules. Mobile must call a local-server API when available and keep mock/fallback data clearly separated from runtime truth.
-
-**Tech Stack:** TypeScript, Vitest, Commander, Electron IPC, React/Zustand, React Native/Zustand, file-backed `.ai-pm/` runtime state, JSON Schema/Ajv, future SQLite/local server.
+**Architecture:** Durable PM logic belongs in `packages/core`. CLI, Electron IPC, local server APIs, desktop UI, and mobile UI consume runtime contracts. UI packages must not reimplement approval, memory, schema, or workflow business rules.
 
 ---
 
 ## Current Verification State
 
-Verified on 2026-06-19 from `C:\Works\AI-PM`:
+Verified on 2026-06-20 from `C:\Works\AI-PM`:
 
 ```text
-pnpm --filter @ai-pm/core test                 PASS (8 files, 95 tests)
+pnpm test                                      PASS
+pnpm build                                     PASS
+pnpm --filter @ai-pm/core test                 PASS (11 files, 137 tests)
 pnpm --filter @ai-pm/mcp test                  PASS (1 file, 26 tests)
-pnpm --filter @ai-pm/cli build                 PASS
+pnpm --filter @ai-pm/cli test                  PASS (4 files, 71 tests)
+pnpm --filter @ai-pm/server test               PASS (1 file, 17 tests)
 pnpm --filter @ai-pm/desktop build             PASS
 pnpm --filter @ai-pm/mobile build              PASS
-pnpm build                                     PASS
 node packages/cli/bin/ai-pm.js --help          PASS
-node packages/cli/bin/ai-pm.js approval --help PASS
 node packages/cli/bin/ai-pm.js approval count --json PASS
+node packages/cli/bin/ai-pm.js memory summary --json PASS
 node schemas/validate-fixtures.mjs             PASS (30/30)
 ```
 
-Known non-blocking warnings:
+Known non-blocking warning:
 
-- Ajv currently logs `unknown format "date-time" ignored`; schema tests pass, but date-time validation is not strict yet.
-- Desktop Vite logs Electron `fs` and `path` browser externalization warnings; build passes, but desktop runtime hardening should move Node-backed work behind IPC.
+- Desktop Vite still logs Electron `fs` and `path` browser externalization warnings during build. Build passes. Renderer approval data is IPC-backed; remaining warning should be handled during desktop runtime lifecycle hardening.
 
 ## Completed Runtime Work
 
-| Task | Status | Evidence |
+| Area | Status | Evidence |
 |---|---|---|
-| Audit Inspection CLI | Complete | `packages/cli/src/commands/audit.ts`, core tests pass |
-| Project Scan CLI | Complete | `packages/cli/src/commands/project.ts`, core tests pass |
-| Approval Queue Runtime | Complete | `packages/core/src/runtime/approvalQueue.ts`, unit + integration tests pass |
-| Schema Validation Runtime | Complete | `packages/core/src/workflows/schemaValidation.ts`, 38 schema tests pass |
-| Approval CLI | Complete after smoke fix | `approvalCommand` registered in `packages/cli/bin/ai-pm.js`; CLI smoke tests pass |
-| Approval UI MVP | Partially complete | Desktop/mobile panels build, but use localStorage/in-memory stores rather than shared runtime |
-| Integration Tests | Complete for core runtime | `approvalQueue.integration.test.ts`, `schemaValidation.integration.test.ts` pass |
-| Housekeeping + Archive | Complete locally | Active prompts reduced; older prompts moved to `docs/agent-delegation/archive/2026-06-19/` |
-| Runtime Memory System | Complete in core | `packages/core/src/runtime/memory.ts`, `memory.test.ts` pass |
+| Approval Queue Runtime | Complete | `packages/core/src/runtime/approvalQueue.ts`, unit and integration tests pass |
+| Schema Validation Runtime | Complete | `packages/core/src/workflows/schemaValidation.ts`, edge/integration tests pass |
+| Ajv Format Hardening | Complete | no current `date-time` warning in test output |
+| Approval CLI | Complete | `packages/cli/src/commands/approval.ts`, CLI tests pass |
+| Memory Runtime | Complete | `packages/core/src/runtime/memory.ts`, core memory tests pass |
+| Memory CLI | Complete | `packages/cli/src/commands/memory.ts`, CLI tests pass |
+| Init Runtime Bootstrap | Partially complete | creates `.ai-pm/` runtime dirs; project scaffold still needs operating-layer completeness |
+| Local Server API | Partial | approval and memory routes exist; approval integration tests pass; memory route integration tests still needed |
+| Desktop Approval Runtime Wiring | Partial complete | renderer store uses Electron IPC; desktop server lifecycle/status hardening still needed |
+| Mobile Approval API Client | Partial complete | local-server client and mock fallback exist; configuration UX and pairing docs still needed |
+| Test Harness | Complete | no-test packages use `vitest run --passWithNoTests`; `pnpm test` passes |
 
 ## Current Gaps
 
-### Gap 1: UI Is Not Truly Wired To Runtime
+### Gap 1: Project Bootstrap Is Not Yet a Full Agent-Readable Project
 
-Desktop approval UI uses `packages/desktop/src/state/approval-store.ts` with localStorage. Mobile approval UI uses `packages/mobile/src/state/approval-store.ts` with in-memory seed data. Both mirror runtime behavior but do not call `ApprovalQueue` as the source of truth.
+`ai-pm init` must create a usable project workspace for Codex, Claude Code, Claude Cowork, Hermes-style agents, and future chat/mobile commands. The scaffold must include the operating-layer entrypoints, project profile, runtime directories, memory/audit/approval seeds, and clear next commands.
 
-Required split:
+### Gap 2: Local Server API Needs Contract Tests Beyond Approvals
 
-- API/IPC Agent owns the runtime bridge.
-- Desktop UI Agent owns the desktop store and components.
-- Mobile UI/API Agent owns local-server client and mock fallback.
+Approval routes have integration coverage. Memory routes and route naming must be tested and aligned with `docs/architecture/local-server-api-surface.md`.
 
-### Gap 2: `.ai-pm/memory/` Is Local Data And Ignored
+### Gap 3: Schema Validation Has Runtime But No CLI Surface
 
-Housekeeping created `.ai-pm/memory/*.yaml`, but `.ai-pm/` is ignored by `.gitignore`. That is correct for user-specific runtime state, but the setup behavior must be encoded in tracked code/docs.
+Agents and PM users need `ai-pm schema list` and `ai-pm schema validate` to validate workflow outputs before handoff.
 
-Required split:
+### Gap 4: Desktop and Mobile Need Runtime Status UX
 
-- DB/Memory Agent owns `ai-pm memory` CLI and `ai-pm init` memory bootstrap.
-- Documentation Agent may add memory setup docs, but should not edit runtime code.
+Desktop should expose local server lifecycle/status through IPC. Mobile should let the PM configure the laptop local server URL, detect fallback mode, and avoid silently treating mock data as runtime truth.
 
-### Gap 3: Schema Date-Time Validation Is Too Loose
+### Gap 5: PM Automation Needs the First Real Orchestrated Workflow Slice
 
-Ajv validates structure but ignores `format: date-time` until `ajv-formats` is installed and registered.
-
-Required split:
-
-- Schema Hardening Agent owns `ajv-formats` dependency, validator wiring, and warning-free schema tests.
+Weekly report is the best first slice because it exercises project scope, evidence collection, templates, artifact persistence, approval gate, and later Google Drive/Sheets publication.
 
 ## Next Work Sequence
 
-### Phase 3a: Runtime Hardening
+### Phase 6a: Runtime Surface Hardening
 
-1. Schema Hardening Agent: add strict date-time validation and remove Ajv format warnings.
-2. DB/Memory Agent: expose memory store through CLI and init bootstrap.
-3. API/IPC Agent: expose approval queue through Electron IPC and define local-server API surface.
+1. Init Bootstrap Agent: make `ai-pm init` produce a complete AI-readable project scaffold.
+2. Schema CLI Agent: add `ai-pm schema list` and `ai-pm schema validate`.
+3. Server/API Agent: add memory route integration tests and align API docs/routes.
 
-### Phase 3b: UI Wiring
+### Phase 6b: Desktop/Mobile Runtime UX
 
-4. Desktop UI Agent: replace localStorage approval store with Electron IPC-backed store.
-5. Mobile UI/API Agent: create local-server approval client with explicit mock fallback.
+4. Desktop Runtime Agent: harden local server lifecycle/status IPC and renderer status display.
+5. Mobile Runtime Agent: add local server configuration, health check, and explicit fallback UX.
 
-### Phase 3c: Verification
+### Phase 6c: First PM Workflow Slice
 
-6. Integration Test Agent: add CLI smoke tests and UI-store contract tests where runtime boundaries are mocked.
+6. Weekly Report Workflow Agent: implement the first local weekly report draft workflow using templates, memory/audit, and approval handoff. No external publication yet.
 
 ## Active Prompt Set
 
 Use this file for the next wave:
 
+- `docs/agent-delegation/2026-06-20-wave6-assignment.md`
+
+Do not use these older prompt sets for new work unless explicitly instructed:
+
 - `docs/agent-delegation/2026-06-19-runtime-hardening-agent-prompts.md`
+- `docs/agent-delegation/2026-06-20-phase5-task-assignment.md`
 
 ## Non-Negotiable Boundaries
 
-- UI agents must not reimplement approval state transitions.
-- API/IPC agent must not redesign UI.
-- DB/Memory agent must not move archived docs.
-- Schema agent must not change workflow schemas beyond what is needed for date-time validation.
-- Integration test agent must not rewrite implementation unless a failing test proves the defect and the fix is tightly scoped.
+- UI agents must not reimplement approval or memory state transitions.
+- Server/API agents must not redesign desktop or mobile UI.
+- CLI agents must keep outputs scriptable with `--json` where appropriate.
+- Workflow agents must validate outputs against schema/template contracts before marking complete.
+- No external mutation is allowed without approval: email, chat, Jira, Linear, GitHub, Confluence, Notion, Drive, calendar, PR comments, or issue updates.
+- All project data must remain project-scoped under `.ai-pm/` or explicit artifact directories.
 
 ## Completion Gate
 
-Before claiming Phase 3 complete, run:
+Before claiming Phase 6 complete, run:
 
 ```bash
-pnpm --filter @ai-pm/core test
-pnpm --filter @ai-pm/mcp test
-pnpm --filter @ai-pm/cli build
-pnpm --filter @ai-pm/desktop build
-pnpm --filter @ai-pm/mobile build
+pnpm test
 pnpm build
 node packages/cli/bin/ai-pm.js --help
-node packages/cli/bin/ai-pm.js approval --help
 node packages/cli/bin/ai-pm.js approval count --json
+node packages/cli/bin/ai-pm.js memory summary --json
 node schemas/validate-fixtures.mjs
+rg -n "UNRESOLVED_|TODO_AGENT|PLACEHOLDER" AGENTS.md README.md docs playbooks workflows mcp templates packages --glob "!docs/superpowers/plans/*.md"
 ```

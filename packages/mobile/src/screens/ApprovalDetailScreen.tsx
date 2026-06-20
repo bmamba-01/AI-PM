@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, TextInput, Modal,
+  Alert, TextInput, Modal, Share,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
@@ -56,6 +56,134 @@ const MOCK_USERS = [
   { id: 'qa-user-03', name: 'Priya Sharma (QA)' },
 ];
 
+// ─── Status History Timeline ────────────────────────────────────────────────
+
+interface TimelineEvent {
+  timestamp: string;
+  label: string;
+  detail?: string;
+  color: string;
+  icon: string;
+}
+
+function buildTimeline(item: ApprovalItem): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  events.push({
+    timestamp: item.created_at,
+    label: 'Created',
+    detail: `Requested by ${item.requested_by_role}`,
+    color: '#3b82f6',
+    icon: '📋',
+  });
+
+  if (item.decided_at && item.decision) {
+    const decisionColors: Record<string, string> = {
+      approve: '#10b981',
+      reject: '#ef4444',
+      revision_requested: '#fb923c',
+      cancel: '#64748b',
+    };
+    events.push({
+      timestamp: item.decided_at,
+      label: `Decision: ${item.decision.replace('_', ' ')}`,
+      detail: item.decided_by ? `By ${item.decided_by}` : undefined,
+      color: decisionColors[item.decision] ?? '#64748b',
+      icon: item.decision === 'approve' ? '✅' :
+            item.decision === 'reject' ? '❌' :
+            item.decision === 'revision_requested' ? '🔄' : '🚫',
+    });
+
+    if (item.rejection_reason) {
+      events.push({
+        timestamp: item.decided_at,
+        label: 'Rejection Reason',
+        detail: item.rejection_reason,
+        color: '#ef4444',
+        icon: '💬',
+      });
+    }
+    if (item.revision_notes) {
+      events.push({
+        timestamp: item.decided_at,
+        label: 'Revision Notes',
+        detail: item.revision_notes,
+        color: '#fb923c',
+        icon: '📝',
+      });
+    }
+  }
+
+  if (item.execution_error) {
+    events.push({
+      timestamp: item.updated_at,
+      label: 'Execution Failed',
+      detail: item.execution_error,
+      color: '#ef4444',
+      icon: '⚠️',
+    });
+  }
+
+  if (item.delegated_to) {
+    events.push({
+      timestamp: item.updated_at,
+      label: 'Delegated',
+      detail: `To ${item.delegated_to}`,
+      color: '#8b5cf6',
+      icon: '↗️',
+    });
+  }
+
+  return events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+}
+
+function StatusTimeline({ events }: { events: TimelineEvent[] }) {
+  return (
+    <View style={styles.timeline}>
+      {events.map((event, idx) => (
+        <View key={idx} style={styles.timelineRow}>
+          <View style={styles.timelineLeft}>
+            <View style={[styles.timelineDot, { backgroundColor: event.color }]} />
+            {idx < events.length - 1 && <View style={styles.timelineLine} />}
+          </View>
+          <View style={styles.timelineContent}>
+            <View style={styles.timelineHeader}>
+              <Text style={styles.timelineIcon}>{event.icon}</Text>
+              <Text style={[styles.timelineLabel, { color: event.color }]}>{event.label}</Text>
+            </View>
+            {event.detail && (
+              <Text style={styles.timelineDetail}>{event.detail}</Text>
+            )}
+            <Text style={styles.timelineTime}>
+              {new Date(event.timestamp).toLocaleString()}
+            </Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ─── Confidence Arc ─────────────────────────────────────────────────────────
+
+function ConfidenceArc({ score }: { score: number }) {
+  const color = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+  const label = score >= 80 ? 'High' : score >= 60 ? 'Medium' : 'Low';
+
+  return (
+    <View style={styles.confidenceContainer}>
+      <View style={[styles.confidenceCircle, { borderColor: color + '40' }]}>
+        <View style={[styles.confidenceInner, { borderColor: color }]}>
+          <Text style={[styles.confidenceScore, { color }]}>{score}%</Text>
+          <Text style={[styles.confidenceLabel, { color }]}>{label}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Collapsible Section ────────────────────────────────────────────────────
+
 function CollapsibleSection({
   title,
   defaultCollapsed = true,
@@ -76,6 +204,8 @@ function CollapsibleSection({
     </View>
   );
 }
+
+// ─── Input Sheet ────────────────────────────────────────────────────────────
 
 function InputSheet({
   visible,
@@ -134,6 +264,8 @@ function InputSheet({
   );
 }
 
+// ─── Delegate Sheet ─────────────────────────────────────────────────────────
+
 function DelegateSheet({
   visible,
   onSubmit,
@@ -176,6 +308,8 @@ function DelegateSheet({
   );
 }
 
+// ─── Main Detail Screen ─────────────────────────────────────────────────────
+
 export function ApprovalDetailScreen({ route, navigation }: Props) {
   const { approvalId } = route.params;
   const { items, decide, refresh } = useApprovalStore();
@@ -203,9 +337,12 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
 
   const pri = PRIORITIES[item.priority] ?? { color: '#94a3b8', label: item.priority };
   const isActionable = item.status === 'pending' || item.status === 'revision_requested';
+  const timeline = buildTimeline(item);
 
   async function handleApprove() {
-    Alert.alert('Approve', `Approve "${item!.title}"?`, [
+    const currentItem = item;
+    if (!currentItem) return;
+    Alert.alert('Approve', `Approve "${currentItem.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Approve',
@@ -269,8 +406,6 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
   async function handleDelegate(userId: string) {
     setSubmitting(true);
     try {
-      // Delegate via cancel + re-create pattern, or direct store update
-      // For MVP, we mark as delegated via revision_notes
       await decide(item!.approval_id, {
         decided_by: 'mobile-user',
         decision: 'revision_requested',
@@ -287,10 +422,20 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
     }
   }
 
+  async function handleExport() {
+    if (!item) return;
+    try {
+      const json = JSON.stringify(item, null, 2);
+      await Share.share({ message: json, title: `Approval: ${item.title}` });
+    } catch (error) {
+      Alert.alert('Export Error', String(error));
+    }
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {/* Header with badges */}
         <View style={styles.detailHeader}>
           <View style={styles.badgeRow}>
             <View style={[styles.statusBadge, { backgroundColor: (STATUS_COLOR[item.status] ?? '#64748b') + '20' }]}>
@@ -301,10 +446,16 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
             <View style={[styles.priorityBadge, { backgroundColor: pri.color + '20' }]}>
               <Text style={[styles.priorityBadgeText, { color: pri.color }]}>{pri.label}</Text>
             </View>
+            <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+              <Text style={styles.exportBtnText}>📤</Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.detailTitle}>{item.title}</Text>
           <Text style={styles.detailDesc}>{item.description}</Text>
+
+          {/* Confidence arc */}
+          <ConfidenceArc score={item.confidence} />
 
           {/* Meta grid */}
           <View style={styles.metaGrid}>
@@ -312,14 +463,6 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
               <Text style={styles.metaLabel}>Target</Text>
               <Text style={styles.metaValue}>
                 {TARGET_ICONS[item.target_system] || '🔗'} {item.target_system} — {item.target_id}
-              </Text>
-            </View>
-            <View style={styles.metaCell}>
-              <Text style={styles.metaLabel}>Confidence</Text>
-              <Text style={[styles.metaValue, {
-                color: item.confidence >= 80 ? '#10b981' : item.confidence >= 60 ? '#f59e0b' : '#ef4444',
-              }]}>
-                {item.confidence}%
               </Text>
             </View>
             <View style={styles.metaCell}>
@@ -353,6 +496,11 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
           </View>
         </View>
 
+        {/* Status History Timeline */}
+        <CollapsibleSection title="Status History" defaultCollapsed={false}>
+          <StatusTimeline events={timeline} />
+        </CollapsibleSection>
+
         {/* Change preview */}
         <CollapsibleSection title="Change Preview">
           <View style={styles.diffBox}>
@@ -385,28 +533,6 @@ export function ApprovalDetailScreen({ route, navigation }: Props) {
             </View>
           </CollapsibleSection>
         )}
-
-        {/* Audit trail */}
-        <CollapsibleSection title="Audit Trail">
-          <View style={styles.auditEntry}>
-            <Text style={styles.auditAction}>Created</Text>
-            <Text style={styles.auditDate}>{new Date(item.created_at).toLocaleString()}</Text>
-          </View>
-          {item.decided_at && (
-            <View style={styles.auditEntry}>
-              <Text style={styles.auditAction}>Decision: {item.decision}</Text>
-              <Text style={styles.auditDate}>
-                By {item.decided_by} · {new Date(item.decided_at).toLocaleString()}
-              </Text>
-            </View>
-          )}
-          {item.execution_error && (
-            <View style={styles.auditEntry}>
-              <Text style={[styles.auditAction, { color: '#ef4444' }]}>Execution failed</Text>
-              <Text style={styles.auditDate}>{item.execution_error}</Text>
-            </View>
-          )}
-        </CollapsibleSection>
 
         {/* Bottom padding for fixed action bar */}
         <View style={{ height: 100 }} />
@@ -475,13 +601,45 @@ const styles = StyleSheet.create({
 
   // Header
   detailHeader: { marginBottom: 16 },
-  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 12, alignItems: 'center' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusBadgeText: { fontSize: 12, fontWeight: '700' },
   priorityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   priorityBadgeText: { fontSize: 12, fontWeight: '700' },
+  exportBtn: {
+    marginLeft: 'auto',
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  exportBtnText: { fontSize: 14 },
   detailTitle: { fontSize: 20, fontWeight: '700', color: '#f1f5f9', marginBottom: 8, lineHeight: 26 },
   detailDesc: { fontSize: 14, color: '#94a3b8', lineHeight: 20, marginBottom: 16 },
+
+  // Confidence arc
+  confidenceContainer: { alignItems: 'center', marginBottom: 16 },
+  confidenceCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confidenceInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+  },
+  confidenceScore: { fontSize: 18, fontWeight: '800' },
+  confidenceLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
 
   // Meta grid
   metaGrid: {
@@ -495,6 +653,19 @@ const styles = StyleSheet.create({
   metaCell: { flexDirection: 'row', justifyContent: 'space-between' },
   metaLabel: { color: '#64748b', fontSize: 12 },
   metaValue: { color: '#cbd5e1', fontSize: 12, fontWeight: '500', flex: 1, textAlign: 'right' },
+
+  // Timeline
+  timeline: { paddingLeft: 4 },
+  timelineRow: { flexDirection: 'row', minHeight: 48 },
+  timelineLeft: { width: 24, alignItems: 'center' },
+  timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  timelineLine: { width: 2, flex: 1, backgroundColor: '#334155', marginTop: 4 },
+  timelineContent: { flex: 1, paddingLeft: 8, paddingBottom: 12 },
+  timelineHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  timelineIcon: { fontSize: 12 },
+  timelineLabel: { fontSize: 13, fontWeight: '600' },
+  timelineDetail: { color: '#94a3b8', fontSize: 12, marginTop: 2, lineHeight: 16 },
+  timelineTime: { color: '#64748b', fontSize: 11, marginTop: 2 },
 
   // Sections
   section: {
@@ -545,15 +716,6 @@ const styles = StyleSheet.create({
   revisionLabel: { color: '#fb923c', fontSize: 12, fontWeight: '700' },
   revisionNote: { color: '#cbd5e1', fontSize: 13, marginTop: 4 },
   revisionDate: { color: '#64748b', fontSize: 11, marginTop: 4 },
-
-  // Audit trail
-  auditEntry: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-    paddingVertical: 8,
-  },
-  auditAction: { color: '#f1f5f9', fontSize: 13, fontWeight: '500' },
-  auditDate: { color: '#64748b', fontSize: 11, marginTop: 2 },
 
   // Action bar
   actionBar: {

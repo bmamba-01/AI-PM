@@ -394,6 +394,46 @@ List memory tasks with optional status filter.
 
 ---
 
+#### GET `/api/memory/tasks/:id`
+
+Get a single memory task by ID.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `id` | string | Task ID (full UUID) |
+
+**Response:** `200 OK` — full task object
+
+**Error Responses:**
+
+- `404 Not Found` — task not found
+
+**Implementation:** Calls `MemoryStore.getTask(id)`.
+
+---
+
+#### PUT `/api/memory/tasks/:id/complete`
+
+Mark a task as completed. Sets `status` to `completed` and `completed_at` to current time.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `id` | string | Task ID (full UUID) |
+
+**Response:** `200 OK` — updated task object with `status: "completed"` and `completed_at` set
+
+**Error Responses:**
+
+- `404 Not Found` — task not found
+
+**Implementation:** Calls `MemoryStore.completeTask(id)`.
+
+---
+
 #### GET `/api/memory/artifacts`
 
 List memory artifacts with optional filters.
@@ -453,7 +493,13 @@ Archive a memory artifact.
 
 **Response:** `200 OK` (returns updated artifact with `archived` status)
 
+**Error Responses:**
+
+- `404 Not Found` — artifact not found
+
 **Implementation:** Calls `MemoryStore.archiveArtifact(id, reason)`.
+
+**Backward-compatible alias:** `POST /api/memory/artifacts/archive/:id` also works (inverted path segments). Both paths hit the same handler. New clients should use the primary path.
 
 ---
 

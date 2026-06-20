@@ -48,6 +48,17 @@ interface ElectronApi {
     create: (input: CreateApprovalInput) => Promise<ApprovalItem>;
     resubmit: (id: string, summary_diff: string) => Promise<ApprovalItem>;
   };
+  memory: {
+    summary: () => Promise<{ totalTasks: number; completedTasks: number; totalArtifacts: number; archivedArtifacts: number; staleArtifacts: number }>;
+    tasks: (filter?: { status?: string }) => Promise<Array<{ task_id: string; name: string; status: string }>>;
+    artifacts: (filter?: { status?: string; type?: string }) => Promise<Array<{ artifact_id: string; name: string; status: string }>>;
+  };
+  server: {
+    getStatus: () => Promise<{ running: boolean; host: string; port: number; url: string; projectRoot: string; health: { ok: boolean; version?: string } }>;
+    health: () => Promise<{ ok: boolean; version?: string }>;
+    start: () => Promise<{ running: boolean; port: number }>;
+    stop: () => Promise<{ running: boolean; port: number }>;
+  };
 }
 
 declare global {

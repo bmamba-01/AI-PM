@@ -2,12 +2,14 @@ import { Project } from "@ai-pm/core";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { useState, useEffect, useCallback } from "react";
 import {
   Heart, DollarSign, AlertTriangle, TrendingUp,
   Clock, Users, ArrowUpRight, ArrowDownRight, Minus,
   Activity, Calendar, CheckCircle2, GitPullRequest,
   Rocket, MessageSquare, List, Loader, Check,
-  Eye, Settings, Box
+  Eye, Settings, Box, Wifi, WifiOff,
+  ChevronDown, ChevronUp, Server, HardDrive, ClipboardCheck
 } from "lucide-react";
 
 interface DashboardTabProps {
@@ -17,6 +19,9 @@ interface DashboardTabProps {
 export function DashboardTab({ project }: DashboardTabProps) {
   return (
     <div className="space-y-5">
+      {/* Server status */}
+      <ServerStatus />
+
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Health Score" value={`${project.healthScore}%`} icon={Heart} trend="up" color="emerald" />
@@ -304,5 +309,263 @@ function MeetingList() {
         </div>
       ))}
     </div>
+  );
+}
+
+function ServerStatus() {
+  const [status, setStatus] = useState<{ running: boolean; host: string; port: number; url: string; projectRoot: string; health: { ok: boolean; version?: string } } | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [startedAt] = useState(() => Date.now());
+
+  // Detail data
+  const [memorySummary, setMemorySummary] = useState<{ totalTasks: number; completedTasks: number; totalArtifacts: number; archivedArtifacts: number; staleArtifacts: number } | null>(null);
+  const [approvalCounts, setApprovalCounts] = useState<Record<string, number> | null>(null);
+
+  const fetchStatus = useCallback(() => {
+    window.electronAPI.server.getStatus().then(setStatus).catch(() =>
+      setStatus({ running: false, host: "127.0.0.1", port: 3847, url: "http://127.0.0.1:3847", projectRoot: "", health: { ok: false } })
+    );
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  // Auto-refresh status every 30s
+  useEffect(() => {
+    const id = setInterval(fetchStatus, 30000);
+    return () => clearInterval(id);
+  }, [fetchStatus]);
+
+  // Fetch detail data when expanded and server is healthy
+  useEffect(() => {
+    if (!expanded || !status?.running || !status.health.ok) return;
+
+    window.electronAPI.approvals.count()
+      .then(setApprovalCounts)
+      .catch(() => setApprovalCounts(null));
+
+    window.electronAPI.memory.summary()
+      .then(setMemorySummary)
+      .catch(() => setMemorySummary(null));
+
+    const id = setInterval(() => {
+      window.electronAPI.approvals.count().then(setApprovalCounts).catch(() => {});
+      window.electronAPI.memory.summary().then(setMemorySummary).catch(() => {});
+    }, 30000);
+    return () => clearInterval(id);
+  }, [expanded, status?.running, status?.health.ok]);
+
+  async function toggleServer() {
+    setToggling(true);
+    try {
+      if (status?.running) {
+        const s = await window.electronAPI.server.stop();
+        setStatus(prev => prev ? { ...prev, running: s.running } : null);
+        setMemorySummary(null);
+        setApprovalCounts(null);
+      } else {
+        const s = await window.electronAPI.server.start();
+        if (s.running) {
+          const full = await window.electronAPI.server.getStatus();
+          setStatus(full);
+        } else {
+          setStatus(prev => prev ? { ...prev, running: false } : null);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setToggling(false);
+    }
+  }
+
+  if (!status) return null;
+
+  const healthOk = status.running && status.health.ok;
+  const uptimeMs = status.running ? Date.now() - startedAt : 0;
+  const uptimeLabel = uptimeMs < 60000 ? `${Math.floor(uptimeMs / 1000)}s`
+    : uptimeMs < 3600000 ? `${Math.floor(uptimeMs / 60000)}m`
+    : `${Math.floor(uptimeMs / 3600000)}h`;
+
+  const totalApprovals = approvalCounts
+    ? Object.values(approvalCounts).reduce((a, b) => a + b, 0)
+    : null;
+
+  return (
+    <Card className="glass">
+      <CardContent className="p-3">
+        {/* Collapsed header — always visible */}
+        <div
+          className="flex items-center justify-between cursor-pointer select-none"
+          onClick={() => { if (status.running) setExpanded(!expanded); }}
+        >
+          <div className="flex items-center gap-2">
+            {status.running ? (
+              <Wifi className="w-4 h-4 text-[#34C759]" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-muted-foreground" />
+            )}
+            <span className="text-sm font-medium text-foreground">Local Server</span>
+            <Badge
+              variant="outline"
+              className="text-[10px]"
+              style={{
+                borderColor: status.running ? "#34C75940" : "#8E8E9340",
+                color: status.running ? "#34C759" : "#8E8E93",
+              }}
+            >
+              {status.running ? `Running on :${status.port}` : "Stopped"}
+            </Badge>
+            {status.running && (
+              <Badge
+                variant="outline"
+                className="text-[10px]"
+                style={{
+                  borderColor: healthOk ? "#34C75940" : "#FF950040",
+                  color: healthOk ? "#34C759" : "#FF9500",
+                }}
+              >
+                {healthOk ? "Healthy" : "Unreachable"}
+              </Badge>
+            )}
+            {status.running && (
+              <span className="text-[10px] text-muted-foreground">
+                {status.health.version && `v${status.health.version}`}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {status.running && (
+              expanded
+                ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                : <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs"
+              onClick={(e) => { e.stopPropagation(); toggleServer(); }}
+              disabled={toggling}
+            >
+              {toggling ? "..." : status.running ? "Stop" : "Start"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Collapsed subline */}
+        {!expanded && (
+          <div className="flex items-center gap-4 mt-1 ml-6 text-[10px] text-muted-foreground">
+            {status.running && <span>{status.url}</span>}
+            {status.projectRoot && (
+              <span title={status.projectRoot}>
+                Root: {status.projectRoot.length > 40 ? "…" + status.projectRoot.slice(-39) : status.projectRoot}
+              </span>
+            )}
+            {status.running && (
+              <span>Mobile devices can connect to {status.url}</span>
+            )}
+          </div>
+        )}
+
+        {/* Expanded detail panel */}
+        {expanded && status.running && (
+          <div className="mt-3 ml-1 space-y-3">
+            {/* Info grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
+                <p className="text-xs font-medium text-[#34C759] flex items-center gap-1 mt-0.5">
+                  <Server className="w-3 h-3" /> Running on {status.url}
+                </p>
+              </div>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Health</p>
+                <p className="text-xs font-medium mt-0.5" style={{ color: healthOk ? "#34C759" : "#FF9500" }}>
+                  {healthOk ? "✅ Healthy" : "⚠️ Unreachable"}
+                  {status.health.version && ` (v${status.health.version})`}
+                </p>
+              </div>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Project</p>
+                <p className="text-xs font-medium text-foreground mt-0.5 truncate" title={status.projectRoot}>
+                  {status.projectRoot ? (status.projectRoot.split(/[\\/]/).pop() || status.projectRoot) : "—"}
+                </p>
+              </div>
+              <div className="glass-card rounded-lg p-2.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Uptime</p>
+                <p className="text-xs font-medium text-foreground mt-0.5">Started {uptimeLabel} ago</p>
+              </div>
+            </div>
+
+            {/* Memory + Approvals panels */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Memory panel */}
+              <div className="glass-card rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <HardDrive className="w-3.5 h-3.5 text-[#AF52DE]" />
+                  <p className="text-xs font-semibold text-foreground">Memory</p>
+                </div>
+                {memorySummary ? (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Tasks</span>
+                      <span className="text-foreground font-medium">
+                        {memorySummary.totalTasks}
+                        <span className="text-muted-foreground font-normal"> ({memorySummary.completedTasks} done)</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Artifacts</span>
+                      <span className="text-foreground font-medium">
+                        {memorySummary.totalArtifacts}
+                        <span className="text-muted-foreground font-normal"> ({memorySummary.archivedArtifacts} arch)</span>
+                      </span>
+                    </div>
+                    {memorySummary.staleArtifacts > 0 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Stale</span>
+                        <span className="text-[#FF9500] font-medium">{memorySummary.staleArtifacts}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
+              </div>
+
+              {/* Approvals panel */}
+              <div className="glass-card rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <ClipboardCheck className="w-3.5 h-3.5 text-[#FF9500]" />
+                  <p className="text-xs font-semibold text-foreground">Approvals</p>
+                </div>
+                {approvalCounts ? (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Pending</span>
+                      <span className="text-[#FF9500] font-medium">{approvalCounts["pending"] ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Revision</span>
+                      <span className="text-[#FF3B30] font-medium">{approvalCounts["revision_requested"] ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Approved</span>
+                      <span className="text-[#34C759] font-medium">{approvalCounts["approved"] ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="text-foreground font-medium">{totalApprovals}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1,96 +1,248 @@
-import { fileURLToPath } from 'node:url';
-import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ─── Messages ─────────────────────────────────────────────────────────────────
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.turbo', 'build']);
+const msgs = {
+  en: {
+    creating: 'Creating project',
+    done: 'created successfully!',
+    nextSteps: 'Next steps',
+    nextCommands: [
+      'ai-pm project scan',
+      'ai-pm memory summary --json',
+      'ai-pm approval count --json',
+    ],
+    errExists: (name: string) => `Folder "${name}" already exists. Aborting.`,
+  },
+  vi: {
+    creating: 'Đang tạo dự án',
+    done: 'đã tạo thành công!',
+    nextSteps: 'Các bước tiếp theo',
+    nextCommands: [
+      'ai-pm project scan',
+      'ai-pm memory summary --json',
+      'ai-pm approval count --json',
+    ],
+    errExists: (name: string) => `Thư mục "${name}" đã tồn tại. Dừng lại.`,
+  },
+};
 
-function copyDirRecursive(src: string, dest: string) {
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    if (SKIP_DIRS.has(entry.name)) continue;
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
-      copyDirRecursive(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
-  }
+function getLang(): keyof typeof msgs {
+  return 'en';
 }
 
+// ─── Template content ─────────────────────────────────────────────────────────
+
+function agentsMd(name: string): string {
+  return `# ${name} — Agent Entrypoint
+
+## Purpose
+
+This project is managed with AI-PM Toolkit. AI agents should read this file first.
+
+## Project
+
+- **Name:** ${name}
+- **Managed by:** AI-PM Toolkit
+- **Local-first:** yes
+
+## Safe Defaults
+
+- Treat MCP access as read-only unless approved.
+- Do not publish, send, merge, or mutate external systems without approval.
+- Do not overwrite human work or revert unrelated files.
+- Record assumptions and sources in output.
+
+## Commands
+
+\`\`\`bash
+ai-pm project scan          # Check project readiness
+ai-pm memory summary        # View memory state
+ai-pm approval list         # View approval queue
+ai-pm daily brief           # Generate daily briefing
+\`\`\`
+`;
+}
+
+function codexMd(name: string): string {
+  return `# ${name} — Codex Guide
+
+## How to Work
+
+1. Read this file and AGENTS.md first.
+2. Run \`ai-pm project scan\` to verify project readiness.
+3. Inspect existing files before editing.
+4. Make focused changes.
+5. Run \`ai-pm project scan\` again to verify.
+
+## What NOT to Do
+
+- Do not modify \`.ai-pm/\` runtime data directly.
+- Do not commit secrets or tokens.
+- Do not create files outside the project scope.
+`;
+}
+
+function claudeMd(name: string): string {
+  return `# ${name} — Claude Guide
+
+## How to Work
+
+1. Read AGENTS.md and this file before starting.
+2. Use \`ai-pm\` CLI for project state queries.
+3. Respect approval gates for external mutations.
+4. Keep changes scoped and auditable.
+
+## Verification
+
+After changes, run:
+\`\`\`bash
+ai-pm project scan
+\`\`\`
+`;
+}
+
+function profileYaml(name: string): string {
+  return `version: 1
+project:
+  name: "${name}"
+  methodology: null   # scrum | kanban | waterfall | hybrid
+  project_type: null  # tm | fixed_cost | maintenance | product
+  tags: []
+connectors:
+  github:
+    enabled: false
+    repo: null
+  jira:
+    enabled: false
+    project_key: null
+  linear:
+    enabled: false
+    team_id: null
+  calendar:
+    enabled: false
+  email:
+    enabled: false
+artifacts:
+  root: "."
+  reports: "reports"
+  templates: "templates"
+  notes: "notes"
+`;
+}
+
+function gitignore(): string {
+  return [
+    '# Dependencies',
+    'node_modules/',
+    '',
+    '# Build outputs',
+    'dist/',
+    'build/',
+    '',
+    '# AI-PM runtime state (local, not committed)',
+    '.ai-pm/memory/',
+    '.ai-pm/audit/',
+    '.ai-pm/approvals/',
+    '.ai-pm/approvals.json',
+    '',
+    '# Environment & secrets',
+    '.env',
+    '.env.*',
+    '!.env.example',
+    '',
+    '# OS files',
+    '.DS_Store',
+    'Thumbs.db',
+    '',
+    '# IDE',
+    '.vscode/',
+    '.idea/',
+    '',
+  ].join('\n');
+}
+
+function memoryStateJson(projectName: string): string {
+  return JSON.stringify({
+    version: 1,
+    project_id: '',
+    tasks: [],
+    artifacts: [],
+    updated_at: new Date().toISOString(),
+  }, null, 2) + '\n';
+}
+
+function approvalsJson(): string {
+  return '[]\n';
+}
+
+// ─── Main init function ───────────────────────────────────────────────────────
+
 export function runInit(projectName: string) {
+  const lang = getLang();
+  const t = msgs[lang];
   const root = process.cwd();
   const target = path.join(root, projectName);
 
   if (fs.existsSync(target)) {
-    console.error(`Folder "${projectName}" already exists. Aborting.`);
+    console.error(t.errExists(projectName));
     process.exit(1);
   }
 
-  console.log(`Creating project "${projectName}"...`);
+  console.log(`${t.creating} "${projectName}"...`);
 
-  // Find repo root (CLI is at packages/cli/dist/commands/init.js → repo root is 4 levels up)
-  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
+  // ── Create directories ──
 
-  // Create target structure
-  fs.mkdirSync(path.join(target, 'packages'), { recursive: true });
-
-  // Copy skeleton packages
-  const packages = ['desktop', 'mobile', 'core', 'mcp', 'agents', 'shared'];
-  for (const pkg of packages) {
-    const src = path.join(repoRoot, 'packages', pkg);
-    const dest = path.join(target, 'packages', pkg);
-    if (fs.existsSync(src)) {
-      copyDirRecursive(src, dest);
-      console.log(`  ✓ packages/${pkg}`);
-    } else {
-      console.log(`  ⚠ packages/${pkg} (source not found, skipped)`);
-    }
+  const dirs = [
+    '.ai-pm/memory',
+    '.ai-pm/audit',
+    '.ai-pm/approvals',
+    'reports',
+    'templates',
+    'notes',
+  ];
+  for (const d of dirs) {
+    fs.mkdirSync(path.join(target, d), { recursive: true });
   }
 
-  // Copy root config files
-  const rootFiles = ['package.json', 'pnpm-workspace.yaml', 'tsconfig.base.json'];
-  for (const f of rootFiles) {
-    const src = path.join(repoRoot, f);
-    const dest = path.join(target, f);
-    if (fs.existsSync(src)) {
-      fs.copyFileSync(src, dest);
-      console.log(`  ✓ ${f}`);
-    }
-  }
+  // ── Seed runtime files ──
 
-  // Create .ai-pm runtime directories
-  const aiPmDir = path.join(target, '.ai-pm');
-  fs.mkdirSync(path.join(aiPmDir, 'memory'), { recursive: true });
-  fs.mkdirSync(path.join(aiPmDir, 'audit'), { recursive: true });
-  fs.mkdirSync(path.join(aiPmDir, 'approvals'), { recursive: true });
-  console.log('  ✓ .ai-pm/ (runtime data)');
+  fs.writeFileSync(path.join(target, '.ai-pm/memory/state.json'), memoryStateJson(projectName));
+  fs.writeFileSync(path.join(target, '.ai-pm/approvals.json'), approvalsJson());
 
-  // Create .gitignore for runtime data
-  fs.writeFileSync(
-    path.join(target, '.gitignore'),
-    [
-      'node_modules/',
-      'dist/',
-      '.ai-pm/memory/',
-      '.ai-pm/audit/',
-      '.ai-pm/approvals.json',
-      '.ai-pm/approvals/',
-      '',
-    ].join('\n')
-  );
-  console.log('  ✓ .gitignore');
+  // ── Project profile ──
 
-  // Create a basic README
+  fs.writeFileSync(path.join(target, '.ai-pm/profile.yaml'), profileYaml(projectName));
+
+  // ── Agent entrypoints ──
+
+  fs.writeFileSync(path.join(target, 'AGENTS.md'), agentsMd(projectName));
+  fs.writeFileSync(path.join(target, 'CODEX.md'), codexMd(projectName));
+  fs.writeFileSync(path.join(target, 'CLAUDE.md'), claudeMd(projectName));
+
+  // ── .gitignore ──
+
+  fs.writeFileSync(path.join(target, '.gitignore'), gitignore());
+
+  // ── README ──
+
   fs.writeFileSync(
     path.join(target, 'README.md'),
-    `# ${projectName}\n\nInitialized with AI-PM Toolkit.\n\n## Getting Started\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n`
+    `# ${projectName}\n\nInitialized with AI-PM Toolkit.\n\n## Getting Started\n\n\`\`\`bash\nai-pm project scan\nai-pm memory summary\nai-pm daily brief\n\`\`\`\n`
   );
-  console.log('  ✓ README.md');
 
-  console.log(`\n✅ Project "${projectName}" created successfully!`);
-  console.log(`\nNext steps:\n  cd ${projectName}\n  npm install\n  npm run dev`);
+  // ── Summary ──
+
+  console.log(`  ✓ .ai-pm/ (runtime dirs + seeds)`);
+  console.log(`  ✓ .ai-pm/profile.yaml`);
+  console.log(`  ✓ AGENTS.md, CODEX.md, CLAUDE.md`);
+  console.log(`  ✓ .gitignore`);
+  console.log(`  ✓ reports/, templates/, notes/`);
+  console.log(`  ✓ README.md`);
+  console.log(`\n✅ "${projectName}" ${t.done}`);
+  console.log(`\n${t.nextSteps}:\n  cd ${projectName}`);
+  for (const cmd of t.nextCommands) {
+    console.log(`  ${cmd}`);
+  }
 }

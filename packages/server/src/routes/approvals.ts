@@ -54,7 +54,13 @@ const GET_ONE = route("GET", "/api/approvals/:id", async (_req, res, params, que
 });
 
 const POST_CREATE = route("POST", "/api/approvals", async (req, res, _p, queue) => {
-  const body = await readJSON(req);
+  let body: Record<string, unknown>;
+  try {
+    body = await readJSON(req);
+  } catch {
+    err(res, 400, "Invalid JSON in request body");
+    return;
+  }
   try {
     const item = await queue.createItem(body as unknown as Parameters<typeof queue.createItem>[0]);
     json(res, item, 201);
@@ -69,7 +75,9 @@ const POST_DECIDE = route("POST", "/api/approvals/:id/decide", async (req, res, 
     const item = await queue.decide(params.id, body);
     json(res, item);
   } catch (e: unknown) {
-    err(res, 400, e instanceof Error ? e.message : "decide failed");
+    const msg = e instanceof Error ? e.message : "decide failed";
+    const status = msg.includes("not found") ? 404 : 400;
+    err(res, status, msg);
   }
 });
 
@@ -79,7 +87,9 @@ const POST_RESUBMIT = route("POST", "/api/approvals/:id/resubmit", async (req, r
     const item = await queue.resubmit(params.id, body.summary_diff);
     json(res, item);
   } catch (e: unknown) {
-    err(res, 400, e instanceof Error ? e.message : "resubmit failed");
+    const msg = e instanceof Error ? e.message : "resubmit failed";
+    const status = msg.includes("not found") ? 404 : 400;
+    err(res, status, msg);
   }
 });
 

@@ -1,7 +1,7 @@
 # PM Orchestrator Master Plan
 
 > **Status:** Current implementation plan  
-> **Updated:** 2026-06-19  
+> **Updated:** 2026-06-20  
 > **Owner:** Human PM  
 > **Purpose:** Refocus AI-PM Toolkit on a personal PM command system for managing one or two large, complex software projects with AI-agent automation across laptop, CLI, desktop, and mobile/chat surfaces.
 
@@ -262,9 +262,9 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
-- `docs/agent-delegation/2026-06-19-pm-orchestrator-agent-prompts.md`
-- Runtime hardening prompt set: `docs/agent-delegation/2026-06-19-runtime-hardening-agent-prompts.md`
+- Active Wave 6 prompt set: `docs/agent-delegation/2026-06-20-wave6-assignment.md`
 - Runtime implementation plan: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`
+- Historical prompt sets are reference only unless a newer active plan explicitly names them.
 
 ## 11. Verification Gate
 
@@ -274,8 +274,9 @@ Before claiming a phase complete, run:
 pnpm --filter @ai-pm/core test
 pnpm --filter @ai-pm/mcp test
 pnpm --filter @ai-pm/cli build
+pnpm test
 pnpm build
-rg -n "UNRESOLVED_" AGENTS.md README.md docs playbooks workflows mcp templates packages
+rg -n "UNRESOLVED_" AGENTS.md README.md docs playbooks workflows mcp templates packages --glob "!docs/superpowers/plans/*.md"
 ```
 
 Warnings from Vite about Electron `fs` and `path` browser externalization are known build warnings, not current blockers, but should be tracked before desktop runtime hardening.

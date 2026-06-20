@@ -104,4 +104,60 @@ describe('project scan — store layer', () => {
     const after = await readdir(root);
     expect(after).toEqual(before);
   });
+
+  it('nested docs paths are detected', async () => {
+    const root = await tempRoot();
+    await mkdir(path.join(root, 'docs', 'superpowers', 'specs'), { recursive: true });
+    const result = await scanProject(root);
+    const specCheck = result.checks.find(c => c.id === 'design-spec');
+    expect(specCheck?.present).toBe(true);
+  });
+
+  it('all checks have required fields', async () => {
+    const root = await tempRoot();
+    const result = await scanProject(root);
+    for (const check of result.checks) {
+      expect(check).toHaveProperty('id');
+      expect(check).toHaveProperty('present');
+      expect(check).toHaveProperty('required');
+      expect(typeof check.id).toBe('string');
+      expect(typeof check.present).toBe('boolean');
+      expect(typeof check.required).toBe('boolean');
+    }
+  });
+
+  it('score is between 0 and 100', async () => {
+    const root = await tempRoot();
+    await writeFile(path.join(root, 'AGENTS.md'), '', 'utf-8');
+    await writeFile(path.join(root, 'README.md'), '', 'utf-8');
+    const result = await scanProject(root);
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
+  });
+
+  it('ready is true only when all required checks pass', async () => {
+    const root = await tempRoot();
+    // Create all required items
+    await writeFile(path.join(root, 'AGENTS.md'), '', 'utf-8');
+    await writeFile(path.join(root, 'README.md'), '', 'utf-8');
+    await mkdir(path.join(root, 'docs', 'superpowers', 'specs'), { recursive: true });
+    await mkdir(path.join(root, 'docs', 'superpowers', 'plans'), { recursive: true });
+    await mkdir(path.join(root, 'workflows'), { recursive: true });
+    await mkdir(path.join(root, 'playbooks'), { recursive: true });
+    await mkdir(path.join(root, 'mcp'), { recursive: true });
+    await writeFile(path.join(root, 'mcp', 'registry.yaml'), '', 'utf-8');
+
+    const result = await scanProject(root);
+    expect(result.ready).toBe(true);
+    expect(result.passedRequired).toBe(result.totalRequired);
+  });
+
+  it('does not write to disk', async () => {
+    const root = await tempRoot();
+    const { readdir } = await import('node:fs/promises');
+    const before = await readdir(root);
+    await scanProject(root);
+    const after = await readdir(root);
+    expect(after).toEqual(before);
+  });
 });

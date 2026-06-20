@@ -25,6 +25,7 @@ Define the mobile approval API client — a thin fetch-based layer that communic
 │           ┌─────────────────────┐                │
 │           │ Approval API Client │                │
 │           │ (fetch-based)       │                │
+│           │ + Health Check      │                │
 │           └──────────┬──────────┘                │
 │                      │                           │
 │    ┌─────────────────┼────────────────────┐     │
@@ -38,7 +39,7 @@ Define the mobile approval API client — a thin fetch-based layer that communic
 
 ### 3.1 Local Server Mode
 
-When `setApprovalBaseUrl(url)` is called with a valid URL (e.g. `http://192.168.1.50:3000`), all approval operations go through fetch to the local server API.
+When `configureServer(url)` is called with a valid URL and the server passes a health check, all approval operations go through fetch to the local server.
 
 **API endpoints consumed:**
 
@@ -57,35 +58,59 @@ When no base URL is configured (default), the client operates in mock fallback m
 - All CRUD and state transition logic runs client-side
 - Data is not persisted between app restarts
 - `dataSource` state is set to `'mock_fallback'`
+- UI displays "🧪 Demo — mock data" indicator
 
-### 3.3 Error Degradation
+### 3.3 Error Handling
 
-If a fetch call to the local server fails (network error, timeout, server down):
+**Read operations** (loadItems, loadCounts, refresh): On network error, degrade gracefully to mock fallback and set `error` state. The user sees the error and mock data.
 
-1. The error message is stored in `state.error`
-2. The client degrades to mock fallback mode for that operation
-3. `dataSource` is set to `'mock_fallback'`
-4. UI shows the error and fallback indicator
+**Write operations** (decide, create): On network error, do NOT silently fall back. Surface the error immediately:
+- `error` state is set to the error message
+- `serverStatus` is set to `'unreachable'`
+- The error is thrown so the calling component can show an alert
+- The user must fix the connection before retrying
 
-## 4. Configuration
+## 4. Server Configuration
 
 ### 4.1 Setting the Server URL
 
 ```typescript
-import { setApprovalBaseUrl } from '../state/approval-store';
+import { configureServer } from '../state/approval-store';
 
-// At app startup or from Settings screen:
-setApprovalBaseUrl('http://192.168.1.50:3000');
+// From Settings screen — handles health check, persistence, and data loading:
+await configureServer('http://192.168.1.50:3847');
 
-// To revert to mock mode:
-setApprovalBaseUrl(null);
+// To disconnect:
+await configureServer(null);
 ```
 
-### 4.2 Default Behavior
+### 4.2 Health Check
 
-- Default: no server URL → mock fallback mode
-- `dataSource` starts as `'mock_fallback'`
-- UI displays "Mock fallback" indicator with amber dot
+Before showing runtime mode, the client performs a health check:
+
+```typescript
+import { checkServerHealth, type ServerStatus } from '../state/approval-store';
+
+const status: ServerStatus = await checkServerHealth('http://192.168.1.50:3847');
+// 'connected' | 'unreachable' | 'unknown'
+```
+
+The health check uses a 5-second timeout and GETs `/api/approvals`. A 200 or 404 response means the server is alive.
+
+### 4.3 URL Persistence
+
+The server URL is persisted to `expo-secure-store` so it survives app restarts. On first access, `loadPersistedUrl()` is called to restore the URL.
+
+### 4.4 Settings Screen
+
+The Settings screen (`SettingsScreen.tsx`) provides:
+
+- **Server URL input** — text field for the URL
+- **Test Connection** button — runs health check
+- **Save & Connect** button — persists URL, runs health check, loads data if connected
+- **Disconnect** button — clears URL and reverts to mock
+- **Status indicator** — shows connected/unreachable/not configured with color dot
+- **Active mode badge** — "ACTIVE" (green) for local server, "MOCK" (amber) for fallback
 
 ## 5. Store Interface
 
@@ -95,23 +120,36 @@ interface ApprovalState {
   counts: Record<string, number>;
   isLoading: boolean;
   error: string | null;
-  dataSource: DataSource;  // 'local_server' | 'mock_fallback'
+  dataSource: DataSource;       // 'local_server' | 'mock_fallback'
+  serverStatus: ServerStatus;   // 'unknown' | 'connected' | 'unreachable'
+  searchQuery: string;
+  activeFilter: string;
+  isRefreshing: boolean;
 
-  loadItems: (filter?: { status?: string; priority?: string }) => Promise<void>;
+  loadItems: (filter?) => Promise<void>;
   loadCounts: () => Promise<void>;
-  decide: (id: string, payload: DecidePayload) => Promise<ApprovalItem>;
+  decide: (id, payload) => Promise<ApprovalItem>;
+  create: (input) => Promise<ApprovalItem>;
   refresh: () => Promise<void>;
+  configureServer: (url: string | null) => Promise<void>;
+  // ... search/filter helpers
 }
 ```
 
 ## 6. UI Indicators
 
-The `ApprovalsScreen` displays a data source indicator bar at the top:
+### ApprovalsScreen
 
-- **Green dot + "Local server"** — connected to laptop-hosted server
-- **Amber dot + "Mock fallback"** — using in-memory seed data
+- **Data source bar** at the top:
+  - Green dot + "⚡ Live — local server" — connected to laptop-hosted server
+  - Amber dot + "🧪 Demo — mock data" — using in-memory seed data
+- **Error banner** — shown when `error` is set, with retry option
 
-The indicator updates reactively as the store's `dataSource` changes.
+### SettingsScreen
+
+- **Status dot** with label: Connected (green), Unreachable (red), Not configured (gray)
+- **Mode badge**: ACTIVE (green) or MOCK (amber)
+- **URL input** with placeholder showing default port
 
 ## 7. Type Definitions
 
@@ -120,6 +158,7 @@ All types are defined locally in `packages/mobile/src/state/approval-store.ts`:
 - `ApprovalItem` — mirrors the runtime contract
 - `DecidePayload` — decision request shape
 - `DataSource` — `'local_server' | 'mock_fallback'`
+- `ServerStatus` — `'unknown' | 'connected' | 'unreachable'`
 
 No imports from `@ai-pm/core/runtime` in any renderer code.
 
@@ -128,4 +167,6 @@ No imports from `@ai-pm/core/runtime` in any renderer code.
 - **No Node-only imports:** The client uses `fetch` (available in React Native) and `zustand`
 - **No file system access:** All state is in-memory or via HTTP
 - **Explicit mock mode:** Mock data is clearly labeled, not mixed with server data
-- **Graceful degradation:** Network errors fall back to mock, never crash
+- **Write errors are not swallowed:** Failed writes surface errors to the user
+- **Health check required:** Server must pass health check before entering live mode
+- **URL persisted:** Server URL survives app restarts via expo-secure-store

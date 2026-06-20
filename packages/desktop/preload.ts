@@ -28,6 +28,17 @@ const api = {
     create: (input: { project_id: string; action_type: string; target_system: string; target_id: string; workflow_id: string; run_id: string; requested_by_agent: string; requested_by_role: string; title: string; description: string; summary_diff: string; confidence: number; source_refs: Array<{ type: string; id: string; title?: string; accessed_at?: string }>; priority: string; deadline?: string | null; ttl_seconds?: number | null; assigned_approvers?: string[] }): Promise<any> => ipcRenderer.invoke("approvals:create", input),
     resubmit: (id: string, summary_diff: string): Promise<any> => ipcRenderer.invoke("approvals:resubmit", id, summary_diff),
   },
+  memory: {
+    summary: (): Promise<{ totalTasks: number; completedTasks: number; totalArtifacts: number; archivedArtifacts: number; staleArtifacts: number }> => ipcRenderer.invoke("memory:summary"),
+    tasks: (filter?: { status?: string }): Promise<any[]> => ipcRenderer.invoke("memory:tasks", filter),
+    artifacts: (filter?: { status?: string; type?: string }): Promise<any[]> => ipcRenderer.invoke("memory:artifacts", filter),
+  },
+  server: {
+    getStatus: (): Promise<{ running: boolean; host: string; port: number; url: string; projectRoot: string; health: { ok: boolean; version?: string } }> => ipcRenderer.invoke("server:getStatus"),
+    health: (): Promise<{ ok: boolean; version?: string }> => ipcRenderer.invoke("server:health"),
+    start: (): Promise<{ running: boolean; port: number }> => ipcRenderer.invoke("server:start"),
+    stop: (): Promise<{ running: boolean; port: number }> => ipcRenderer.invoke("server:stop"),
+  },
 };
 
 contextBridge.exposeInMainWorld("electronAPI", api);

@@ -44,6 +44,7 @@ describe('runtime smoke', () => {
         description: 'Test',
         status: 'pending',
         assigned_to: 'smoke',
+        completed_at: null,
         dependencies: [],
         artifacts: [],
         tags: [],

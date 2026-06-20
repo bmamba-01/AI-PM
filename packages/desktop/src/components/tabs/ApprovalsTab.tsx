@@ -5,7 +5,8 @@ import { Button } from "../ui/button";
 import {
   Clock, CheckCircle2, XCircle, AlertTriangle, ArrowRight,
   GitPullRequest, FileText, ChevronDown, ChevronUp,
-  Shield, Eye, Loader2, RotateCcw
+  Shield, Eye, Loader2, RotateCcw, Search, Download,
+  Plus, CheckSquare, Square, History, Trash2
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useApprovalStore, type ApprovalItem } from "../../state/approval-store";
@@ -50,9 +51,16 @@ let toastCounter = 0;
 export function ApprovalsTab({ project }: Props) {
   const { items, counts, isLoading, error, loadItems, loadCounts, decide, refresh, clearError } = useApprovalStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>(() => {
+    // Load filter from localStorage (feature #7: filter persistence)
+    const saved = localStorage.getItem(`approvals-filter-${project.id}`);
+    return saved || "all";
+  });
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Confirmation state
   const [confirmAction, setConfirmAction] = useState<{
@@ -62,6 +70,147 @@ export function ApprovalsTab({ project }: Props) {
   } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [revisionNotes, setRevisionNotes] = useState("");
+
+  // Feature #7: Save filter to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem(`approvals-filter-${project.id}`, filter);
+  }, [filter, project.id]);
+
+  // Feature #8: Filter items by search query
+  const filteredItems = items.filter(item => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q) ||
+      item.target_system.toLowerCase().includes(q) ||
+      item.action_type.toLowerCase().includes(q)
+    );
+  });
+
+  // Feature #9: Export functions
+  function exportToJSON() {
+    const data = JSON.stringify(filteredItems, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `approvals-${project.name}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exported to JSON");
+  }
+
+  function exportToCSV() {
+    const headers = ["ID", "Title", "Status", "Priority", "Target System", "Confidence", "Created At"];
+    const rows = filteredItems.map(item => [
+      item.approval_id,
+      item.title,
+      item.status,
+      item.priority,
+      item.target_system,
+      item.confidence,
+      item.created_at,
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `approvals-${project.name}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exported to CSV");
+  }
+
+  // Feature #6: Bulk selection helpers
+  function toggleItemSelection(id: string) {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedItems.size === filteredItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredItems.map(item => item.approval_id)));
+    }
+  }
+
+  async function bulkApprove() {
+    const ids = Array.from(selectedItems);
+    if (ids.length === 0) return;
+    setActionPending("bulk");
+    try {
+      await Promise.all(ids.map(id => decide(id, { decided_by: "pm-user", decision: "approve" })));
+      await refresh();
+      showToast(`Approved ${ids.length} item(s)`);
+      setSelectedItems(new Set());
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Bulk approve failed", "error");
+    } finally {
+      setActionPending(null);
+    }
+  }
+
+  async function bulkReject() {
+    const ids = Array.from(selectedItems);
+    if (ids.length === 0) return;
+    const reason = prompt("Enter rejection reason (min 10 characters):");
+    if (!reason || reason.length < 10) {
+      showToast("Rejection reason must be at least 10 characters", "error");
+      return;
+    }
+    setActionPending("bulk");
+    try {
+      await Promise.all(ids.map(id => decide(id, { decided_by: "pm-user", decision: "reject", reason })));
+      await refresh();
+      showToast(`Rejected ${ids.length} item(s)`);
+      setSelectedItems(new Set());
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Bulk reject failed", "error");
+    } finally {
+      setActionPending(null);
+    }
+  }
+
+  // Feature #10: Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Ignore if typing in an input/textarea or modal is open
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || confirmAction || showCreateForm) return;
+
+      if (e.key === "Escape") {
+        setExpandedId(null);
+        setSelectedItems(new Set());
+      }
+
+      // If exactly one item is selected, enable approve/reject shortcuts
+      if (selectedItems.size === 1) {
+        const id = Array.from(selectedItems)[0];
+        const item = filteredItems.find(i => i.approval_id === id);
+        if (!item) return;
+        const isActionable = item.status === "pending" || item.status === "revision_requested";
+
+        if (isActionable) {
+          if (e.key === "a" || e.key === "A") {
+            e.preventDefault();
+            setConfirmAction({ type: "approve", itemId: id, itemTitle: item.title });
+          } else if (e.key === "r" || e.key === "R") {
+            e.preventDefault();
+            setConfirmAction({ type: "reject", itemId: id, itemTitle: item.title });
+          }
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedItems, filteredItems, confirmAction, showCreateForm]);
 
   function showToast(message: string, type: Toast["type"] = "success") {
     const id = ++toastCounter;
@@ -145,6 +294,151 @@ export function ApprovalsTab({ project }: Props) {
         </div>
       )}
 
+      {/* Create approval form modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 overflow-y-auto" onClick={() => setShowCreateForm(false)}>
+          <div className="glass-card rounded-xl p-6 w-full max-w-2xl my-8 space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground">Create Approval Request</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              try {
+                const newItem = {
+                  project_id: project.id,
+                  title: formData.get("title") as string,
+                  description: formData.get("description") as string,
+                  action_type: formData.get("action_type") as string,
+                  target_system: formData.get("target_system") as string,
+                  target_id: formData.get("target_id") as string,
+                  workflow_id: "manual",
+                  run_id: `manual-${Date.now()}`,
+                  requested_by_agent: "manual",
+                  requested_by_role: "pm_user",
+                  summary_diff: formData.get("summary_diff") as string,
+                  confidence: parseInt(formData.get("confidence") as string),
+                  source_refs: [],
+                  priority: formData.get("priority") as "critical" | "high" | "medium" | "low",
+                };
+                await window.electronAPI.approvals.create(newItem);
+                await refresh();
+                setShowCreateForm(false);
+                showToast("Approval created successfully");
+              } catch (err) {
+                showToast(err instanceof Error ? err.message : "Failed to create approval", "error");
+              }
+            }} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Title *</label>
+                  <input
+                    name="title"
+                    required
+                    className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                    placeholder="Brief title for the approval"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Priority *</label>
+                  <select
+                    name="priority"
+                    required
+                    defaultValue="medium"
+                    className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                  >
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Description *</label>
+                <textarea
+                  name="description"
+                  required
+                  rows={3}
+                  className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                  placeholder="Detailed description of what needs approval"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Action Type *</label>
+                  <select
+                    name="action_type"
+                    required
+                    className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                  >
+                    <option value="report_publish">Report Publish</option>
+                    <option value="scope_change">Scope Change</option>
+                    <option value="pr_merge">PR Merge</option>
+                    <option value="risk_closure">Risk Closure</option>
+                    <option value="budget_update">Budget Update</option>
+                    <option value="baseline_change">Baseline Change</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Target System *</label>
+                  <select
+                    name="target_system"
+                    required
+                    className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                  >
+                    <option value="jira">Jira</option>
+                    <option value="github">GitHub</option>
+                    <option value="gmail">Gmail</option>
+                    <option value="notion">Notion</option>
+                    <option value="confluence">Confluence</option>
+                    <option value="local_file">Local File</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Target ID *</label>
+                  <input
+                    name="target_id"
+                    required
+                    className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                    placeholder="e.g., PR-123, JIRA-456"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Confidence (0-100)</label>
+                  <input
+                    name="confidence"
+                    type="number"
+                    min="0"
+                    max="100"
+                    defaultValue="80"
+                    className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Summary of Changes *</label>
+                <textarea
+                  name="summary_diff"
+                  required
+                  rows={2}
+                  className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+                  placeholder="Brief summary of what will change"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowCreateForm(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#34C759] hover:bg-[#34C759]/80 text-white">
+                  <Plus className="w-4 h-4 mr-1" /> Create Approval
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation modal */}
       {confirmAction && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50" onClick={() => { setConfirmAction(null); setRejectReason(""); setRevisionNotes(""); }}>
@@ -225,15 +519,68 @@ export function ApprovalsTab({ project }: Props) {
               <Eye className="w-3 h-3 mr-1" />
               Live Data
             </Badge>
+            {selectedItems.size > 0 && (
+              <Badge className="bg-[#007AFF]/20 text-[#007AFF] border-[#007AFF]/30 text-[10px]">
+                {selectedItems.size} selected
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">{project.name} • AI-generated actions awaiting approval</p>
         </div>
-        <Button
-          className="bg-[#007AFF] hover:bg-[#007AFF]/80 text-white"
-          onClick={() => refresh()}
-        >
-          Refresh <ArrowRight className="w-4 h-4 ml-1" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Export buttons */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportToJSON}
+            disabled={filteredItems.length === 0}
+          >
+            <Download className="w-4 h-4 mr-1" /> JSON
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportToCSV}
+            disabled={filteredItems.length === 0}
+          >
+            <Download className="w-4 h-4 mr-1" /> CSV
+          </Button>
+          {/* Create button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateForm(true)}
+            className="border-[#34C759]/30 text-[#34C759]"
+          >
+            <Plus className="w-4 h-4 mr-1" /> Create
+          </Button>
+          <Button
+            className="bg-[#007AFF] hover:bg-[#007AFF]/80 text-white"
+            onClick={() => refresh()}
+          >
+            <RotateCcw className="w-4 h-4 mr-1" /> Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search approvals by title, description, system, or action type..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#007AFF]/50"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -270,6 +617,60 @@ export function ApprovalsTab({ project }: Props) {
           </Button>
         ))}
       </div>
+
+      {/* Bulk selection controls */}
+      {filteredItems.length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {selectedItems.size === filteredItems.length ? (
+                <CheckSquare className="w-4 h-4 text-[#007AFF]" />
+              ) : (
+                <Square className="w-4 h-4" />
+              )}
+              <span>Select All ({filteredItems.length})</span>
+            </button>
+            {selectedItems.size > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {selectedItems.size} of {filteredItems.length} selected
+              </span>
+            )}
+          </div>
+          {selectedItems.size > 0 && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                className="bg-[#34C759] hover:bg-[#34C759]/80 text-white"
+                onClick={bulkApprove}
+                disabled={actionPending === "bulk"}
+              >
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Approve Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#FF3B30]/30 text-[#FF3B30]"
+                onClick={bulkReject}
+                disabled={actionPending === "bulk"}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Reject Selected
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedItems(new Set())}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error state */}
       {error && (
@@ -310,25 +711,40 @@ export function ApprovalsTab({ project }: Props) {
       )}
 
       {/* Empty state */}
-      {!isLoading && !error && items.length === 0 && (
+      {!isLoading && !error && filteredItems.length === 0 && (
         <Card>
           <CardContent className="p-10 text-center">
-            <CheckCircle2 className="w-12 h-12 mx-auto text-[#34C759] mb-4" />
-            <h3 className="text-lg font-medium text-foreground">✓ No pending approvals</h3>
-            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-              All caught up! New approval requests will appear here when agents need your review.
-            </p>
-            <Button variant="outline" className="mt-4" onClick={() => refresh()}>
-              <RotateCcw className="w-4 h-4 mr-1" /> Refresh
-            </Button>
+            {searchQuery ? (
+              <>
+                <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground">No matching approvals</h3>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                  Try adjusting your search or filter criteria.
+                </p>
+                <Button variant="outline" className="mt-4" onClick={() => setSearchQuery("")}>
+                  Clear Search
+                </Button>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-12 h-12 mx-auto text-[#34C759] mb-4" />
+                <h3 className="text-lg font-medium text-foreground">✓ No pending approvals</h3>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                  All caught up! New approval requests will appear here when agents need your review.
+                </p>
+                <Button variant="outline" className="mt-4" onClick={() => refresh()}>
+                  <RotateCcw className="w-4 h-4 mr-1" /> Refresh
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
 
       {/* Approval Items */}
-      {!isLoading && !error && items.length > 0 && (
+      {!isLoading && !error && filteredItems.length > 0 && (
         <div className="space-y-3">
-          {items.map((item) => {
+          {filteredItems.map((item) => {
             const status = item.status as string;
             const cfg = statusConfig[status] ?? { label: status, color: "#8E8E93", icon: Clock };
             const StatusIcon = cfg.icon;
@@ -341,7 +757,23 @@ export function ApprovalsTab({ project }: Props) {
             return (
               <Card key={item.approval_id} className="glass">
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox for bulk selection */}
+                    <div className="pt-1">
+                      <button
+                        onClick={() => toggleItemSelection(item.approval_id)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {selectedItems.has(item.approval_id) ? (
+                          <CheckSquare className="w-5 h-5 text-[#007AFF]" />
+                        ) : (
+                          <Square className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge
@@ -410,6 +842,8 @@ export function ApprovalsTab({ project }: Props) {
                       </Button>
                     </div>
                   </div>
+                </div>
+              </div>
 
                   {/* Expanded Detail */}
                   {isExpanded && (
@@ -444,6 +878,121 @@ export function ApprovalsTab({ project }: Props) {
                       {item.revision_notes && (
                         <div className="text-xs text-[#FF9500]">Revision Notes: {item.revision_notes}</div>
                       )}
+
+                      {/* Status history timeline (feature #2) */}
+                      <div>
+                        <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                          <History className="w-3 h-3" /> Status Timeline
+                        </h4>
+                        <div className="space-y-2 ml-5">
+                          {/* Created */}
+                          <div className="flex items-start gap-2 text-xs">
+                            <div className="w-2 h-2 rounded-full bg-[#8E8E93] mt-1" />
+                            <div>
+                              <div className="font-medium text-foreground">Created</div>
+                              <div className="text-muted-foreground">{new Date(item.created_at).toLocaleString()}</div>
+                              <div className="text-muted-foreground">By {item.requested_by_role}</div>
+                            </div>
+                          </div>
+
+                          {/* Status changes */}
+                          {item.status !== "draft" && (
+                            <div className="flex items-start gap-2 text-xs">
+                              <div className={`w-2 h-2 rounded-full mt-1`} style={{ backgroundColor: statusConfig[item.status]?.color ?? "#8E8E93" }} />
+                              <div>
+                                <div className="font-medium text-foreground">{statusConfig[item.status]?.label ?? item.status}</div>
+                                <div className="text-muted-foreground">{new Date(item.updated_at).toLocaleString()}</div>
+                                {item.decided_by && (
+                                  <div className="text-muted-foreground">By {item.decided_by}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Revision rounds */}
+                          {item.revision_round > 0 && (
+                            <div className="flex items-start gap-2 text-xs">
+                              <div className="w-2 h-2 rounded-full bg-[#FF9500] mt-1" />
+                              <div>
+                                <div className="font-medium text-foreground">Revision Round {item.revision_round}</div>
+                                <div className="text-muted-foreground">Requested revisions</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Audit trail viewer (feature #12) */}
+                      <details className="group">
+                        <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-2">
+                          <Shield className="w-3 h-3" /> Audit Trail
+                          <ChevronDown className="w-3 h-3 group-open:rotate-180 transition-transform" />
+                        </summary>
+                        <div className="mt-2 ml-5 space-y-2 text-xs">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <div className="text-muted-foreground">Approval ID</div>
+                              <div className="text-foreground font-mono">{item.approval_id}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Project ID</div>
+                              <div className="text-foreground font-mono">{item.project_id}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Workflow ID</div>
+                              <div className="text-foreground font-mono">{item.workflow_id}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Run ID</div>
+                              <div className="text-foreground font-mono">{item.run_id}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Requested By</div>
+                              <div className="text-foreground">{item.requested_by_agent}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Role</div>
+                              <div className="text-foreground">{item.requested_by_role}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Target System</div>
+                              <div className="text-foreground">{item.target_system}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Target ID</div>
+                              <div className="text-foreground">{item.target_id}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Execution Status</div>
+                              <div className="text-foreground">{item.execution_status}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Retry Count</div>
+                              <div className="text-foreground">{item.retry_count}</div>
+                            </div>
+                            {item.deadline && (
+                              <div>
+                                <div className="text-muted-foreground">Deadline</div>
+                                <div className="text-foreground">{new Date(item.deadline).toLocaleString()}</div>
+                              </div>
+                            )}
+                            {item.ttl_seconds && (
+                              <div>
+                                <div className="text-muted-foreground">TTL (seconds)</div>
+                                <div className="text-foreground">{item.ttl_seconds}</div>
+                              </div>
+                            )}
+                            {item.execution_error && (
+                              <div className="col-span-2">
+                                <div className="text-muted-foreground">Execution Error</div>
+                                <div className="text-[#FF3B30] font-mono text-[10px] bg-[#FF3B30]/10 p-2 rounded">
+                                  {item.execution_error}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </details>
 
                       {/* Request revision button in expanded detail */}
                       {isActionable && (
