@@ -95,6 +95,39 @@ describe('completion gate', () => {
     expect(Array.isArray(data.agents)).toBe(true);
   });
 
+  it('project profile validate --json returns valid JSON', () => {
+    const { exitCode, stdout } = run('project profile validate --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(typeof data).toBe('object');
+    expect(typeof data.valid).toBe('boolean');
+  });
+
+  it('mcp validate --json returns valid report', () => {
+    const { exitCode, stdout } = run('mcp validate --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(typeof data).toBe('object');
+    expect(typeof data.valid).toBe('boolean');
+  });
+
+  it('mcp doctor --json returns health report', () => {
+    const { exitCode, stdout } = run('mcp doctor --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(typeof data).toBe('object');
+    expect(typeof data.health).toBe('string');
+    expect(Array.isArray(data.connectors)).toBe(true);
+  });
+
+  it('agent route --workflow daily-briefing --json returns primary agent', () => {
+    const { exitCode, stdout } = run('agent route --workflow daily-briefing --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(data.workflowId).toBe('daily-briefing');
+    expect(data.primaryAgent).toBeDefined();
+  });
+
   it('traceability build --help exits 0', () => {
     const { exitCode, stdout } = run('traceability build --help');
     expect(exitCode).toBe(0);

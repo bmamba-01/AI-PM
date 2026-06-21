@@ -37,6 +37,251 @@ Run the unresolved-marker scan across AGENTS.md, README.md, docs, playbooks, wor
 
 ---
 
+# Blocking Setup Wave — First-Run Onboarding Gateway
+
+**Theme:** Make the toolkit usable immediately from desktop and CLI before continuing Wave 10.
+
+**Detailed plan:** `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
+
+**Why this blocks the later waves:** The current runtime has `ai-pm init` and project scan, but desktop first-run can still bypass real setup. The PM needs New Project, Adopt Existing Project, setup doctor/repair, and contextual guides before the toolkit can be treated as operational.
+
+---
+
+## Setup Agent 1 — Core Setup Contract
+
+**Objective:** Create the shared setup/readiness contract used by CLI, desktop, mobile, and server.
+
+**Scope:**
+
+- Create: `packages/core/src/setup/setupProfile.ts`
+- Create: `packages/core/src/setup/setupProfile.test.ts`
+- Modify: `packages/core/src/index.ts`
+
+**Required behavior:**
+
+- Define setup modes: `new_project`, `adopt_existing`, `demo`.
+- Define setup defaults: methodology `scrum`, project type `software`, commercial model `fixed_cost`, timezone `Asia/Saigon`, connector profile `offline-local`, and approval-gated external mutations.
+- Define readiness checks for profile, memory, audit, approvals, templates, MCP profile, connector doctor, agent entrypoints.
+- Implement readiness scoring and next-command generation.
+- No UI changes.
+
+**Context files to read:**
+
+1. `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
+2. `packages/core/src/runtime/projectScanner.ts`
+3. `packages/core/src/runtime/localProjectStore.ts`
+4. `packages/cli/src/commands/init.ts`
+
+**Verification:**
+
+```bash
+corepack pnpm@9.4.0 --filter @ai-pm/core test -- src/setup/setupProfile.test.ts
+corepack pnpm@9.4.0 --filter @ai-pm/core build
+```
+
+---
+
+## Setup Agent 2 — CLI Init, Adopt, Doctor, Repair
+
+**Objective:** Make setup fully automatable from CLI for both new and existing projects.
+
+**Scope:**
+
+- Modify: `packages/cli/src/commands/init.ts`
+- Create: `packages/cli/src/commands/adopt.ts`
+- Create: `packages/cli/src/commands/setup.ts`
+- Modify: `packages/cli/src/index.ts`
+- Modify: `packages/cli/bin/ai-pm.js`
+- Modify: `packages/cli/src/commands/init.test.ts`
+- Create: `packages/cli/src/commands/setup.test.ts`
+
+**Required behavior:**
+
+- `ai-pm init <name> --defaults --json` creates a ready local-first project.
+- `ai-pm init` supports `--methodology`, `--project-type`, `--commercial-model`, and `--connector-profile`.
+- `ai-pm adopt --path <existingProject> --defaults --json` adds AI-PM files to an existing folder.
+- Adoption must not overwrite existing human files unless `--repair` is explicitly used.
+- `ai-pm setup doctor --path <project> --json` returns readiness score, blocking items, warnings, and next commands.
+- `ai-pm setup repair --path <project> --json` creates missing runtime directories and empty state files.
+
+**Context files to read:**
+
+1. `packages/cli/src/commands/init.ts`
+2. `packages/cli/src/commands/project.ts`
+3. `packages/core/src/runtime/projectScanner.ts`
+4. `packages/core/src/setup/setupProfile.ts` after Setup Agent 1 completes
+
+**Verification:**
+
+```bash
+corepack pnpm@9.4.0 --filter @ai-pm/cli test
+node packages/cli/bin/ai-pm.js init DemoPM --defaults --json
+node packages/cli/bin/ai-pm.js adopt --path . --defaults --json
+node packages/cli/bin/ai-pm.js setup doctor --path . --json
+```
+
+---
+
+## Setup Agent 3 — Desktop First-Run Setup UI
+
+**Objective:** Replace desktop first-run default project creation with a setup gateway.
+
+**Scope:**
+
+- Modify: `packages/desktop/main.ts`
+- Modify: `packages/desktop/preload.ts`
+- Modify: `packages/desktop/src/global.d.ts`
+- Create: `packages/desktop/src/state/setup-store.ts`
+- Create: `packages/desktop/src/components/setup/SetupGateway.tsx`
+- Create: `packages/desktop/src/components/setup/NewProjectWizard.tsx`
+- Create: `packages/desktop/src/components/setup/AdoptProjectWizard.tsx`
+- Modify: `packages/desktop/src/App.tsx`
+- Modify: `packages/desktop/src/state/project-store.ts`
+
+**Required behavior:**
+
+- First launch with no selected project shows `SetupGateway`, not a fabricated `Dashboard (beta)` project.
+- Gateway actions: New Project, Use Existing Project, Demo Project.
+- New Project wizard supports one-click defaults and step-by-step settings.
+- Existing Project wizard uses directory selection, scan preview, adoption confirmation, and readiness result.
+- Desktop renderer calls setup via IPC only; no Node/core imports in renderer.
+- Completion screen shows readiness score and next CLI commands.
+
+**Context files to read:**
+
+1. `packages/desktop/src/state/project-store.ts`
+2. `packages/desktop/src/App.tsx`
+3. `packages/desktop/main.ts`
+4. `packages/desktop/preload.ts`
+5. `packages/desktop/src/state/approval-store.ts` for IPC pattern
+
+**Verification:**
+
+```bash
+corepack pnpm@9.4.0 --filter @ai-pm/desktop build
+```
+
+Manual smoke:
+
+```text
+Clear desktop local project store.
+Open app.
+Expected: setup gateway appears with New Project, Use Existing Project, Demo Project.
+Run New Project with defaults.
+Expected: readiness result appears and dashboard can open.
+Run Use Existing Project.
+Expected: scan preview appears before any file write.
+```
+
+---
+
+## Setup Agent 4 — Guided Dialogs For Toolkit Tabs
+
+**Objective:** Add contextual setup guidance to the toolkit surfaces the PM will actually use.
+
+**Scope:**
+
+- Create: `packages/desktop/src/components/setup/SetupGuideDialog.tsx`
+- Modify: `packages/desktop/src/components/tabs/DashboardTab.tsx`
+- Modify: `packages/desktop/src/components/tabs/McpServersTab.tsx`
+- Modify: `packages/desktop/src/components/tabs/CommandCenterTab.tsx`
+- Modify: `packages/desktop/src/components/tabs/ReportsTab.tsx`
+- Modify: `packages/desktop/src/components/tabs/ApprovalsTab.tsx`
+
+**Required behavior:**
+
+- Every guided dialog shows purpose, required setup, current readiness, primary action, and CLI equivalent.
+- Guide text must be operational and concise.
+- Use setup store/readiness result; do not duplicate scan or MCP logic in UI.
+- Add visible guide entry points without turning tabs into landing pages.
+
+**Context files to read:**
+
+1. `packages/desktop/src/components/tabs/DashboardTab.tsx`
+2. `packages/desktop/src/components/tabs/McpServersTab.tsx`
+3. `packages/desktop/src/components/tabs/CommandCenterTab.tsx`
+4. `packages/desktop/src/components/tabs/ReportsTab.tsx`
+5. `packages/desktop/src/components/tabs/ApprovalsTab.tsx`
+
+**Verification:**
+
+```bash
+corepack pnpm@9.4.0 --filter @ai-pm/desktop build
+```
+
+---
+
+## Setup Agent 5 — Mobile Setup Status
+
+**Objective:** Add read-only setup status for phone usage while keeping setup actions on desktop/CLI.
+
+**Scope:**
+
+- Create: `packages/mobile/src/screens/SetupStatusScreen.tsx`
+- Modify: `packages/mobile/src/App.tsx`
+- Modify: `packages/mobile/src/state/command-center.ts`
+
+**Required behavior:**
+
+- Show project name, readiness score, connector health summary, pending approvals count, and next recommended command.
+- If local laptop server is unreachable, show offline status and last known data if available.
+- Mobile must not create, adopt, repair, or mutate project setup.
+- Keep TypeScript strict and React Native compatible.
+
+**Context files to read:**
+
+1. `packages/mobile/src/App.tsx`
+2. `packages/mobile/src/state/command-center.ts`
+3. `packages/mobile/src/screens/DashboardScreen.tsx`
+4. `packages/server/src/routes/` for available local APIs
+
+**Verification:**
+
+```bash
+corepack pnpm@9.4.0 --filter @ai-pm/mobile build
+```
+
+---
+
+## Setup Agent 6 — Setup Docs And Completion Gate
+
+**Objective:** Document setup flows and add smoke checks so setup regressions are caught.
+
+**Scope:**
+
+- Create: `docs/user/getting-started.md`
+- Create: `docs/user/setup-existing-project.md`
+- Modify: `README.md`
+- Modify: `packages/cli/src/commands/completion-gate.test.ts`
+- Modify: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`
+
+**Required behavior:**
+
+- Document desktop first-run setup.
+- Document CLI new project setup.
+- Document existing project adoption and overwrite protection.
+- Document setup doctor/repair and MCP connector setup relationship.
+- Add completion-gate smoke checks for `init --defaults --json`, `adopt --help`, and `setup doctor --json`.
+- Update runtime plan verification state after tests pass.
+
+**Context files to read:**
+
+1. `README.md`
+2. `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
+3. `packages/cli/src/commands/completion-gate.test.ts`
+4. `packages/cli/bin/ai-pm.js`
+
+**Verification:**
+
+```bash
+corepack pnpm@9.4.0 --filter @ai-pm/cli test -- src/commands/completion-gate.test.ts
+corepack pnpm@9.4.0 -r run build
+corepack pnpm@9.4.0 -r run test
+node schemas/validate-fixtures.mjs
+```
+
+---
+
 # Wave 10 — Profile, Capabilities, MCP Doctor, Template Tables, Init Hardening, Completion Gate
 
 **Theme:** Make project metadata machine-readable and CLI inspectable.
@@ -209,39 +454,39 @@ ls schemas/artifacts/
 
 ---
 
-## Agent 5 — Init Setup Wizard Hardening
+## Agent 5 — Init Profile Schema Alignment
 
-**Objective:** Make `ai-pm init` create a usable local-first PM project with profile, MCP profile, memory/audit/approvals, agent docs, and sample artifacts.
+**Objective:** Align `ai-pm init` output with the formal project profile schema after the Blocking Setup Wave has added setup/adopt commands.
 
 **Scope:**
 
-- Modify: `packages/cli/src/commands/init.ts` (expand seed content)
-- Modify: `packages/cli/src/commands/init.test.ts` (update/add tests)
+- Modify: `packages/cli/src/commands/init.ts` (profile schema alignment only)
+- Modify: `packages/cli/src/commands/init.test.ts` (schema alignment tests only)
 
 **Required behavior:**
 
-- Seed `.ai-pm/profile.yaml` with project profile schema fields (methodology, project_type as null, source_systems placeholder).
-- Seed `.claude/.mcp.json` with codebase-memory-mcp (already done) — verify it works.
-- Seed `reports/`, `artifacts/`, `requirements/`, `risks/`, `meetings/` directories.
-- Create `.ai-pm/audit/workflow-runs.jsonl` as empty file.
-- Create `.ai-pm/memory/state.json` with correct version and empty tasks/artifacts.
-- Create `.ai-pm/approvals.json` as empty array.
-- Add `--methodology scrum|kanban|waterfall|hybrid` flag to init command.
-- Print post-init readiness: `ai-pm project scan --json` should show > 80% readiness after init.
+- Verify `.ai-pm/profile.yaml` contains every field required by `schemas/project/profile.schema.json`.
+- Keep `ai-pm init` compatible with setup defaults added by the Blocking Setup Wave.
+- Verify `.claude/.mcp.json`, memory, audit, approvals, reports, artifacts, requirements, risks, meetings, templates, and notes are still created.
+- Ensure `ai-pm project profile validate --json` passes immediately after `ai-pm init`.
+- Ensure `ai-pm project scan --json` shows > 80% readiness after init.
+- Do not add new desktop/mobile setup UI in this task.
 
 **Context files to read:**
 
 1. packages/cli/src/commands/init.ts (current implementation)
 2. packages/cli/src/commands/init.test.ts
 3. packages/cli/src/commands/project.ts (scan command for reference)
-4. schemas/project/profile.schema.json (if Agent 1 created it)
+4. schemas/project/profile.schema.json (from Wave 10 Agent 1)
+5. docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md
 
 **Verification:**
 
 ```bash
 corepack pnpm@9.4.0 --filter @ai-pm/cli test
 corepack pnpm@9.4.0 --filter @ai-pm/cli build
-node packages/cli/bin/ai-pm.js init "TestInit" --methodology scrum --help
+node packages/cli/bin/ai-pm.js init "TestInit" --defaults --methodology scrum --json
+node packages/cli/bin/ai-pm.js project profile validate --path TestInit --json
 ```
 
 ---

@@ -3,6 +3,7 @@ import {
   buildTraceabilityMatrix,
   requiresScopeApproval,
   persistTraceabilityArtifact,
+  runStrictVerification,
   type TraceabilityInput,
   type RequirementInput,
 } from './traceability.js';
@@ -209,5 +210,77 @@ describe('persistTraceabilityArtifact', () => {
 
     const artifacts = await store.listArtifacts({ type: 'traceability-matrix' });
     expect(artifacts).toHaveLength(2);
+  });
+});
+
+describe('runStrictVerification', () => {
+  it('detects AC gaps as major severity', () => {
+    const result = runStrictVerification(baseInput());
+    const acGaps = result.strictGaps.filter(g => g.gap_type === 'ac_gap');
+    expect(acGaps.length).toBeGreaterThan(0);
+    expect(acGaps.every(g => g.severity === 'major')).toBe(true);
+    expect(acGaps[0].gap_id).toMatch(/^GAP-\d{4}$/);
+    expect(acGaps[0].status).toBe('open');
+  });
+
+  it('detects test gaps', () => {
+    const result = runStrictVerification(baseInput());
+    const testGaps = result.strictGaps.filter(g => g.gap_type === 'test_gap');
+    expect(testGaps.length).toBeGreaterThan(0);
+  });
+
+  it('detects owner gaps', () => {
+    const result = runStrictVerification(baseInput());
+    const ownerGaps = result.strictGaps.filter(g => g.gap_type === 'owner_gap');
+    expect(ownerGaps.length).toBe(1); // REQ-003 has no owner
+  });
+
+  it('computes UAT readiness score', () => {
+    const result = runStrictVerification(baseInput());
+    expect(result.uatReadiness.score).toBeGreaterThanOrEqual(0);
+    expect(result.uatReadiness.score).toBeLessThanOrEqual(100);
+    expect(result.uatReadiness.totalRequirements).toBe(3);
+    expect(result.uatReadiness.acCovered).toBe(2); // REQ-001, REQ-002
+    expect(result.uatReadiness.testsCovered).toBe(1); // REQ-001 only
+    expect(result.uatReadiness.ownersAssigned).toBe(2); // REQ-001, REQ-002
+  });
+
+  it('generates change request draft when critical/major gaps exist', () => {
+    const result = runStrictVerification(baseInput());
+    expect(result.changeRequestDraft).not.toBeNull();
+    expect(result.changeRequestDraft!.title).toContain('critical');
+    expect(result.changeRequestDraft!.alternatives.length).toBeGreaterThan(0);
+  });
+
+  it('no change request when all gaps are minor/info', () => {
+    const input: TraceabilityInput = {
+      projectId: 'proj-clean',
+      requirements: [{
+        id: 'REQ-CLEAN',
+        title: 'Perfect requirement',
+        owner: 'team',
+        status: 'approved',
+        acceptanceCriteria: ['AC-1'],
+        testRefs: ['TEST-1'],
+        sourceRefs: ['SRC-1'],
+      }],
+    };
+    const result = runStrictVerification(input);
+    expect(result.uatReadiness.score).toBe(100);
+    expect(result.changeRequestDraft).toBeNull();
+  });
+
+  it('empty input returns 100% UAT readiness', () => {
+    const result = runStrictVerification({ projectId: 'empty', requirements: [] });
+    expect(result.uatReadiness.score).toBe(100);
+    expect(result.strictGaps).toHaveLength(0);
+    expect(result.changeRequestDraft).toBeNull();
+  });
+
+  it('result includes matrix and generatedAt', () => {
+    const result = runStrictVerification(baseInput());
+    expect(result.matrix).toBeDefined();
+    expect(result.matrix.totalRequirements).toBe(3);
+    expect(result.generatedAt).toBeDefined();
   });
 });

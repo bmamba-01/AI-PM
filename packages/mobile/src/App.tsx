@@ -9,6 +9,7 @@ import { ChatScreen } from './screens/ChatScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { CommandCenterScreen } from './screens/CommandCenterScreen';
+import { SetupStatusScreen } from './screens/SetupStatusScreen';
 
 export type RootStackParamList = {
   Dashboard: undefined;
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   Reports: undefined;
   Settings: undefined;
   CommandCenter: undefined;
+  SetupStatus: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -35,6 +37,7 @@ export default function App() {
         <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
         <Stack.Screen name="CommandCenter" component={CommandCenterScreen} options={{ title: 'Command Center' }} />
+        <Stack.Screen name="SetupStatus" component={SetupStatusScreen} options={{ title: 'Setup Status' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

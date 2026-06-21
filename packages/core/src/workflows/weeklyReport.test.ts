@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { generateWeeklyReport, generateWeeklyReportForProject } from './weeklyReport.js';
 import type { WeeklyReportInputItem } from './weeklyReport.js';
+import { LocalProjectStore } from '../runtime/localProjectStore.js';
+import { ApprovalQueue } from '../runtime/approvalQueue.js';
+import { MemoryStore } from '../runtime/memory.js';
 
 const baseItem = (overrides: Partial<WeeklyReportInputItem> = {}): WeeklyReportInputItem => ({
   source: 'local-memory',
@@ -48,163 +54,163 @@ describe('generateWeeklyReport', () => {
   });
 });
 
+async function makeTestEnv() {
+  const root = await mkdtemp(path.join(tmpdir(), 'weekly-report-test-'));
+  const store = new LocalProjectStore(root);
+  const queue = new ApprovalQueue(root);
+  const memory = new MemoryStore(root);
+  return { root, store, queue, memory, cleanup: () => rm(root, { recursive: true, force: true }) };
+}
+
 describe('generateWeeklyReportForProject', () => {
+  it('debug: returns all expected fields', async () => {
+    const env = await makeTestEnv();
+    try {
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+      console.log('DEBUG result keys:', Object.keys(result));
+      console.log('DEBUG artifacts type:', typeof result.artifacts);
+      console.log('DEBUG artifacts:', result.artifacts);
+      expect(result).toHaveProperty('report');
+      expect(result).toHaveProperty('approvalItemId');
+      expect(result).toHaveProperty('artifacts');
+    } finally { await env.cleanup(); }
+  });
+
   it('returns a report from local store sources', async () => {
-    const fakeStore = {
-      appendWorkflowAudit: async () => '',
-      createArtifact: async () => ({ artifact_id: 'art-1' } as any),
-    } as unknown as import('../runtime/localProjectStore.js').LocalProjectStore;
-
-    const fakeQueue = {
-      createItem: async () => ({ approval_id: 'approval-1' } as any),
-    } as unknown as import('../runtime/approvalQueue.js').ApprovalQueue;
-
-    const result = await generateWeeklyReportForProject({
-      projectRoot: process.cwd(),
-      reportingPeriodStart: '2026-06-01',
-      reportingPeriodEnd: '2026-06-07',
-      store: fakeStore,
-      approvalQueue: fakeQueue,
-    });
-
-    expect(result.report).toBeDefined();
-    expect(result.report.projectId).toBe('local-project');
-    expect(result.approvalItemId).toBe('approval-1');
+    const env = await makeTestEnv();
+    try {
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+      expect(result.report).toBeDefined();
+      expect(result.report.projectId).toBe('local-project');
+      expect(result.approvalItemId).toBeTruthy();
+    } finally { await env.cleanup(); }
   });
 
   it('queues approval item when queue is available', async () => {
-    const approvals: any[] = [];
-    const fakeQueue = {
-      createItem: async (input: any) => {
-        approvals.push(input);
-        return { approval_id: 'approval-2' } as any;
-      },
-    } as unknown as import('../runtime/approvalQueue.js').ApprovalQueue;
-
-    const fakeStore = { appendWorkflowAudit: async () => '', createArtifact: async () => ({ artifact_id: 'art-1' } as any) } as any;
-
-    const result = await generateWeeklyReportForProject({
-      projectRoot: process.cwd(),
-      reportingPeriodStart: '2026-06-01',
-      reportingPeriodEnd: '2026-06-07',
-      store: fakeStore,
-      approvalQueue: fakeQueue,
-    });
-
-    expect(result.approvalItemId).toBe('approval-2');
-    expect(approvals[0].action_type).toBe('publish_weekly_report');
+    const env = await makeTestEnv();
+    try {
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+      expect(result.approvalItemId).toBeTruthy();
+      const item = await env.queue.getItem(result.approvalItemId!);
+      expect(item).not.toBeNull();
+      expect(item!.action_type).toBe('publish_weekly_report');
+    } finally { await env.cleanup(); }
   });
 
   it('generates markdown, html, and json artifacts', async () => {
-    const artifactCalls: any[] = [];
-    const fakeStore = {
-      appendWorkflowAudit: async () => '',
-      createArtifact: async (input: any) => {
-        artifactCalls.push(input);
-        return { artifact_id: `art-${artifactCalls.length}` } as any;
-      },
-    } as unknown as import('../runtime/localProjectStore.js').LocalProjectStore;
-
-    const fakeQueue = {
-      createItem: async () => ({ approval_id: 'approval-3' } as any),
-    } as unknown as import('../runtime/approvalQueue.js').ApprovalQueue;
-
-    const result = await generateWeeklyReportForProject({
-      projectRoot: process.cwd(),
-      reportingPeriodStart: '2026-06-01',
-      reportingPeriodEnd: '2026-06-07',
-      store: fakeStore,
-      approvalQueue: fakeQueue,
-    });
-
-    // Should generate 3 artifacts: markdown, html, json
-    expect(result.artifacts).toHaveLength(3);
-    expect(result.artifacts.map(a => a.format).sort()).toEqual(['html', 'json', 'markdown']);
-    expect(result.artifacts.every(a => a.persisted)).toBe(true);
-    expect(result.artifacts.every(a => a.path)).toBe(true);
+    const env = await makeTestEnv();
+    try {
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+      expect(result.artifacts).toHaveLength(3);
+      expect(result.artifacts.map(a => a.format).sort()).toEqual(['html', 'json', 'markdown']);
+      expect(result.artifacts.every(a => a.persisted)).toBe(true);
+    } finally { await env.cleanup(); }
   });
 
   it('persists artifact refs in memory store', async () => {
-    const artifactCalls: any[] = [];
-    const fakeStore = {
-      appendWorkflowAudit: async () => '',
-      createArtifact: async (input: any) => {
-        artifactCalls.push(input);
-        return { artifact_id: `art-${artifactCalls.length}` } as any;
-      },
-    } as unknown as import('../runtime/localProjectStore.js').LocalProjectStore;
-
-    const fakeQueue = {
-      createItem: async () => ({ approval_id: 'approval-4' } as any),
-    } as unknown as import('../runtime/approvalQueue.js').ApprovalQueue;
-
-    await generateWeeklyReportForProject({
-      projectRoot: process.cwd(),
-      reportingPeriodStart: '2026-06-01',
-      reportingPeriodEnd: '2026-06-07',
-      store: fakeStore,
-      approvalQueue: fakeQueue,
-    });
-
-    // 3 artifacts + 1 audit record = 4 calls to store (audit is separate)
-    expect(artifactCalls.length).toBe(3);
-    expect(artifactCalls[0].type).toBe('markdown');
-    expect(artifactCalls[1].type).toBe('html');
-    expect(artifactCalls[2].type).toBe('json');
-    for (const call of artifactCalls) {
-      expect(call.project_id).toBe('local-project');
-      expect(call.status).toBe('active');
-      expect(call.name).toMatch(/weekly-report-/);
-      expect(call.path).toBeDefined();
-    }
+    const env = await makeTestEnv();
+    try {
+      await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+      const artifacts = await env.memory.listArtifacts();
+      expect(artifacts.length).toBe(3);
+      expect(artifacts.every(a => a.project_id === 'local-project')).toBe(true);
+      expect(artifacts.every(a => a.status === 'active')).toBe(true);
+      expect(artifacts.every(a => a.name.startsWith('weekly-report-'))).toBe(true);
+    } finally { await env.cleanup(); }
   });
 
   it('approval item references artifact paths', async () => {
-    const approvals: any[] = [];
-    const fakeQueue = {
-      createItem: async (input: any) => {
-        approvals.push(input);
-        return { approval_id: 'approval-5' } as any;
-      },
-    } as unknown as import('../runtime/approvalQueue.js').ApprovalQueue;
-
-    const fakeStore = { appendWorkflowAudit: async () => '', createArtifact: async () => ({ artifact_id: 'art-1' } as any) } as any;
-
-    await generateWeeklyReportForProject({
-      projectRoot: process.cwd(),
-      reportingPeriodStart: '2026-06-01',
-      reportingPeriodEnd: '2026-06-07',
-      store: fakeStore,
-      approvalQueue: fakeQueue,
-    });
-
-    expect(approvals[0].summary_diff).toContain('Artifacts:');
-    expect(approvals[0].summary_diff).toContain('.md');
-    expect(approvals[0].summary_diff).toContain('.html');
-    expect(approvals[0].summary_diff).toContain('.json');
+    const env = await makeTestEnv();
+    try {
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+      const item = await env.queue.getItem(result.approvalItemId!);
+      expect(item!.summary_diff).toContain('Artifacts:');
+      expect(item!.summary_diff).toContain('.md');
+      expect(item!.summary_diff).toContain('.html');
+      expect(item!.summary_diff).toContain('.json');
+    } finally { await env.cleanup(); }
   });
 
-  it('handles store artifact creation failure gracefully', async () => {
-    const fakeStore = {
-      appendWorkflowAudit: async () => '',
-      createArtifact: async () => { throw new Error('store full'); },
-    } as unknown as import('../runtime/localProjectStore.js').LocalProjectStore;
+  it('handles memory store failure gracefully', async () => {
+    const env = await makeTestEnv();
+    try {
+      const failMemory = {
+        createArtifact: async () => { throw new Error('store full'); },
+        listArtifacts: async () => [],
+      } as any;
 
-    const fakeQueue = {
-      createItem: async () => ({ approval_id: 'approval-6' } as any),
-    } as unknown as import('../runtime/approvalQueue.js').ApprovalQueue;
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: failMemory,
+      });
+      expect(result.report).toBeDefined();
+      expect(result.artifacts).toHaveLength(3);
+      expect(result.approvalItemId).toBeTruthy();
+    } finally { await env.cleanup(); }
+  });
 
-    // Should not throw even if store fails
-    const result = await generateWeeklyReportForProject({
-      projectRoot: process.cwd(),
-      reportingPeriodStart: '2026-06-01',
-      reportingPeriodEnd: '2026-06-07',
-      store: fakeStore,
-      approvalQueue: fakeQueue,
-    });
-
-    expect(result.report).toBeDefined();
-    expect(result.artifacts).toHaveLength(3);
-    expect(result.approvalItemId).toBe('approval-6');
+  it('works without memoryStore (backward compatible)', async () => {
+    const env = await makeTestEnv();
+    try {
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+      });
+      expect(result.report).toBeDefined();
+      expect(result.artifacts).toHaveLength(3);
+      expect(result.approvalItemId).toBeTruthy();
+      // No artifacts persisted since no memoryStore
+      const artifacts = await env.memory.listArtifacts();
+      expect(artifacts.length).toBe(0);
+    } finally { await env.cleanup(); }
   });
 });

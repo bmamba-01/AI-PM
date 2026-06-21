@@ -30,6 +30,41 @@ vi.mock('@ai-pm/mcp/connectionManager', () => ({
   }),
 }));
 
+vi.mock('ora', () => ({
+  default: () => ({
+    start: function () { return this; },
+    succeed: function () { return this; },
+    fail: function () { return this; },
+    stop: function () { return this; },
+    text: '',
+  }),
+}));
+
+vi.mock('chalk', () => ({
+  default: new Proxy({}, { get: () => (...args: unknown[]) => args.join('') }),
+  green: (...args: unknown[]) => args.join(''),
+  yellow: (...args: unknown[]) => args.join(''),
+  red: (...args: unknown[]) => args.join(''),
+  gray: (...args: unknown[]) => args.join(''),
+  bold: (...args: unknown[]) => args.join(''),
+  blue: (...args: unknown[]) => args.join(''),
+}));
+
+async function runWithArgv(argv: string[], spy: ReturnType<typeof vi.spyOn>): Promise<void> {
+  const originalArgv = process.argv;
+  const originalExit = process.exit;
+  process.argv = ['node', 'weekly', ...argv];
+  process.exit = (() => { /* no-op */ }) as never;
+  try {
+    const cmd = createWeeklyCommand();
+    await cmd.parseAsync(process.argv, { from: 'user' });
+    await new Promise(r => setTimeout(r, 100));
+  } finally {
+    process.argv = originalArgv;
+    process.exit = originalExit;
+  }
+}
+
 describe('weekly CLI — output formats', () => {
   let spy: ReturnType<typeof vi.spyOn>;
 
@@ -37,8 +72,7 @@ describe('weekly CLI — output formats', () => {
   afterEach(() => { spy.mockRestore(); });
 
   it('text format (default)', async () => {
-    const cmd = createWeeklyCommand();
-    await cmd.parseAsync(['weekly', '--start', '2026-06-16', '--end', '2026-06-21']);
+    await runWithArgv(['--start', '2026-06-16', '--end', '2026-06-21'], spy);
     const out = spy.mock.calls.map(c => String(c[0])).join('\n');
     expect(out).toContain('Weekly Status Report');
     expect(out).toContain('2026-06-16 to 2026-06-21');
@@ -47,9 +81,9 @@ describe('weekly CLI — output formats', () => {
   });
 
   it('--format json outputs valid JSON', async () => {
-    const cmd = createWeeklyCommand();
-    await cmd.parseAsync(['weekly', '--format', 'json', '--start', '2026-06-16', '--end', '2026-06-21']);
-    const parsed = JSON.parse(spy.mock.calls.map(c => String(c[0])).join(''));
+    await runWithArgv(['--format', 'json', '--start', '2026-06-16', '--end', '2026-06-21'], spy);
+    const out = spy.mock.calls.map(c => String(c[0])).join('');
+    const parsed = JSON.parse(out);
     expect(parsed.period.start).toBe('2026-06-16');
     expect(parsed.period.end).toBe('2026-06-21');
     expect(parsed.report.confidence).toBe(85);
@@ -57,15 +91,14 @@ describe('weekly CLI — output formats', () => {
   });
 
   it('--json flag outputs valid JSON', async () => {
-    const cmd = createWeeklyCommand();
-    await cmd.parseAsync(['weekly', '--json', '--start', '2026-06-16', '--end', '2026-06-21']);
-    const parsed = JSON.parse(spy.mock.calls.map(c => String(c[0])).join(''));
+    await runWithArgv(['--json', '--start', '2026-06-16', '--end', '2026-06-21'], spy);
+    const out = spy.mock.calls.map(c => String(c[0])).join('');
+    const parsed = JSON.parse(out);
     expect(parsed.report.confidence).toBe(85);
   });
 
   it('--format markdown', async () => {
-    const cmd = createWeeklyCommand();
-    await cmd.parseAsync(['weekly', '--format', 'markdown', '--start', '2026-06-16', '--end', '2026-06-21']);
+    await runWithArgv(['--format', 'markdown', '--start', '2026-06-16', '--end', '2026-06-21'], spy);
     const out = spy.mock.calls.map(c => String(c[0])).join('\n');
     expect(out).toContain('# Weekly Status Report');
     expect(out).toContain('**Accomplishments**');
@@ -74,8 +107,7 @@ describe('weekly CLI — output formats', () => {
   });
 
   it('--format html', async () => {
-    const cmd = createWeeklyCommand();
-    await cmd.parseAsync(['weekly', '--format', 'html', '--start', '2026-06-16', '--end', '2026-06-21']);
+    await runWithArgv(['--format', 'html', '--start', '2026-06-16', '--end', '2026-06-21'], spy);
     const out = spy.mock.calls.map(c => String(c[0])).join('\n');
     expect(out).toContain('<!DOCTYPE html>');
     expect(out).toContain('<h1>Weekly Status Report</h1>');
@@ -93,5 +125,12 @@ describe('weekly CLI — structure', () => {
     expect(flags).toContain('--output');
     expect(flags).toContain('--start');
     expect(flags).toContain('--end');
+  });
+
+  it('createWeeklyCommand returns fresh instance', () => {
+    const a = createWeeklyCommand();
+    const b = createWeeklyCommand();
+    expect(a).not.toBe(b);
+    expect(a.name()).toBe(b.name());
   });
 });

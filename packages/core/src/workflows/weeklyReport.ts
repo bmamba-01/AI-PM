@@ -3,7 +3,10 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { LocalProjectStore } from '../runtime/localProjectStore.js';
 import type { ApprovalQueue } from '../runtime/approvalQueue.js';
+import type { MemoryStore } from '../runtime/memory.js';
 import { generateArtifact, writeArtifact, type ArtifactOutput } from '../artifacts/artifactFactory.js';
+
+type WeeklyReportMemoryStore = MemoryStore;
 
 export type WeeklyReportInputItem = {
   source: string;
@@ -134,8 +137,9 @@ export async function generateWeeklyReportForProject(options: {
   reportingPeriodEnd: string;
   store: LocalProjectStore;
   approvalQueue: ApprovalQueue;
+  memoryStore?: MemoryStore;
 }): Promise<WeeklyReportResult> {
-  const { projectRoot, reportingPeriodStart, reportingPeriodEnd, store, approvalQueue } = options;
+  const { projectRoot, reportingPeriodStart, reportingPeriodEnd, store, approvalQueue, memoryStore } = options;
   const reportDate = new Date().toISOString().slice(0, 10);
 
   const weeklyItems: WeeklyReportInputItem[] = [
@@ -216,19 +220,21 @@ export async function generateWeeklyReportForProject(options: {
     const filePath = await writeArtifact(output, reportsDir);
 
     // Persist artifact ref in memory store
-    try {
-      await store.createArtifact({
-        project_id: report.projectId,
-        name: `weekly-report-${reportDate}.${output.format === 'markdown' ? 'md' : output.format}`,
-        path: filePath,
-        type: output.format,
-        status: 'active',
-        archived_at: null,
-        archive_reason: null,
-        task_id: null,
-      });
-    } catch (err) {
-      console.warn('[weekly-report] Failed to persist artifact ref:', err);
+    if (memoryStore) {
+      try {
+        await memoryStore.createArtifact({
+          project_id: report.projectId,
+          name: `weekly-report-${reportDate}.${output.format === 'markdown' ? 'md' : output.format}`,
+          path: filePath,
+          type: output.format,
+          status: 'active',
+          archived_at: null,
+          archive_reason: null,
+          task_id: null,
+        });
+      } catch (err) {
+        console.warn('[weekly-report] Failed to persist artifact ref:', err);
+      }
     }
 
     artifacts.push({

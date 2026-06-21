@@ -80,6 +80,14 @@ Notes:
 
 ## Current Gaps
 
+### Gap 0: First-Run Setup Is Not A Product Gateway Yet
+
+CLI init and project scan exist, but desktop first-run still needs a formal New Project / Adopt Existing Project / Demo Project gateway. Existing-project adoption, setup doctor/repair, contextual guide dialogs, and read-only mobile setup status must become a blocking setup wave before the remaining orchestrator work is treated as PM-usable.
+
+Detailed plan:
+
+- `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
+
 ### Gap 1: Orchestrator Loop Still Needs Full Workflow Dispatch
 
 The repo now has a state machine, execution records, audit records, context snapshots, and CLI commands. The CLI workflow adapter still uses narrow placeholder dispatch for daily/weekly/risk and must be replaced by full core orchestrated workflow dispatch.
@@ -104,6 +112,7 @@ MCP registry/profiles/contracts and context snapshots exist, but approved extern
 
 Use the remaining master plan assignment set:
 
+- Blocking Setup Wave: first-run desktop gateway, new project wizard, existing project adoption, setup doctor/repair CLI, guided dialogs, mobile setup status.
 - Wave 10: profile, capability registry, MCP doctor, template tables, init hardening, completion gate.
 - Wave 11: daily/weekly full orchestration and artifact adoption.
 - Wave 12: WBS, project plan, milestones, cost, strict scope, UAT/user guide.

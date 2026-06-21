@@ -198,6 +198,26 @@ PM chat command
 → report completion to PM via chat and desktop
 ```
 
+## 8A. Setup and Onboarding Gateway
+
+The toolkit must not assume the PM starts from a prepared repository. First launch must route through a setup gateway before normal dashboard work.
+
+Required setup paths:
+
+- New Project: create a fresh local-first AI-PM project with one-click defaults and optional step-by-step configuration.
+- Adopt Existing Project: select an existing Git/project folder, scan readiness, add missing AI-PM operating/runtime files, and preserve existing human files unless repair is explicitly requested.
+- Demo Project: open a local example workspace for learning the UI without modifying real projects.
+
+The desktop app is the primary onboarding surface. CLI is the automation source of truth. Mobile is read-only for setup status and must not create or adopt projects.
+
+Setup completion must produce project profile readiness, memory/audit/approval readiness, template and artifact catalog readiness, MCP profile and connector doctor status, agent entrypoint readiness, and next commands for CLI and agent workers.
+
+Every toolkit tab that needs setup must expose a short guide dialog with required setup, current readiness, primary action, and CLI equivalent.
+
+Implementation plan:
+
+- `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
+
 ## 9. Revised Roadmap
 
 ### Phase 1: Stabilize and Re-anchor
@@ -206,6 +226,14 @@ PM chat command
 - Mark prior plan files as historical unless referenced.
 - Keep repo green with `pnpm build`, core tests, MCP tests, and CLI build.
 - Review WIP files before merging agent outputs.
+
+### Phase 1A: Setup and Onboarding Gateway
+
+- Replace desktop first-run default project creation with a setup gateway.
+- Add CLI automation for `init`, existing project adoption, setup doctor, and setup repair.
+- Add one-click defaults and step-by-step setup mode.
+- Add contextual guide dialogs across desktop toolkit tabs.
+- Add read-only mobile setup status.
 
 ### Phase 2: Project-Scoped Orchestrator Contract
 

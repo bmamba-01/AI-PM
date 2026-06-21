@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scope Verification Strict Mode",
+  "description": "Gap analysis output: requirement gaps, AC gaps, test gaps, owner gaps, change request draft, UAT readiness",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "gap_id", "type": "string", "description": "Unique gap identifier", "required": true },
+    { "name": "requirement_id", "type": "string", "description": "Related requirement ID", "required": true },
+    { "name": "gap_type", "type": "enum", "description": "Type of gap", "enum_values": ["requirement_gap", "ac_gap", "test_gap", "owner_gap", "source_gap"], "required": true },
+    { "name": "severity", "type": "enum", "description": "Gap severity", "enum_values": ["critical", "major", "minor", "info"], "required": true },
+    { "name": "description", "type": "string", "description": "Gap description", "required": true },
+    { "name": "recommended_action", "type": "string", "description": "Suggested remediation" },
+    { "name": "status", "type": "enum", "description": "Gap resolution status", "enum_values": ["open", "in_progress", "resolved", "accepted"] },
+    { "name": "owner", "type": "string", "description": "Person responsible for fixing" }
+  ],
+  "required_columns": ["gap_id", "requirement_id", "gap_type", "severity", "description"]
+}

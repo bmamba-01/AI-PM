@@ -57,6 +57,45 @@ export interface TraceabilityGap {
   message: string;
 }
 
+// ── Strict mode types ────────────────────────────────────────────────────────
+
+export type GapType = 'requirement_gap' | 'ac_gap' | 'test_gap' | 'owner_gap' | 'source_gap';
+
+export interface StrictGap {
+  gap_id: string;
+  requirement_id: string;
+  gap_type: GapType;
+  severity: TraceabilityGapSeverity;
+  description: string;
+  recommended_action: string;
+  status: 'open';
+  owner: string;
+}
+
+export interface ChangeRequestDraft {
+  title: string;
+  description: string;
+  change_description: string;
+  business_justification: string;
+  impact_assessment: string;
+  alternatives: string[];
+}
+
+export interface ScopeVerificationResult {
+  projectId: string;
+  matrix: TraceabilityMatrix;
+  strictGaps: StrictGap[];
+  uatReadiness: {
+    score: number;
+    totalRequirements: number;
+    acCovered: number;
+    testsCovered: number;
+    ownersAssigned: number;
+  };
+  changeRequestDraft: ChangeRequestDraft | null;
+  generatedAt: string;
+}
+
 export interface TraceabilityMatrix {
   projectId: string;
   baselineId: string | null;
@@ -244,4 +283,127 @@ export async function persistTraceabilityArtifact(
     task_id: null,
   });
   return artifact.artifact_id;
+}
+
+// ── Strict mode ──────────────────────────────────────────────────────────────
+
+let _gapCounter = 0;
+function nextGapId(): string {
+  return `GAP-${String(++_gapCounter).padStart(4, '0')}`;
+}
+
+export function runStrictVerification(input: TraceabilityInput): ScopeVerificationResult {
+  const matrix = buildTraceabilityMatrix(input);
+  const strictGaps: StrictGap[] = [];
+
+  for (const entry of matrix.entries) {
+    // AC gap
+    if (entry.acceptanceCriteriaCount === 0) {
+      strictGaps.push({
+        gap_id: nextGapId(),
+        requirement_id: entry.reqId,
+        gap_type: 'ac_gap',
+        severity: 'major',
+        description: `Requirement "${entry.title}" has no acceptance criteria defined`,
+        recommended_action: 'Define at least one testable acceptance criterion',
+        status: 'open',
+        owner: entry.owner || 'unassigned',
+      });
+    }
+
+    // Test gap
+    if (entry.testRefCount === 0) {
+      strictGaps.push({
+        gap_id: nextGapId(),
+        requirement_id: entry.reqId,
+        gap_type: 'test_gap',
+        severity: entry.acceptanceCriteriaCount > 0 ? 'minor' : 'major',
+        description: `Requirement "${entry.title}" has no linked test cases`,
+        recommended_action: 'Create test cases covering each acceptance criterion',
+        status: 'open',
+        owner: entry.owner || 'unassigned',
+      });
+    } else if (entry.testRefCount < entry.acceptanceCriteriaCount) {
+      strictGaps.push({
+        gap_id: nextGapId(),
+        requirement_id: entry.reqId,
+        gap_type: 'test_gap',
+        severity: 'minor',
+        description: `Requirement "${entry.title}" has ${entry.testRefCount} test(s) for ${entry.acceptanceCriteriaCount} AC — partial coverage`,
+        recommended_action: 'Add test cases for uncovered acceptance criteria',
+        status: 'open',
+        owner: entry.owner || 'unassigned',
+      });
+    }
+
+    // Owner gap
+    if (!entry.owner || entry.owner.trim() === '') {
+      strictGaps.push({
+        gap_id: nextGapId(),
+        requirement_id: entry.reqId,
+        gap_type: 'owner_gap',
+        severity: 'minor',
+        description: `Requirement "${entry.title}" has no owner assigned`,
+        recommended_action: 'Assign an owner from the project team',
+        status: 'open',
+        owner: 'unassigned',
+      });
+    }
+
+    // Source gap
+    if (entry.sourceRefCount === 0) {
+      strictGaps.push({
+        gap_id: nextGapId(),
+        requirement_id: entry.reqId,
+        gap_type: 'source_gap',
+        severity: 'info',
+        description: `Requirement "${entry.title}" has no source references`,
+        recommended_action: 'Link to design documents, user stories, or meeting notes',
+        status: 'open',
+        owner: entry.owner || 'unassigned',
+      });
+    }
+  }
+
+  // UAT readiness score
+  const total = matrix.totalRequirements;
+  const acCovered = matrix.entries.filter(e => e.acceptanceCriteriaCount > 0).length;
+  const testsCovered = matrix.entries.filter(e => e.testRefCount > 0).length;
+  const ownersAssigned = matrix.entries.filter(e => e.owner && e.owner.trim() !== '').length;
+
+  const uatScore = total === 0
+    ? 100
+    : Math.round(((acCovered + testsCovered + ownersAssigned) / (total * 3)) * 100);
+
+  // Change request draft (only if there are critical/major gaps)
+  const criticalGaps = strictGaps.filter(g => g.severity === 'critical' || g.severity === 'major');
+  const changeRequestDraft: ChangeRequestDraft | null = criticalGaps.length > 0
+    ? {
+        title: `Scope Verification — ${criticalGaps.length} critical/major gap(s)`,
+        description: `Scope verification found ${strictGaps.length} gaps (${criticalGaps.length} critical/major) in ${total} requirements.`,
+        change_description: criticalGaps.map(g => `- ${g.description}`).join('\n'),
+        business_justification: 'Requirements must meet definition of done before UAT',
+        impact_assessment: `UAT readiness at ${uatScore}% — ${criticalGaps.length} items block go-live`,
+        alternatives: [
+          'Accept gaps and proceed with documented risks',
+          'Defer incomplete requirements to next sprint',
+          'Add acceptance criteria and test cases before UAT',
+        ],
+      }
+    : null;
+
+  return {
+    projectId: input.projectId,
+    matrix,
+    strictGaps,
+    uatReadiness: {
+      score: uatScore,
+      totalRequirements: total,
+      acCovered,
+      testsCovered,
+      ownersAssigned,
+    },
+    changeRequestDraft,
+    generatedAt: new Date().toISOString(),
+  };
 }

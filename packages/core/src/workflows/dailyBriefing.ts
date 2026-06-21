@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 export type DailyBriefingItemType = 'priority' | 'meeting' | 'blocker' | 'risk' | 'approval' | 'follow_up';
 
 export type DailyBriefingPriority = 'critical' | 'high' | 'medium' | 'low';
