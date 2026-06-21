@@ -33,6 +33,11 @@ const REQUIRED_CHECKS: Omit<ScanCheck, 'present'>[] = [
   { id: 'operating-model', label: 'Operating model docs', path: 'docs/operating-model',            required: false },
   { id: 'claude-md',       label: 'CLAUDE.md',           path: 'CLAUDE.md',                       required: false },
   { id: 'codex-md',        label: 'CODEX.md',            path: 'CODEX.md',                        required: false },
+  { id: 'requirements-dir', label: 'Requirements',       path: 'requirements',                    required: false },
+  { id: 'risks-dir',       label: 'Risks',               path: 'risks',                           required: false },
+  { id: 'meetings-dir',    label: 'Meetings',            path: 'meetings',                        required: false },
+  { id: 'artifacts-dir',   label: 'Artifacts',           path: 'artifacts',                       required: false },
+  { id: 'reports-dir',     label: 'Reports',             path: 'reports',                         required: false },
 ];
 
 async function pathExists(projectRoot: string, relativePath: string): Promise<boolean> {

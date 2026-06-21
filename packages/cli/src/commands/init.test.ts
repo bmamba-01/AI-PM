@@ -180,6 +180,104 @@ describe('init command', () => {
     }
   });
 
+  it('creates artifacts, requirements, risks, meetings directories', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      expect(await fileExists(path.join(root, 'test-project', 'artifacts'))).toBe(true);
+      expect(await fileExists(path.join(root, 'test-project', 'requirements'))).toBe(true);
+      expect(await fileExists(path.join(root, 'test-project', 'risks'))).toBe(true);
+      expect(await fileExists(path.join(root, 'test-project', 'meetings'))).toBe(true);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('creates .ai-pm/artifacts and .ai-pm/chat runtime dirs', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      expect(await fileExists(path.join(root, 'test-project', '.ai-pm', 'artifacts'))).toBe(true);
+      expect(await fileExists(path.join(root, 'test-project', '.ai-pm', 'chat'))).toBe(true);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('seeds profile.yaml with all schema fields', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('name: "test-project"');
+      expect(content).toContain('version: 1');
+      expect(content).toContain('methodology:');
+      expect(content).toContain('project_type:');
+      expect(content).toContain('connectors:');
+      expect(content).toContain('github:');
+      expect(content).toContain('jira:');
+      expect(content).toContain('linear:');
+      expect(content).toContain('calendar:');
+      expect(content).toContain('email:');
+      expect(content).toContain('artifacts:');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('.gitignore excludes new .ai-pm subdirectories', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.gitignore'), 'utf-8');
+      expect(content).toContain('.ai-pm/artifacts/');
+      expect(content).toContain('.ai-pm/chat/');
+      expect(content).toContain('.ai-pm/memory/');
+      expect(content).toContain('.ai-pm/orchestrator/');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('.claude/.mcp.json seeds codebase-memory-mcp', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.claude', '.mcp.json'), 'utf-8');
+      const parsed = JSON.parse(content);
+      expect(parsed.mcpServers).toBeDefined();
+      expect(parsed.mcpServers['codebase-memory-mcp']).toBeDefined();
+      expect(parsed.mcpServers['codebase-memory-mcp'].command).toBe('codebase-memory-mcp');
+      // No credentials in the config
+      expect(content).not.toMatch(/token|secret|password|api_key|apikey/i);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('profile.yaml contains no credentials', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).not.toMatch(/token|secret|password|api_key|apikey|credential/i);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
   it('creates README.md', async () => {
     const root = await tempRoot();
     const cwd = process.cwd;

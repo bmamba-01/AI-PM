@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "project": {
+    "project_id": "",
+    "name": "",
+    "root": ".",
+    "methodology": "invalid-methodology",
+    "project_type": "invalid-type"
+  }
+}

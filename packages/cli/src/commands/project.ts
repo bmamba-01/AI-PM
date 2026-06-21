@@ -1,7 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { scanProject } from '@ai-pm/core/runtime';
+import { readFile } from 'node:fs/promises';
+import { scanProject, loadProfile } from '@ai-pm/core/runtime';
 import { table } from 'table';
 
 const msgs = {
@@ -90,3 +91,69 @@ projectCommand
         }
       })
   );
+
+// ─── project profile validate ───────────────────────────────────────────────
+
+const profileCommand = new Command('profile')
+  .description('Manage project profile');
+
+profileCommand
+  .addCommand(
+    new Command('validate')
+      .description('Validate project profile against schema')
+      .option('--json', 'Output as JSON', false)
+      .option('--path <dir>', 'Project root', process.cwd())
+      .action(async (opts) => {
+        const result = await loadProfile(opts.path);
+
+        if (opts.json) {
+          console.log(JSON.stringify({
+            valid: result.valid,
+            errors: result.errors,
+            warnings: result.warnings,
+            profile: result.profile,
+          }, null, 2));
+          if (!result.valid) process.exitCode = 1;
+          return;
+        }
+
+        // Text output
+        console.log(chalk.bold('\n  Project Profile Validation\n'));
+
+        if (result.valid) {
+          console.log(chalk.green('  ✓ Profile is valid'));
+        } else {
+          console.log(chalk.red('  ✗ Profile has errors'));
+        }
+
+        if (result.errors.length > 0) {
+          console.log(chalk.red('\n  Errors:'));
+          for (const e of result.errors) {
+            console.log(chalk.red(`    ✗ ${e}`));
+          }
+        }
+
+        if (result.warnings.length > 0) {
+          console.log(chalk.yellow('\n  Warnings:'));
+          for (const w of result.warnings) {
+            console.log(chalk.yellow(`    ⚠ ${w}`));
+          }
+        }
+
+        // Show resolved profile summary
+        const p = result.profile;
+        console.log(chalk.blue('\n  Resolved Profile:'));
+        console.log(`    project_id:  ${p.project.project_id}`);
+        console.log(`    name:        ${p.project.name}`);
+        console.log(`    root:        ${p.project.root}`);
+        console.log(`    methodology: ${p.project.methodology ?? '(not set)'}`);
+        console.log(`    type:        ${p.project.project_type ?? '(not set)'}`);
+        console.log(`    timezone:    ${p.project.timezone}`);
+        console.log(`    tags:        [${(p.project.tags ?? []).join(', ')}]`);
+        console.log();
+
+        if (!result.valid) process.exitCode = 1;
+      })
+  );
+
+projectCommand.addCommand(profileCommand);

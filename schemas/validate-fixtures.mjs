@@ -56,7 +56,7 @@ function main() {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         walkDir(full);
-      } else if (entry.name.endsWith('.json')) {
+      } else if (entry.name.endsWith('.valid.json') || entry.name.endsWith('.invalid.json')) {
         fixtureFiles.push(full);
       }
     }

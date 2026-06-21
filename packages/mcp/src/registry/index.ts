@@ -2,6 +2,7 @@ import type { BaseMCPWrapper } from "../wrappers/base.js";
 export * from "./configTypes.js";
 export * from "./configLoader.js";
 export * from "./configValidator.js";
+export * from "./doctor.js";
 
 export class MCPRegistry {
   private connections = new Map<string, BaseMCPWrapper>();

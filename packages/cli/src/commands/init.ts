@@ -146,6 +146,8 @@ function gitignore(): string {
     '.ai-pm/audit/',
     '.ai-pm/approvals/',
     '.ai-pm/approvals.json',
+    '.ai-pm/artifacts/',
+    '.ai-pm/chat/',
     '.ai-pm/orchestrator/',
     '',
     '# Environment & secrets',
@@ -199,7 +201,13 @@ export function runInit(projectName: string) {
     '.ai-pm/memory',
     '.ai-pm/audit',
     '.ai-pm/approvals',
+    '.ai-pm/artifacts',
+    '.ai-pm/chat',
     'reports',
+    'artifacts',
+    'requirements',
+    'risks',
+    'meetings',
     'templates',
     'notes',
   ];
@@ -255,7 +263,8 @@ export function runInit(projectName: string) {
   console.log(`  ✓ AGENTS.md, CODEX.md, CLAUDE.md`);
   console.log(`  ✓ .gitignore`);
   console.log(`  ✓ .claude/.mcp.json (codebase-memory-mcp)`);
-  console.log(`  ✓ reports/, templates/, notes/`);
+  console.log(`  ✓ reports/, artifacts/, requirements/, risks/, meetings/`);
+  console.log(`  ✓ templates/, notes/`);
   console.log(`  ✓ README.md`);
   console.log(`\n✅ "${projectName}" ${t.done}`);
   console.log(`\n${t.nextSteps}:\n  cd ${projectName}`);

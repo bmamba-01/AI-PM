@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/project-profile.schema.json",
+  "title": "AI-PM Project Profile",
+  "description": "Schema for project-scoped profile consumed by CLI, orchestrator, server, desktop, and mobile.",
+  "type": "object",
+  "required": ["version", "project"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Schema version for forward compatibility.",
+      "minimum": 1,
+      "maximum": 99
+    },
+    "project": {
+      "type": "object",
+      "required": ["project_id", "name", "root"],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique project identifier."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable project name."
+        },
+        "root": {
+          "type": "string",
+          "description": "Project root directory (relative or absolute)."
+        },
+        "description": {
+          "type": "string",
+          "default": "",
+          "description": "Project description."
+        },
+        "methodology": {
+          "type": ["string", "null"],
+          "enum": ["scrum", "kanban", "waterfall", "hybrid", null],
+          "default": null,
+          "description": "Project methodology."
+        },
+        "project_type": {
+          "type": ["string", "null"],
+          "enum": ["tm", "fixed_cost", "maintenance", "product", null],
+          "default": null,
+          "description": "Commercial model / project type."
+        },
+        "timezone": {
+          "type": "string",
+          "default": "UTC",
+          "description": "Project timezone (IANA format)."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Project tags."
+        }
+      }
+    },
+    "connectors": {
+      "type": "object",
+      "description": "External system connector configuration.",
+      "properties": {
+        "github": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "repo": { "type": ["string", "null"], "default": null },
+            "branch": { "type": "string", "default": "main" }
+          }
+        },
+        "jira": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "project_key": { "type": ["string", "null"], "default": null },
+            "board_id": { "type": ["string", "null"], "default": null }
+          }
+        },
+        "linear": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "team_id": { "type": ["string", "null"], "default": null }
+          }
+        },
+        "calendar": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "provider": { "type": "string", "default": "google" }
+          }
+        },
+        "email": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false }
+          }
+        },
+        "confluence": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "space_key": { "type": ["string", "null"], "default": null }
+          }
+        },
+        "notion": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "database_id": { "type": ["string", "null"], "default": null }
+          }
+        },
+        "slack": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "channel": { "type": ["string", "null"], "default": null }
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Local artifact directories.",
+      "properties": {
+        "root": { "type": "string", "default": "." },
+        "reports": { "type": "string", "default": "reports" },
+        "templates": { "type": "string", "default": "templates" },
+        "notes": { "type": "string", "default": "notes" }
+      }
+    },
+    "approval_policy": {
+      "type": "object",
+      "description": "Approval gate configuration.",
+      "properties": {
+        "require_approval_for_email": { "type": "boolean", "default": true },
+        "require_approval_for_chat": { "type": "boolean", "default": true },
+        "require_approval_for_issue_update": { "type": "boolean", "default": true },
+        "require_approval_for_pr_comment": { "type": "boolean", "default": true },
+        "require_approval_for_report_publish": { "type": "boolean", "default": true },
+        "require_approval_for_scope_change": { "type": "boolean", "default": true },
+        "auto_approve_read_only": { "type": "boolean", "default": true }
+      }
+    }
+  }
+}

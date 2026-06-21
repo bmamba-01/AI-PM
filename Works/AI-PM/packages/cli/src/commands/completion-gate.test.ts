@@ -8,6 +8,10 @@ const __dirname = path.dirname(__filename);
 const CLI = path.resolve(__dirname, '../../bin/ai-pm.js');
 const OPTS = { cwd: process.cwd(), encoding: 'utf-8' as const };
 
+// WARNING: CLI subprocess tests import `dist/` from workspace packages.
+// Always run a recursive build before these tests:
+//   corepack pnpm@9.4.0 -r run build
+
 function run(cmd: string): { stdout: string; exitCode: number } {
   try {
     const stdout = execSync(`node "${CLI}" ${cmd}`, OPTS).toString();
@@ -46,7 +50,6 @@ describe('completion gate', () => {
   it('audit list --json returns valid output', () => {
     const { exitCode, stdout } = run('audit list --json');
     expect(exitCode).toBe(0);
-    // Empty store may print text "No audit records..." — that's acceptable
     const trimmed = stdout.trim();
     const isJSON = trimmed.startsWith('[') || trimmed.startsWith('{');
     const isText = trimmed.includes('No audit');
@@ -65,7 +68,6 @@ describe('completion gate', () => {
     const { exitCode, stdout } = run('schema list --json');
     expect(exitCode).toBe(0);
     const data = parseJSON(stdout) as unknown;
-    // May return array or object with schemas property
     expect(Array.isArray(data) || typeof data === 'object').toBe(true);
   });
 
@@ -92,7 +94,34 @@ describe('completion gate', () => {
     expect(exitCode).toBe(0);
     const data = parseJSON(stdout) as Record<string, unknown>;
     expect(data.name).toBe('ai-pm');
-    expect(Array.isArray(data.agents)).toBe(true);
+    expect(Array.isArray(data.capabilities)).toBe(true);
+  });
+
+  it('project profile validate --json returns validation shape', () => {
+    const { exitCode } = run('project profile validate --json');
+    expect(exitCode).toBe(0);
+  });
+
+  it('mcp doctor --json returns report', () => {
+    const { exitCode, stdout } = run('mcp doctor --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(typeof data.health).toBe('string');
+    expect(typeof data.connectors).toBe('object');
+  });
+
+  it('mcp validate --json returns validation shape', () => {
+    const { exitCode, stdout } = run('mcp validate --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(typeof data.valid).toBe('boolean');
+  });
+
+  it('agent route --workflow daily-briefing --json returns routing', () => {
+    const { exitCode, stdout } = run('agent route --workflow daily-briefing --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(typeof data.workflowId).toBe('string');
   });
 
   it('traceability build --help exits 0', () => {

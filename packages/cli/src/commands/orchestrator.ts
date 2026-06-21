@@ -278,20 +278,30 @@ async function listRuns(projectRoot: string): Promise<RunRecord[]> {
   return legacyRuns;
 }
 
-// ─── Agent capability report ─────────────────────────────────────────────────
+// ─── Agent registry (delegates to core) ─────────────────────────────────────
+
+import { getAllAgents, getAgentRegistrySummary, routeWorkflow } from '@ai-pm/core/orchestrator';
 
 function getAgentStatus(): Record<string, unknown> {
+  const summary = getAgentRegistrySummary();
+  const agents = getAllAgents().map(a => ({
+    id: a.id,
+    role: a.role,
+    displayName: a.displayName,
+    description: a.description,
+    supportedWorkflows: a.supportedWorkflows,
+    requiredInputs: a.requiredInputs,
+    producedOutputs: a.producedOutputs,
+    approvalBoundary: a.approvalBoundary,
+    requiredConnectors: a.requiredConnectors,
+    optionalConnectors: a.optionalConnectors,
+  }));
+
   return {
     name: 'ai-pm',
     version: '0.1.0',
-    capabilities: [
-      'daily-briefing',
-      'weekly-report',
-      'risk-control',
-      'approval-queue',
-      'memory-store',
-      'schema-validation',
-    ],
+    registry: summary,
+    agents,
     storage: 'file-backed (.ai-pm/)',
     runtime: 'local-first',
     timestamp: new Date().toISOString(),
@@ -395,22 +405,59 @@ agentCommand
   .description('Agent capability and status report')
   .addCommand(
     new Command('status')
-      .description('Show agent capabilities and runtime status')
+      .description('Show all registered agents, roles, and capabilities')
       .option('--json', 'Output as JSON')
       .action((opts) => {
         const status = getAgentStatus();
         if (opts.json) {
           console.log(JSON.stringify(status, null, 2));
         } else {
-          console.log(chalk.blue('\nAgent Status\n'));
-          console.log(`  Name:     ${status.name}`);
-          console.log(`  Version:  ${status.version}`);
-          console.log(`  Storage:  ${status.storage}`);
-          console.log(`  Runtime:  ${status.runtime}`);
-          console.log(`  Capabilities:`);
-          (status.capabilities as string[]).forEach(c => {
-            console.log(chalk.green(`    ✓ ${c}`));
+          const reg = status.registry as { totalAgents: number; roles: string[]; workflows: string[]; agentsWithApproval: number };
+          console.log(chalk.blue('\nAgent Registry\n'));
+          console.log(`  Name:              ${status.name}`);
+          console.log(`  Version:           ${status.version}`);
+          console.log(`  Total agents:      ${reg.totalAgents}`);
+          console.log(`  Roles:             ${reg.roles.join(', ')}`);
+          console.log(`  Workflows:         ${reg.workflows.join(', ')}`);
+          console.log(`  Approval-gated:    ${reg.agentsWithApproval}`);
+          console.log(`  Storage:           ${status.storage}`);
+          console.log(`  Runtime:           ${status.runtime}`);
+          console.log(chalk.blue('\nAgents:\n'));
+          (status.agents as Array<Record<string, unknown>>).forEach(a => {
+            const approval = (a.approvalBoundary as Record<string, unknown>).requiresApproval;
+            const icon = approval ? chalk.yellow('🔐') : chalk.green('✓');
+            console.log(`  ${icon} ${(a.id as string).padEnd(22)} ${a.displayName}`);
+            console.log(`    Workflows: ${(a.supportedWorkflows as string[])?.join(', ')}`);
           });
+        }
+      })
+  )
+  .addCommand(
+    new Command('route')
+      .description('Route a workflow to the best-fit agent')
+      .requiredOption('--workflow <id>', 'Workflow ID')
+      .option('--json', 'Output as JSON')
+      .action((opts) => {
+        const result = routeWorkflow(opts.workflow);
+        if (!result) {
+          console.error(chalk.red(`No agent found for workflow: ${opts.workflow}`));
+          process.exitCode = 1;
+          return;
+        }
+        if (opts.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(chalk.blue(`\nWorkflow: ${result.workflowId}\n`));
+          console.log(`  Primary agent:   ${result.assignedAgent.displayName} (${result.assignedAgent.id})`);
+          console.log(`  Role:            ${result.assignedAgent.role}`);
+          console.log(`  Approval needed: ${result.approvalRequired ? chalk.yellow('Yes') : chalk.green('No')}`);
+          if (result.requiredAgents.length > 0) {
+            console.log(`  Supporting agents:`);
+            result.requiredAgents.forEach(a => {
+              console.log(`    - ${a.displayName} (${a.role})`);
+            });
+          }
+          console.log(`  Steps: ${result.estimatedSteps.join(' → ')}`);
         }
       })
   );

@@ -41,3 +41,16 @@ export type {
   ConnectorHealth,
   CapabilityType,
 } from './contextSnapshot.js';
+export {
+  getAllAgents,
+  getAgentById,
+  getAgentsForWorkflow,
+  routeWorkflow,
+  getAgentRegistrySummary,
+} from './agentRegistry.js';
+export type {
+  AgentRole,
+  ApprovalBoundary,
+  AgentDefinition,
+  AgentRouteResult,
+} from './agentRegistry.js';

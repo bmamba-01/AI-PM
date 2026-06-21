@@ -4,8 +4,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { loadMcpConfig, MCPServerConfig, removeMcpServer, setMcpServerEnabled, upsertMcpServer } from '@ai-pm/mcp/connectionManager';
 import { table } from 'table';
-import { loadRegistry, loadProfile, loadBuiltinProfiles } from '@ai-pm/mcp/registry/configLoader';
-import { validateConfigs } from '@ai-pm/mcp/registry/configValidator';
+import { loadRegistry, loadProfile, loadBuiltinProfiles, validateConfigs, runDoctor } from '@ai-pm/mcp/registry';
 
 // Bilingual messages
 const msgs = {
@@ -186,6 +185,87 @@ mcpCommand
           }
         } catch (error) {
           console.error(chalk.red('Validation failed with error:'), error);
+        }
+      })
+  )
+  .addCommand(
+    new Command('doctor')
+      .description('Inspect project MCP setup and report health')
+      .option('--json', 'Output as JSON')
+      .option('--profile <name>', 'Profile name to use', 'default')
+      .action(async (opts) => {
+        const spinner = ora('Running MCP health check...').start();
+
+        try {
+          const registry = loadRegistry();
+          const builtin = loadBuiltinProfiles();
+          let profile = builtin.defaultProfile;
+          if (opts.profile === 'offline-local' || opts.profile === 'offline') {
+            profile = builtin.offlineProfile;
+          }
+
+          const report = runDoctor(process.cwd(), registry, profile);
+          spinner.succeed('Health check complete');
+
+          if (opts.json) {
+            console.log(JSON.stringify(report, null, 2));
+            return;
+          }
+
+          // Text output
+          const healthColors = {
+            healthy: chalk.green,
+            degraded: chalk.yellow,
+            critical: chalk.red,
+          };
+          const healthIcons = { healthy: '✓', degraded: '⚠', critical: '✗' };
+
+          console.log(chalk.bold('\nMCP Doctor Report\n'));
+          console.log(`Profile: ${report.profile}`);
+          console.log(`Project: ${report.project_root}`);
+          console.log(`Health:  ${healthColors[report.health](healthIcons[report.health] + ' ' + report.health)}\n`);
+
+          // Connector summary
+          console.log(chalk.bold('Connectors:'));
+          const connectorData = [
+            [chalk.bold('ID'), chalk.bold('Category'), chalk.bold('Status'), chalk.bold('Token'), chalk.bold('Mutations')],
+            ...report.connectors.map(c => [
+              c.server_id,
+              c.category,
+              c.status === 'enabled' ? chalk.green('enabled') :
+                c.status === 'disabled' ? chalk.red('disabled') : chalk.gray('not configured'),
+              c.has_token ? chalk.green('✓') : chalk.gray('—'),
+              c.mutation_capabilities.length > 0 ? chalk.yellow(String(c.mutation_capabilities.length)) : chalk.gray('—'),
+            ]),
+          ];
+          console.log(table(connectorData));
+
+          // Workflow degradation
+          const degraded = report.workflows.filter(w => w.degraded);
+          if (degraded.length > 0) {
+            console.log(chalk.bold(chalk.yellow('Degraded Workflows:')));
+            for (const w of degraded) {
+              console.log(`  ${chalk.yellow('⚠')} ${w.workflow_id}: ${w.degraded_reasons.join('; ')}`);
+            }
+          } else {
+            console.log(chalk.green('All workflows operational.'));
+          }
+
+          // Mutation summary
+          if (report.mutations.servers_with_mutations.length > 0) {
+            console.log(chalk.bold('\nMutation Approval:'));
+            console.log(`  Global policy: ${report.mutations.global_approval_required ? chalk.green('approval required') : chalk.yellow('not enforced')}`);
+            console.log(`  Servers with mutations: ${report.mutations.servers_with_mutations.join(', ')}`);
+          }
+
+          // Summary
+          console.log(chalk.bold('\nSummary:'));
+          console.log(`  Connectors: ${report.summary.enabled} enabled, ${report.summary.disabled} disabled, ${report.summary.not_configured} not configured`);
+          console.log(`  Workflows:  ${report.summary.degraded_workflows} degraded / ${report.summary.total_workflows} total`);
+
+        } catch (error) {
+          spinner.fail('Health check failed');
+          console.error(chalk.red(String(error)));
         }
       })
   );

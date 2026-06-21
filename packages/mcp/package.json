@@ -26,6 +26,10 @@
       "import": "./dist/registry/configValidator.js",
       "types": "./dist/registry/configValidator.d.ts"
     },
+    "./registry/doctor": {
+      "import": "./dist/registry/doctor.js",
+      "types": "./dist/registry/doctor.d.ts"
+    },
     "./connectionManager": {
       "import": "./dist/connectionManager.js",
       "types": "./dist/connectionManager.d.ts"

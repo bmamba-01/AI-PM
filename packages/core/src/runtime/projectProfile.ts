@@ -1,0 +1,249 @@
+/**
+ * Project Profile — Runtime validation and defaults
+ *
+ * Validates project profile JSON against the schema.
+ * Provides graceful defaults for missing fields.
+ * No external calls — pure local validation.
+ */
+
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface ProjectProfile {
+  version: number;
+  project: {
+    project_id: string;
+    name: string;
+    root: string;
+    description?: string;
+    methodology?: string | null;
+    project_type?: string | null;
+    timezone?: string;
+    tags?: string[];
+  };
+  connectors?: Record<string, { enabled?: boolean; [key: string]: unknown }>;
+  artifacts?: {
+    root?: string;
+    reports?: string;
+    templates?: string;
+    notes?: string;
+  };
+  approval_policy?: Record<string, boolean>;
+}
+
+export interface ProfileValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  profile: ProjectProfile;
+}
+
+// ─── Defaults ────────────────────────────────────────────────────────────────
+
+export function applyProfileDefaults(profile: Partial<ProjectProfile>): ProjectProfile {
+  const p = profile as ProjectProfile;
+  p.version = p.version ?? 1;
+  p.project = p.project ?? { project_id: 'unknown', name: 'Unknown Project', root: '.' };
+  p.project.project_id = p.project.project_id || 'unknown';
+  p.project.name = p.project.name || 'Unknown Project';
+  p.project.root = p.project.root || '.';
+  p.project.description = p.project.description ?? '';
+  p.project.methodology = p.project.methodology ?? null;
+  p.project.project_type = p.project.project_type ?? null;
+  p.project.timezone = p.project.timezone ?? 'UTC';
+  p.project.tags = p.project.tags ?? [];
+
+  p.connectors = p.connectors ?? {};
+  p.artifacts = p.artifacts ?? { root: '.', reports: 'reports', templates: 'templates', notes: 'notes' };
+  p.approval_policy = p.approval_policy ?? {
+    require_approval_for_email: true,
+    require_approval_for_chat: true,
+    require_approval_for_issue_update: true,
+    require_approval_for_pr_comment: true,
+    require_approval_for_report_publish: true,
+    require_approval_for_scope_change: true,
+    auto_approve_read_only: true,
+  };
+
+  return p;
+}
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+
+const VALID_METHODOLOGIES = ['scrum', 'kanban', 'waterfall', 'hybrid'];
+const VALID_PROJECT_TYPES = ['tm', 'fixed_cost', 'maintenance', 'product'];
+
+export function validateProfile(profile: unknown): ProfileValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!profile || typeof profile !== 'object') {
+    return { valid: false, errors: ['Profile is not an object'], warnings: [], profile: applyProfileDefaults({}) };
+  }
+
+  const p = profile as Record<string, unknown>;
+
+  // version
+  if (typeof p.version !== 'number' || p.version < 1) {
+    errors.push('version must be a positive integer');
+  }
+
+  // project
+  if (!p.project || typeof p.project !== 'object') {
+    errors.push('project is required');
+  } else {
+    const proj = p.project as Record<string, unknown>;
+    if (!proj.project_id || typeof proj.project_id !== 'string') {
+      errors.push('project.project_id is required');
+    }
+    if (!proj.name || typeof proj.name !== 'string') {
+      errors.push('project.name is required');
+    }
+    if (!proj.root || typeof proj.root !== 'string') {
+      errors.push('project.root is required');
+    }
+    if (proj.methodology !== null && proj.methodology !== undefined && proj.methodology !== '') {
+      if (typeof proj.methodology !== 'string' || !VALID_METHODOLOGIES.includes(proj.methodology as string)) {
+        errors.push(`project.methodology must be one of: ${VALID_METHODOLOGIES.join(', ')}`);
+      }
+    }
+    if (proj.project_type !== null && proj.project_type !== undefined && proj.project_type !== '') {
+      if (typeof proj.project_type !== 'string' || !VALID_PROJECT_TYPES.includes(proj.project_type as string)) {
+        errors.push(`project.project_type must be one of: ${VALID_PROJECT_TYPES.join(', ')}`);
+      }
+    }
+    if (proj.tags !== undefined && !Array.isArray(proj.tags)) {
+      errors.push('project.tags must be an array');
+    }
+  }
+
+  // connectors — optional, warn on unknown
+  if (p.connectors !== undefined && typeof p.connectors === 'object') {
+    const validConnectors = ['github', 'jira', 'linear', 'calendar', 'email', 'confluence', 'notion', 'slack'];
+    for (const key of Object.keys(p.connectors as Record<string, unknown>)) {
+      if (!validConnectors.includes(key)) {
+        warnings.push(`Unknown connector: ${key}`);
+      }
+    }
+  }
+
+  // approval_policy — optional
+  if (p.approval_policy !== undefined && typeof p.approval_policy === 'object') {
+    for (const [key, val] of Object.entries(p.approval_policy as Record<string, unknown>)) {
+      if (typeof val !== 'boolean') {
+        errors.push(`approval_policy.${key} must be boolean`);
+      }
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    profile: applyProfileDefaults(profile as Partial<ProjectProfile>),
+  };
+}
+
+// ─── Load from file ──────────────────────────────────────────────────────────
+
+export async function loadProfile(projectRoot: string): Promise<ProfileValidationResult> {
+  const profilePath = path.join(projectRoot, '.ai-pm', 'profile.yaml');
+  try {
+    const raw = await readFile(profilePath, 'utf-8');
+    // Simple YAML→JSON parse for flat structures
+    const profile = parseSimpleYaml(raw);
+    return validateProfile(profile);
+  } catch {
+    return {
+      valid: false,
+      errors: ['Profile file not found or unreadable'],
+      warnings: [],
+      profile: applyProfileDefaults({}),
+    };
+  }
+}
+
+// ─── Simple YAML parser (for profile files only) ────────────────────────────
+
+function parseSimpleYaml(raw: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  let currentSection: string | null = null;
+  let currentSub: string | null = null;
+  let obj: Record<string, unknown> = {};
+
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    const indent = line.search(/\S/);
+
+    if (indent === 0 && trimmed.includes(':')) {
+      // Top-level key
+      const [key, val] = trimmed.split(':', 2).map(s => s.trim());
+      if (val && val !== 'null' && val !== '[]') {
+        result[key] = parseValue(val);
+      } else {
+        if (currentSection && currentSub) {
+          result[currentSection] = result[currentSection] || {};
+          (result[currentSection] as Record<string, unknown>)[currentSub] = obj;
+        } else if (currentSection) {
+          result[currentSection] = obj;
+        }
+        currentSection = key;
+        currentSub = null;
+        obj = {};
+      }
+    } else if (indent >= 2 && trimmed.includes(':')) {
+      // Sub-key
+      const [key, val] = trimmed.split(':', 2).map(s => s.trim());
+      if (val && val !== 'null') {
+        if (currentSection && currentSub) {
+          // Nested under sub
+          (obj as Record<string, unknown>)[key] = parseValue(val);
+        } else {
+          currentSub = key;
+          obj = { enabled: parseValue(val) };
+        }
+      } else {
+        if (currentSection && currentSub) {
+          // Save previous sub
+          result[currentSection] = result[currentSection] || {};
+          (result[currentSection] as Record<string, unknown>)[currentSub] = obj;
+        }
+        currentSub = key;
+        obj = {};
+      }
+    } else if (indent >= 4 && trimmed.includes(':') && currentSub) {
+      // Deep nested
+      const [key, val] = trimmed.split(':', 2).map(s => s.trim());
+      if (val && val !== 'null') {
+        (obj as Record<string, unknown>)[key] = parseValue(val);
+      }
+    }
+  }
+
+  // Save last sections
+  if (currentSection && currentSub) {
+    result[currentSection] = result[currentSection] || {};
+    (result[currentSection] as Record<string, unknown>)[currentSub] = obj;
+  } else if (currentSection) {
+    result[currentSection] = obj;
+  }
+
+  return result;
+}
+
+function parseValue(val: string): unknown {
+  if (val === 'null') return null;
+  if (val === 'true') return true;
+  if (val === 'false') return false;
+  if (/^\d+$/.test(val)) return parseInt(val, 10);
+  // Remove quotes
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    return val.slice(1, -1);
+  }
+  if (val === '[]') return [];
+  return val;
+}
