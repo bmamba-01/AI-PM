@@ -78,6 +78,13 @@ Notes:
 - Build initially failed because `@ai-pm/core/orchestrator` was imported by CLI but not exported by `packages/core/package.json`. Fixed by adding the `./orchestrator` export.
 - Completion gate initially missed the new CLI smoke checks. Added checks for `orchestrator --help`, `agent status --json`, `traceability build --help`, and `code-quality review --help`.
 
+## Review Findings From Setup/Wave 10 Prep
+
+- Removed stale `packages/core/src/workflows/weeklyReport.js` that shadowed the `.ts` source and broke artifact assembly, so `generateWeeklyReportForProject` now returns `artifacts` again.
+- Added Wave 10 smoke checks to `packages/cli/src/commands/completion-gate.test.ts`: `project profile validate --json`, `mcp validate --json`, `mcp doctor --json`, `agent route --workflow daily-briefing --json`.
+- Added user setup docs: `docs/user/getting-started.md`, `docs/user/setup-existing-project.md`.
+- Updated README to pin `corepack pnpm@9.4.0` and link user guides.
+
 ## Current Gaps
 
 ### Gap 0: First-Run Setup Is Not A Product Gateway Yet

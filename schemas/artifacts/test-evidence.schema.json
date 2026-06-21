@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Test Evidence",
+  "description": "JUnit/JSON test summary schema: test_name, status, duration, error_message, file, line",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "test_name", "type": "string", "description": "Full test name", "required": true },
+    { "name": "status", "type": "enum", "description": "Test result", "enum_values": ["passed", "failed", "skipped", "error"], "required": true },
+    { "name": "duration_ms", "type": "number", "description": "Duration in milliseconds" },
+    { "name": "error_message", "type": "string", "description": "Failure/error message" },
+    { "name": "file", "type": "string", "description": "Source file path" },
+    { "name": "line", "type": "number", "description": "Source line number" },
+    { "name": "suite", "type": "string", "description": "Test suite name" },
+    { "name": "timestamp", "type": "date", "description": "When the test ran" }
+  ],
+  "required_columns": ["test_name", "status"]
+}

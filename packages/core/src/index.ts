@@ -10,3 +10,4 @@ export * from './workflows/index.js';
 export * from './artifacts/index.js';
 export { syncEngine } from './sync/index.js';
 export * from './orchestrator/index.js';
+export * from './setup/setupProfile.js';

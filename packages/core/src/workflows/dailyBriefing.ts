@@ -135,82 +135,102 @@ export async function generateContextualBriefing(
   // --- 2. Load Approval Queue pending items ---
   let pendingApprovalCount = 0;
   try {
-    const { ApprovalQueue } = await import('../runtime/approvalQueue.js');
-    const queue = new ApprovalQueue(projectRoot);
-    const approvals = await queue.listItems({ status: 'pending' });
-    pendingApprovalCount = approvals.length;
-    for (const approval of approvals.slice(0, 5)) {
-      items.push({
-        source: 'approval-queue',
-        type: 'approval',
-        title: approval.title,
-        priority: approval.priority === 'critical' || approval.priority === 'high'
-          ? approval.priority
-          : 'medium',
-      });
+    const { readFile } = await import('node:fs/promises');
+    const approvalPath = path.join(projectRoot, '.ai-pm', 'approvals.json');
+    try {
+      await readFile(approvalPath, 'utf-8');
+      const { ApprovalQueue } = await import('../runtime/approvalQueue.js');
+      const queue = new ApprovalQueue(projectRoot);
+      const approvals = await queue.listItems({ status: 'pending' });
+      pendingApprovalCount = approvals.length;
+      for (const approval of approvals.slice(0, 5)) {
+        items.push({
+          source: 'approval-queue',
+          type: 'approval',
+          title: approval.title,
+          priority: approval.priority === 'critical' || approval.priority === 'high'
+            ? approval.priority
+            : 'medium',
+        });
+      }
+      connectorStatus['approval-queue'] = 'available';
+    } catch {
+      connectorStatus['approval-queue'] = 'unavailable';
+      degradedSources.push('approval-queue');
     }
-    connectorStatus['approval-queue'] = 'available';
-  } catch (err) {
-    degradedSources.push('approval-queue');
+  } catch {
     connectorStatus['approval-queue'] = 'unavailable';
+    degradedSources.push('approval-queue');
   }
 
   // --- 3. Load Memory Tasks and Artifacts ---
   let memoryTasks = { total: 0, active: 0, completed: 0 };
   let memoryArtifacts = { total: 0, active: 0 };
   try {
-    const { MemoryStore } = await import('../runtime/memory.js');
-    const memStore = new MemoryStore(projectRoot);
-    const tasks = await memStore.listTasks();
-    const activeTasks = tasks.filter(t => t.status === 'in_progress' || t.status === 'pending');
-    const completedTasks = tasks.filter(t => t.status === 'completed');
-    memoryTasks = { total: tasks.length, active: activeTasks.length, completed: completedTasks.length };
+    const { readFile } = await import('node:fs/promises');
+    const memPath = path.join(projectRoot, '.ai-pm', 'memory', 'state.json');
+    try {
+      await readFile(memPath, 'utf-8');
+      const { MemoryStore } = await import('../runtime/memory.js');
+      const memStore = new MemoryStore(projectRoot);
+      const tasks = await memStore.listTasks();
+      const activeTasks = tasks.filter(t => t.status === 'in_progress' || t.status === 'pending');
+      const completedTasks = tasks.filter(t => t.status === 'completed');
+      memoryTasks = { total: tasks.length, active: activeTasks.length, completed: completedTasks.length };
 
-    // Surface active tasks as priorities
-    for (const task of activeTasks.slice(0, 3)) {
-      items.push({
-        source: 'memory-store',
-        type: 'priority',
-        title: task.name,
-        priority: task.status === 'in_progress' ? 'high' : 'medium',
-      });
+      for (const task of activeTasks.slice(0, 3)) {
+        items.push({
+          source: 'memory-store',
+          type: 'priority',
+          title: task.name,
+          priority: task.status === 'in_progress' ? 'high' : 'medium',
+        });
+      }
+
+      const artifacts = await memStore.listArtifacts();
+      memoryArtifacts = {
+        total: artifacts.length,
+        active: artifacts.filter(a => a.status === 'active').length,
+      };
+      connectorStatus['memory-store'] = 'available';
+    } catch {
+      connectorStatus['memory-store'] = 'unavailable';
+      degradedSources.push('memory-store');
     }
-
-    const artifacts = await memStore.listArtifacts();
-    memoryArtifacts = {
-      total: artifacts.length,
-      active: artifacts.filter(a => a.status === 'active').length,
-    };
-    connectorStatus['memory-store'] = 'available';
-  } catch (err) {
-    degradedSources.push('memory-store');
+  } catch {
     connectorStatus['memory-store'] = 'unavailable';
+    degradedSources.push('memory-store');
   }
 
   // --- 4. Load Risk Register Items ---
   let riskCount = 0;
-  try {
-    const { listProjectRisks } = await import('./riskControl.js');
-    const { MemoryStore } = await import('../runtime/memory.js');
-    const memStore = new MemoryStore(projectRoot);
-    const risks = await listProjectRisks({ store: memStore });
-    const openRisks = risks.filter(r => r.status === 'open' || r.status === 'mitigating');
-    riskCount = openRisks.length;
+  if (connectorStatus['memory-store'] === 'available') {
+    try {
+      const { listProjectRisks } = await import('./riskControl.js');
+      const { MemoryStore } = await import('../runtime/memory.js');
+      const memStore = new MemoryStore(projectRoot);
+      const risks = await listProjectRisks({ store: memStore });
+      const openRisks = risks.filter(r => r.status === 'open' || r.status === 'mitigating');
+      riskCount = openRisks.length;
 
-    for (const risk of openRisks.slice(0, 3)) {
-      items.push({
-        source: 'risk-register',
-        type: 'risk',
-        title: risk.title,
-        priority: risk.impact === 'critical' || risk.probability === 'high'
-          ? 'high'
-          : 'medium',
-      });
+      for (const risk of openRisks.slice(0, 3)) {
+        items.push({
+          source: 'risk-register',
+          type: 'risk',
+          title: risk.title,
+          priority: risk.impact === 'critical' || risk.probability === 'high'
+            ? 'high'
+            : 'medium',
+        });
+      }
+      connectorStatus['risk-register'] = 'available';
+    } catch {
+      connectorStatus['risk-register'] = 'unavailable';
+      degradedSources.push('risk-register');
     }
-    connectorStatus['risk-register'] = 'available';
-  } catch (err) {
-    degradedSources.push('risk-register');
+  } else {
     connectorStatus['risk-register'] = 'unavailable';
+    degradedSources.push('risk-register');
   }
 
   // --- 5. Load local daily-items.json (existing behavior) ---

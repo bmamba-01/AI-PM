@@ -16,3 +16,6 @@ export type {
 export * from './schemaValidation.js';
 export * from './codeQualityGuard.js';
 export * from './traceability.js';
+export * from './testEvidence.js';
+export * from './meetingIntelligence.js';
+export * from './devopsRelease.js';

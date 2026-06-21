@@ -245,8 +245,8 @@ export async function buildContextPack(
     profilesDir?: string;
   } = {},
 ): Promise<ContextPack> {
-  const registryPath = options.registryPath ?? path.join(process.cwd(), 'mcp', 'registry.yaml');
-  const profilesDir = options.profilesDir ?? path.join(process.cwd(), 'mcp', 'profiles');
+  const registryPath = options.registryPath ?? path.join(projectRoot, 'mcp', 'registry.yaml');
+  const profilesDir = options.profilesDir ?? path.join(projectRoot, 'mcp', 'profiles');
 
   // Load registry
   const registry = await loadRegistry(registryPath);

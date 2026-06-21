@@ -77,12 +77,18 @@ AI-readable operating layer
 ## Development Commands
 
 ```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm --filter @ai-pm/cli build
-pnpm --filter @ai-pm/desktop dev
+# Use corepack to pin the workspace pnpm version
+corepack pnpm@9.4.0 install
+corepack pnpm@9.4.0 -r run build
+corepack pnpm@9.4.0 -r run test
+corepack pnpm@9.4.0 --filter @ai-pm/cli build
+corepack pnpm@9.4.0 --filter @ai-pm/desktop dev
 ```
+
+## User Guides
+
+- `docs/user/getting-started.md`
+- `docs/user/setup-existing-project.md`
 
 ## Agent Safety Rules
 

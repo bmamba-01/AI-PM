@@ -63,25 +63,6 @@ async function makeTestEnv() {
 }
 
 describe('generateWeeklyReportForProject', () => {
-  it('debug: returns all expected fields', async () => {
-    const env = await makeTestEnv();
-    try {
-      const result = await generateWeeklyReportForProject({
-        projectRoot: env.root,
-        reportingPeriodStart: '2026-06-01',
-        reportingPeriodEnd: '2026-06-07',
-        store: env.store,
-        approvalQueue: env.queue,
-        memoryStore: env.memory,
-      });
-      console.log('DEBUG result keys:', Object.keys(result));
-      console.log('DEBUG artifacts type:', typeof result.artifacts);
-      console.log('DEBUG artifacts:', result.artifacts);
-      expect(result).toHaveProperty('report');
-      expect(result).toHaveProperty('approvalItemId');
-      expect(result).toHaveProperty('artifacts');
-    } finally { await env.cleanup(); }
-  });
 
   it('returns a report from local store sources', async () => {
     const env = await makeTestEnv();

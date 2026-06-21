@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-pm-toolkit.dev/schemas/project/profile.schema.json",
+  "title": "Project Profile",
+  "description": "Schema for .ai-pm/profile.yaml project configuration.",
+  "type": "object",
+  "required": ["version", "project"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Profile schema version."
+    },
+    "project": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Project name."
+        },
+        "methodology": {
+          "type": ["string", "null"],
+          "enum": ["scrum", "kanban", "waterfall", "hybrid", null],
+          "description": "Project methodology."
+        },
+        "project_type": {
+          "type": ["string", "null"],
+          "enum": ["tm", "fixed_cost", "maintenance", "product", null],
+          "description": "Project commercial type."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Project tags."
+        }
+      },
+      "additionalProperties": false
+    },
+    "source_systems": {
+      "type": "object",
+      "description": "Availability of external source systems.",
+      "properties": {
+        "jira": { "type": "boolean" },
+        "github": { "type": "boolean" },
+        "linear": { "type": "boolean" },
+        "confluence": { "type": "boolean" },
+        "notion": { "type": "boolean" },
+        "gmail": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "connectors": {
+      "type": "object",
+      "description": "Connector configurations.",
+      "properties": {
+        "github": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "repo": { "type": ["string", "null"] }
+          }
+        },
+        "jira": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "project_key": { "type": ["string", "null"] }
+          }
+        },
+        "linear": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "team_id": { "type": ["string", "null"] }
+          }
+        },
+        "calendar": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "email": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        }
+      },
+      "additionalProperties": true
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "root": { "type": "string" },
+        "reports": { "type": "string" },
+        "templates": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
