@@ -121,7 +121,7 @@ export function validateProfile(profile: unknown): ProfileValidationResult {
 
   // connectors — optional, warn on unknown
   if (p.connectors !== undefined && typeof p.connectors === 'object') {
-    const validConnectors = ['github', 'jira', 'linear', 'calendar', 'email', 'confluence', 'notion', 'slack'];
+    const validConnectors = ['github', 'jira', 'linear', 'calendar', 'email', 'confluence', 'notion', 'slack', 'discord', 'connector_profile'];
     for (const key of Object.keys(p.connectors as Record<string, unknown>)) {
       if (!validConnectors.includes(key)) {
         warnings.push(`Unknown connector: ${key}`);
@@ -168,71 +168,36 @@ export async function loadProfile(projectRoot: string): Promise<ProfileValidatio
 // ─── Simple YAML parser (for profile files only) ────────────────────────────
 
 function parseSimpleYaml(raw: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  let currentSection: string | null = null;
-  let currentSub: string | null = null;
-  let obj: Record<string, unknown> = {};
+  const root: Record<string, unknown> = {};
+  const stack: Array<{ indent: number; obj: Record<string, unknown> }> = [{ indent: -1, obj: root }];
 
   for (const line of raw.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
+    const withoutComment = line.replace(/\s+#.*$/, '');
+    const trimmed = withoutComment.trim();
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('- ')) continue;
 
-    const indent = line.search(/\S/);
+    const sep = trimmed.indexOf(':');
+    if (sep < 0) continue;
 
-    if (indent === 0 && trimmed.includes(':')) {
-      // Top-level key
-      const [key, val] = trimmed.split(':', 2).map(s => s.trim());
-      if (val && val !== 'null' && val !== '[]') {
-        result[key] = parseValue(val);
-      } else {
-        if (currentSection && currentSub) {
-          result[currentSection] = result[currentSection] || {};
-          (result[currentSection] as Record<string, unknown>)[currentSub] = obj;
-        } else if (currentSection) {
-          result[currentSection] = obj;
-        }
-        currentSection = key;
-        currentSub = null;
-        obj = {};
-      }
-    } else if (indent >= 2 && trimmed.includes(':')) {
-      // Sub-key
-      const [key, val] = trimmed.split(':', 2).map(s => s.trim());
-      if (val && val !== 'null') {
-        if (currentSection && currentSub) {
-          // Nested under sub
-          (obj as Record<string, unknown>)[key] = parseValue(val);
-        } else {
-          currentSub = key;
-          obj = { enabled: parseValue(val) };
-        }
-      } else {
-        if (currentSection && currentSub) {
-          // Save previous sub
-          result[currentSection] = result[currentSection] || {};
-          (result[currentSection] as Record<string, unknown>)[currentSub] = obj;
-        }
-        currentSub = key;
-        obj = {};
-      }
-    } else if (indent >= 4 && trimmed.includes(':') && currentSub) {
-      // Deep nested
-      const [key, val] = trimmed.split(':', 2).map(s => s.trim());
-      if (val && val !== 'null') {
-        (obj as Record<string, unknown>)[key] = parseValue(val);
-      }
+    const indent = withoutComment.search(/\S/);
+    const key = trimmed.slice(0, sep).trim();
+    const rawValue = trimmed.slice(sep + 1).trim();
+
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
+
+    const parent = stack[stack.length - 1].obj;
+    if (rawValue === '') {
+      const child: Record<string, unknown> = {};
+      parent[key] = child;
+      stack.push({ indent, obj: child });
+    } else {
+      parent[key] = parseValue(rawValue);
     }
   }
 
-  // Save last sections
-  if (currentSection && currentSub) {
-    result[currentSection] = result[currentSection] || {};
-    (result[currentSection] as Record<string, unknown>)[currentSub] = obj;
-  } else if (currentSection) {
-    result[currentSection] = obj;
-  }
-
-  return result;
+  return root;
 }
 
 function parseValue(val: string): unknown {
@@ -240,6 +205,17 @@ function parseValue(val: string): unknown {
   if (val === 'true') return true;
   if (val === 'false') return false;
   if (/^\d+$/.test(val)) return parseInt(val, 10);
+  if (val.startsWith('[') && val.endsWith(']')) {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return val
+        .slice(1, -1)
+        .split(',')
+        .map(item => item.trim().replace(/^["']|["']$/g, ''))
+        .filter(Boolean);
+    }
+  }
   // Remove quotes
   if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
     return val.slice(1, -1);

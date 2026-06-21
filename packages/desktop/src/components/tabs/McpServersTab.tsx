@@ -2,6 +2,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Server, Plus, Power, Trash2, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { SetupGuideDialog, GuideButton } from "../setup/SetupGuideDialog";
 
 const servers = [
   { id: "github", name: "GitHub", type: "source_control", enabled: true, status: "connected" },
@@ -21,11 +23,28 @@ const typeColors: Record<string, string> = {
 };
 
 export function McpServersTab() {
+  const [showGuide, setShowGuide] = useState(false);
+
   return (
     <div className="space-y-5">
+      {showGuide && (
+        <SetupGuideDialog
+          title="MCP Servers Setup Guide"
+          purpose="MCP connectors let the toolkit read from and write to external systems (Jira, GitHub, Gmail, Calendar). Use 'ai-pm mcp doctor' to check connector health."
+          requiredSetup={[
+            "Environment variables configured for each connector",
+            "Connectors enabled in profile",
+          ]}
+          cliEquivalent="ai-pm mcp doctor --json"
+          onClose={() => setShowGuide(false)}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">MCP Servers</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-foreground">MCP Servers</h2>
+            <GuideButton onClick={() => setShowGuide(true)} />
+          </div>
           <p className="text-sm text-muted-foreground">Manage integration connectors</p>
         </div>
         <div className="flex gap-2">

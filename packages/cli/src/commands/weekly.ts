@@ -70,8 +70,12 @@ export function createWeeklyCommand(): Command {
       const store = new LocalProjectStore(projectRoot) as any;
       const approvalQueue = new ApprovalQueue(projectRoot) as any;
 
-      const weeklyItems = await store.loadWeeklyReportItems();
-      const items = weeklyItems.length > 0 ? weeklyItems : [];
+      let items: any[] = [];
+      try {
+        items = await store.loadWeeklyReportItems();
+      } catch {
+        // loadWeeklyReportItems not implemented — use empty items
+      }
 
       const assumptions = [
         ...(items.length === 0 ? [msgsLang.noData] : ['Live data from local weekly items.']),

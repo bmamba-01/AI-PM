@@ -53,6 +53,35 @@
       "description": "Items awaiting PM decision.",
       "items": { "type": "string" }
     },
+    "memory_tasks": {
+      "type": "object",
+      "description": "Runtime memory task counts included in contextual briefings.",
+      "required": ["total", "active", "completed"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "active": { "type": "integer", "minimum": 0 },
+        "completed": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "memory_artifacts": {
+      "type": "object",
+      "description": "Runtime memory artifact counts included in contextual briefings.",
+      "required": ["total", "active"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "active": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "connector_status": {
+      "type": "object",
+      "description": "Connector availability map for contextual briefings.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["available", "unavailable", "degraded"]
+      }
+    },
     "suggested_followups": {
       "type": "array",
       "description": "Suggested messages or follow-up actions.",
@@ -72,6 +101,11 @@
     "unavailable_sources": {
       "type": "array",
       "description": "Data sources that were unavailable or failed.",
+      "items": { "type": "string" }
+    },
+    "degraded_sources": {
+      "type": "array",
+      "description": "Data sources that were unavailable or degraded in contextual runtime output.",
       "items": { "type": "string" }
     },
     "assumptions": {

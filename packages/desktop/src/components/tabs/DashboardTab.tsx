@@ -9,20 +9,47 @@ import {
   Activity, Calendar, CheckCircle2, GitPullRequest,
   Rocket, MessageSquare, List, Loader, Check,
   Eye, Settings, Box, Wifi, WifiOff,
-  ChevronDown, ChevronUp, Server, HardDrive, ClipboardCheck
+  ChevronDown, ChevronUp, Server, HardDrive, ClipboardCheck,
+  HelpCircle
 } from "lucide-react";
+import { useState as useStateGuide } from "react";
+import { SetupGuideDialog, GuideButton } from "../setup/SetupGuideDialog";
 
 interface DashboardTabProps {
   project: Project;
 }
 
 export function DashboardTab({ project }: DashboardTabProps) {
+  const [showGuide, setShowGuide] = useStateGuide(false);
+
   return (
     <div className="space-y-5">
+      {/* Setup Guide Dialog */}
+      {showGuide && (
+        <SetupGuideDialog
+          title="Dashboard Setup Guide"
+          purpose="The dashboard shows project health, sprint progress, and real-time status. Configure MCP connectors to see live data from external systems."
+          requiredSetup={[
+            "Project profile configured (.ai-pm/profile.yaml)",
+            "MCP connectors set up for live data",
+            "Local server running for mobile access",
+          ]}
+          currentReadiness={{ score: 85, blocking: ["Configure MCP connectors for live data"] }}
+          cliEquivalent="ai-pm setup doctor --json"
+          onClose={() => setShowGuide(false)}
+        />
+      )}
+
       {/* Server status */}
       <ServerStatus />
 
       {/* Stat cards */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-foreground">Dashboard</h2>
+          <GuideButton onClick={() => setShowGuide(true)} />
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Health Score" value={`${project.healthScore}%`} icon={Heart} trend="up" color="emerald" />
         <StatCard title="Budget Used" value="65%" icon={DollarSign} trend="neutral" color="amber" />

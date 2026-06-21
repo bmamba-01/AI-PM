@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# AI-PM runtime state (local, not committed)
+.ai-pm/memory/
+.ai-pm/audit/
+.ai-pm/approvals/
+.ai-pm/approvals.json
+.ai-pm/artifacts/
+.ai-pm/chat/
+.ai-pm/orchestrator/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

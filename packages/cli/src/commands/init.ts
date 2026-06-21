@@ -103,13 +103,18 @@ ai-pm project scan
 `;
 }
 
-function profileYaml(name: string, methodology?: string): string {
+function profileYaml(name: string, options?: InitOptions): string {
+  const methodology = options?.methodology ?? (options?.defaults ? 'scrum' : undefined);
+  const projectType = options?.projectType ?? (options?.defaults ? 'fixed_cost' : undefined);
+  const connectorProfile = options?.connectorProfile ?? (options?.defaults ? 'offline-local' : undefined);
   const methodLine = methodology ? `methodology: "${methodology}"` : 'methodology: null   # scrum | kanban | waterfall | hybrid';
+  const projectTypeLine = projectType ? `project_type: "${projectType}"` : 'project_type: null  # tm | fixed_cost | maintenance | product';
+  const connectorProfileLine = connectorProfile ? `connector_profile: "${connectorProfile}"` : 'connector_profile: null';
   return `version: 1
 project:
   name: "${name}"
   ${methodLine}
-  project_type: null  # tm | fixed_cost | maintenance | product
+  ${projectTypeLine}
   tags: []
 source_systems:
   jira: false
@@ -119,6 +124,7 @@ source_systems:
   notion: false
   gmail: false
 connectors:
+  ${connectorProfileLine}
   github:
     enabled: false
     repo: null
@@ -191,7 +197,12 @@ function approvalsJson(): string {
 // ─── Main init function ───────────────────────────────────────────────────────
 
 export interface InitOptions {
+  defaults?: boolean;
   methodology?: string;
+  projectType?: string;
+  commercialModel?: string;
+  connectorProfile?: string;
+  json?: boolean;
 }
 
 export function runInit(projectName: string, options?: InitOptions) {
@@ -205,7 +216,9 @@ export function runInit(projectName: string, options?: InitOptions) {
     process.exit(1);
   }
 
-  console.log(`${t.creating} "${projectName}"...`);
+  if (!options?.json) {
+    console.log(`${t.creating} "${projectName}"...`);
+  }
 
   // ── Create directories ──
 
@@ -248,7 +261,7 @@ export function runInit(projectName: string, options?: InitOptions) {
 
   // ── Project profile ──
 
-  fs.writeFileSync(path.join(target, '.ai-pm/profile.yaml'), profileYaml(projectName, options?.methodology));
+  fs.writeFileSync(path.join(target, '.ai-pm/profile.yaml'), profileYaml(projectName, options));
 
   // ── Agent entrypoints ──
 
@@ -284,6 +297,44 @@ export function runInit(projectName: string, options?: InitOptions) {
 
   // ── Summary ──
 
+  const nextCommands = ['cd ' + projectName, ...t.nextCommands, 'ai-pm project scan --json'];
+  const created = [
+    '.ai-pm/',
+    '.ai-pm/profile.yaml',
+    '.ai-pm/audit/workflow-runs.jsonl',
+    '.ai-pm/memory/state.json',
+    '.ai-pm/approvals.json',
+    'AGENTS.md',
+    'CODEX.md',
+    'CLAUDE.md',
+    '.gitignore',
+    '.claude/.mcp.json',
+    'reports/',
+    'artifacts/',
+    'requirements/',
+    'risks/',
+    'meetings/',
+    'templates/',
+    'notes/',
+    'README.md',
+  ];
+
+  if (options?.json) {
+    console.log(JSON.stringify({
+      success: true,
+      projectName,
+      path: target,
+      defaults: Boolean(options.defaults),
+      methodology: options.methodology ?? (options.defaults ? 'scrum' : null),
+      projectType: options.projectType ?? (options.defaults ? 'fixed_cost' : null),
+      commercialModel: options.commercialModel ?? null,
+      connectorProfile: options.connectorProfile ?? (options.defaults ? 'offline-local' : null),
+      created,
+      nextCommands,
+    }, null, 2));
+    return;
+  }
+
   console.log(`  ✓ .ai-pm/ (runtime dirs + seeds)`);
   console.log(`  ✓ .ai-pm/profile.yaml${options?.methodology ? ` (methodology: ${options.methodology})` : ''}`);
   console.log(`  ✓ .ai-pm/audit/workflow-runs.jsonl (empty)`);
@@ -296,9 +347,8 @@ export function runInit(projectName: string, options?: InitOptions) {
   console.log(`  ✓ templates/, notes/`);
   console.log(`  ✓ README.md`);
   console.log(`\n✅ "${projectName}" ${t.done}`);
-  console.log(`\n${t.nextSteps}:\n  cd ${projectName}`);
-  for (const cmd of t.nextCommands) {
+  console.log(`\n${t.nextSteps}:`);
+  for (const cmd of nextCommands) {
     console.log(`  ${cmd}`);
   }
-  console.log(`  ai-pm project scan --json   # verify >80% readiness`);
 }

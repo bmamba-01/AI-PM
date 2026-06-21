@@ -195,7 +195,7 @@ mcpCommand
       .option('--profile <name>', 'Profile name: default, offline, or custom path', 'default')
       .option('--all', 'Check all builtin profiles')
       .action(async (opts) => {
-        const spinner = ora('Running MCP health check...').start();
+        const spinner = opts.json ? null : ora('Running MCP health check...').start();
 
         try {
           const registry = loadRegistry();
@@ -230,7 +230,7 @@ mcpCommand
             report: runDoctor(process.cwd(), registry, p.profile),
           }));
 
-          spinner.succeed('Health check complete');
+          spinner?.succeed('Health check complete');
 
           if (opts.json) {
             const output = reports.length === 1 ? reports[0].report : reports;
@@ -292,7 +292,15 @@ mcpCommand
           }
 
         } catch (error) {
-          spinner.fail('Health check failed');
+          spinner?.fail('Health check failed');
+          if (opts.json) {
+            console.log(JSON.stringify({
+              valid: false,
+              error: String(error),
+            }, null, 2));
+            process.exitCode = 1;
+            return;
+          }
           console.error(chalk.red(String(error)));
         }
       })

@@ -9,6 +9,7 @@ import {
   Plus, CheckSquare, Square, History, Trash2
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { SetupGuideDialog, GuideButton } from "../setup/SetupGuideDialog";
 import { useApprovalStore, type ApprovalItem } from "../../state/approval-store";
 
 interface Props { project: Project }
@@ -51,6 +52,7 @@ let toastCounter = 0;
 export function ApprovalsTab({ project }: Props) {
   const { items, counts, isLoading, error, loadItems, loadCounts, decide, refresh, clearError } = useApprovalStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
   const [filter, setFilter] = useState<string>(() => {
     // Load filter from localStorage (feature #7: filter persistence)
     const saved = localStorage.getItem(`approvals-filter-${project.id}`);
@@ -277,6 +279,21 @@ export function ApprovalsTab({ project }: Props) {
 
   return (
     <div className="space-y-5">
+      {/* Setup Guide Dialog */}
+      {showGuide && (
+        <SetupGuideDialog
+          title="Approvals Setup Guide"
+          purpose="The approval queue manages external mutations proposed by AI agents. All email, Jira, GitHub, and Notion actions require PM approval before execution."
+          requiredSetup={[
+            "Project profile configured",
+            "MCP connectors for target systems",
+            "Approval policies defined (optional)",
+          ]}
+          cliEquivalent="ai-pm approval list --json"
+          onClose={() => setShowGuide(false)}
+        />
+      )}
+
       {/* Toast overlay */}
       {toasts.length > 0 && (
         <div className="fixed top-4 right-4 z-50 space-y-2">
@@ -515,6 +532,7 @@ export function ApprovalsTab({ project }: Props) {
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-semibold text-foreground">Approvals</h2>
+            <GuideButton onClick={() => setShowGuide(true)} />
             <Badge className="bg-[#34C759]/20 text-[#34C759] border-[#34C759]/30 text-[10px]">
               <Eye className="w-3 h-3 mr-1" />
               Live Data

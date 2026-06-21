@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { loadMcpConfig, upsertMcpServer, removeMcpServer, setMcpServerEnabled, MCPServerConfig } from "@ai-pm/mcp/connectionManager";
 import { ApprovalQueue, MemoryStore, LocalProjectStore, type ApprovalDecision } from "@ai-pm/core/runtime";
+import { checkReadiness } from "@ai-pm/core/setup";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -315,4 +316,128 @@ ipcMain.handle("server:start", () => {
 ipcMain.handle("server:stop", () => {
   stopLocalServer();
   return { running: false, port: serverPort };
+});
+
+// ── Setup IPC handlers ────────────────────────────────────────────────────────
+
+ipcMain.handle("setup:scan", async (_, projectPath: string) => {
+  return checkReadiness(projectPath);
+});
+
+ipcMain.handle("setup:repair", async (_, projectPath: string) => {
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const created: string[] = [];
+
+  // Create .ai-pm directories
+  const dirs = [
+    '.ai-pm/memory',
+    '.ai-pm/audit',
+    '.ai-pm/approvals',
+  ];
+
+  for (const dir of dirs) {
+    await mkdir(path.join(projectPath, dir), { recursive: true });
+    created.push(dir);
+  }
+
+  // Create empty state files
+  const memoryState = {
+    version: 1,
+    project_id: '',
+    tasks: [],
+    artifacts: [],
+    updated_at: new Date().toISOString(),
+  };
+  await writeFile(path.join(projectPath, '.ai-pm', 'memory', 'state.json'), JSON.stringify(memoryState, null, 2));
+  created.push('.ai-pm/memory/state.json');
+
+  await writeFile(path.join(projectPath, '.ai-pm', 'approvals.json'), '[]');
+  created.push('.ai-pm/approvals.json');
+
+  return { created };
+});
+
+ipcMain.handle("setup:createProject", async (_, name: string, defaults: Record<string, string>) => {
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const projectRoot = path.join(path.dirname(currentProjectRoot), name);
+
+  try {
+    // Create directories
+    const dirs = [
+      '.ai-pm/memory',
+      '.ai-pm/audit',
+      '.ai-pm/approvals',
+      'reports',
+      'templates',
+      'notes',
+    ];
+    for (const dir of dirs) {
+      await mkdir(path.join(projectRoot, dir), { recursive: true });
+    }
+
+    // Create .ai-pm/profile.yaml
+    const profile = {
+      version: 1,
+      project: {
+        name,
+        methodology: defaults.methodology || "scrum",
+        project_type: defaults.project_type || "software",
+        tags: [],
+      },
+      connectors: {},
+      artifacts: { root: ".", reports: "reports", templates: "templates", notes: "notes" },
+    };
+    await writeFile(path.join(projectRoot, '.ai-pm', 'profile.yaml'), JSON.stringify(profile, null, 2));
+
+    // Create empty state files
+    await writeFile(path.join(projectRoot, '.ai-pm', 'memory', 'state.json'), JSON.stringify({
+      version: 1, project_id: '', tasks: [], artifacts: [], updated_at: new Date().toISOString()
+    }, null, 2));
+    await writeFile(path.join(projectRoot, '.ai-pm', 'approvals.json'), '[]');
+
+    // Create AGENTS.md
+    await writeFile(path.join(projectRoot, 'AGENTS.md'), `# ${name} — Agent Entrypoint\n\nThis project is managed with AI-PM Toolkit.\n`);
+
+    // Run readiness check
+    const readiness = await checkReadiness(projectRoot);
+
+    return { success: true, projectRoot, readiness };
+  } catch (error) {
+    console.error("[setup:createProject] Error:", error);
+    return { success: false, projectRoot: "", readiness: { score: 0, blocking: [], warnings: [] } };
+  }
+});
+
+ipcMain.handle("setup:adopt", async (_, projectPath: string) => {
+  const { mkdir, writeFile, readFile } = await import("node:fs/promises");
+
+  try {
+    // Create missing directories
+    const dirs = ['.ai-pm/memory', '.ai-pm/audit', '.ai-pm/approvals'];
+    for (const dir of dirs) {
+      await mkdir(path.join(projectPath, dir), { recursive: true });
+    }
+
+    // Create empty state files only if missing
+    const memoryPath = path.join(projectPath, '.ai-pm', 'memory', 'state.json');
+    try {
+      await readFile(memoryPath, 'utf-8');
+    } catch {
+      await writeFile(memoryPath, JSON.stringify({
+        version: 1, project_id: '', tasks: [], artifacts: [], updated_at: new Date().toISOString()
+      }, null, 2));
+    }
+
+    const approvalsPath = path.join(projectPath, '.ai-pm', 'approvals.json');
+    try {
+      await readFile(approvalsPath, 'utf-8');
+    } catch {
+      await writeFile(approvalsPath, '[]');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("[setup:adopt] Error:", error);
+    return { success: false };
+  }
 });

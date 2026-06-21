@@ -20,6 +20,15 @@ For Codex:
 
 - `CODEX.md`
 
+## User Guides
+
+- [Getting Started](docs/user/getting-started.md) — Installation, first init, first scan
+- [PM User Guide](docs/user/pm-user-guide.md) — Daily workflow, approvals, weekly reports
+- [Agent Guide](docs/user/agent-guide.md) — How agents use CLI and respect approval gates
+- [MCP Setup Guide](docs/user/mcp-setup-guide.md) — Connector setup, doctor, profiles
+- [Mobile & Chat Guide](docs/user/mobile-chat-guide.md) — Server config, offline mode, actions
+- [Troubleshooting](docs/user/troubleshooting.md) — Common errors and fixes
+
 Older documents under `docs/plans/` and `docs/superagent-dashboard-spec.md` are historical context unless the current implementation plan explicitly references them.
 
 ## Current Canonical Baseline

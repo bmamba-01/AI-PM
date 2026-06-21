@@ -1,7 +1,7 @@
 # PM Orchestrator Master Plan
 
 > **Status:** Current implementation plan  
-> **Updated:** 2026-06-20  
+> **Updated:** 2026-06-21  
 > **Owner:** Human PM  
 > **Purpose:** Refocus AI-PM Toolkit on a personal PM command system for managing one or two large, complex software projects with AI-agent automation across laptop, CLI, desktop, and mobile/chat surfaces.
 
@@ -218,6 +218,33 @@ Implementation plan:
 
 - `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
 
+## 8B. AI-PM T&M Self-Test Project
+
+AI-PM must now be managed by its own toolkit as a test project. The active self-test workspace is:
+
+- `examples/ai-pm-tm-test-project`
+
+Project setup:
+
+- Commercial model: T&M / `time_and_material`
+- Methodology: Scrum for execution visibility, with PM governance gates
+- Role model: one human PM role only
+- Primary communication channel: Discord through a local Hermes Agent Bot adapter
+- Issue/feature tracking: Notion, with local CSV import artifacts until live Notion MCP/API sync is configured
+- Target completion date: 2026-06-28
+
+The self-test project is not a demo. It is the control project for validating that CLI, desktop, mobile/chat, memory, approvals, workflows, template outputs, MCP profiles, and external tracking preparation work on a real project-scoped folder.
+
+Current self-test acceptance gates:
+
+- `ai-pm setup doctor --path . --json` returns score 100 in the self-test project.
+- `ai-pm project scan --json` returns score 100 and `ready: true`.
+- `ai-pm project profile validate --json` validates the T&M profile.
+- `ai-pm daily --json` reads the project profile and memory tasks.
+- `ai-pm mcp doctor --json` emits parseable JSON; degraded connector health is acceptable until Notion/Discord live credentials are configured.
+- Notion tracking artifacts exist under `integrations/notion/` for import or dry-run sync.
+- Discord/Hermes behavior remains read-only until identity, callback approval, and audit are implemented.
+
 ## 9. Revised Roadmap
 
 ### Phase 1: Stabilize and Re-anchor
@@ -290,7 +317,8 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
-  - Remaining master plan assignment set: `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
+- AI-PM self-test stabilization wave: `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`
+- Remaining master plan assignment set: `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
 - Runtime implementation plan: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`
 - Historical prompt sets are reference only unless a newer active plan explicitly names them.
 

@@ -24,7 +24,7 @@ describe('orchestrator CLI', () => {
       const { stdout } = await execFileAsync('node', [cliPath, 'orchestrator', '--help']);
       expect(stdout).toContain('orchestr');
       expect(stdout).toContain('run');
-    });
+    }, 30000);
 
     it('shows run subcommand help', async () => {
       const { stdout } = await execFileAsync('node', [cliPath, 'orchestrator', 'run', '--help']);

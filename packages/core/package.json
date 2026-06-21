@@ -61,6 +61,14 @@
     "./orchestrator": {
       "import": "./dist/orchestrator/index.js",
       "types": "./dist/orchestrator/index.d.ts"
+    },
+    "./setup": {
+      "import": "./dist/setup/setupProfile.js",
+      "types": "./dist/setup/setupProfile.d.ts"
+    },
+    "./setup": {
+      "import": "./dist/setup/setupProfile.js",
+      "types": "./dist/setup/setupProfile.d.ts"
     }
   },
   "scripts": {

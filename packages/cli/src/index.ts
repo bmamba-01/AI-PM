@@ -12,3 +12,5 @@ export { orchestratorCommand, agentCommand } from './commands/orchestrator.js';
 export { riskCommand } from './commands/risk.js';
 export { traceabilityCommand } from './commands/traceability.js';
 export { codeQualityCommand } from './commands/code-quality.js';
+export { adoptCommand } from './commands/adopt.js';
+export { setupCommand } from './commands/setup.js';

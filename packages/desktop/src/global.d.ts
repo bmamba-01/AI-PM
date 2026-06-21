@@ -62,6 +62,21 @@ interface ElectronApi {
     start: () => Promise<{ running: boolean; port: number }>;
     stop: () => Promise<{ running: boolean; port: number }>;
   };
+  setup: {
+    scan: (path: string) => Promise<{
+      score: number;
+      blocking: string[];
+      warnings: string[];
+      checks: Array<{ id: string; label: string; required: boolean; present: boolean }>;
+    }>;
+    repair: (path: string) => Promise<{ created: string[] }>;
+    createProject: (name: string, defaults: Record<string, string>) => Promise<{
+      success: boolean;
+      projectRoot: string;
+      readiness: { score: number; blocking: string[]; warnings: string[] };
+    }>;
+    adopt: (path: string) => Promise<{ success: boolean }>;
+  };
 }
 
 declare global {

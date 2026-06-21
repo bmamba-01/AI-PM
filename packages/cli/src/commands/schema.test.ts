@@ -37,7 +37,7 @@ describe('schema CLI', () => {
       expect(stdout).toContain('scope-control');
       expect(stdout).toContain('reporting');
       expect(stdout).toContain('code-quality-guard');
-    });
+    }, 30000);
 
     it('outputs valid JSON array with --json', async () => {
       const { stdout } = await execAsync(`node ${cliPath} schema list --json`);

@@ -42,6 +42,12 @@ const api = {
     start: (): Promise<{ running: boolean; port: number }> => ipcRenderer.invoke("server:start"),
     stop: (): Promise<{ running: boolean; port: number }> => ipcRenderer.invoke("server:stop"),
   },
+  setup: {
+    scan: (path: string) => ipcRenderer.invoke("setup:scan", path),
+    repair: (path: string) => ipcRenderer.invoke("setup:repair", path),
+    createProject: (name: string, defaults: Record<string, string>) => ipcRenderer.invoke("setup:createProject", name, defaults),
+    adopt: (path: string) => ipcRenderer.invoke("setup:adopt", path),
+  },
 };
 
 contextBridge.exposeInMainWorld("electronAPI", api);

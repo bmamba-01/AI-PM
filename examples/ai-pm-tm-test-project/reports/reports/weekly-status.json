@@ -1,0 +1,48 @@
+{
+  "$schema": "ai-pm-toolkit/artifacts/weekly-status",
+  "meta": {
+    "templateId": "weekly-status",
+    "templateName": "Weekly Status Report",
+    "category": "reports",
+    "workflow": "reporting",
+    "ownerRole": "pm",
+    "approvalRequired": true,
+    "approvalGate": "PM authorship required. Functional Managers validate resource/budget. Project Sponsor review for SteerCo distribution.\n",
+    "renderedAt": "2026-06-21T13:54:06.709Z",
+    "version": "1.0.0"
+  },
+  "content": {
+    "report_id": "weekly-report-2026-06-21",
+    "period_start": "2026-06-14",
+    "period_end": "2026-06-21",
+    "generated_at": "2026-06-21T13:54:06.699Z",
+    "source_coverage": [
+      "local-memory",
+      "unavailable:online-mcp"
+    ],
+    "summary": {
+      "accomplishments": [
+        "Review completed milestones and deliverables from this period. (unknown)"
+      ],
+      "risks": [
+        "Reconcile risk register updates before weekly report. (unknown)"
+      ],
+      "decisions": [],
+      "next_week_focus": [
+        "Queue follow-up priorities for next reporting period. (unknown)"
+      ],
+      "milestones": []
+    },
+    "rag": {
+      "scope": "unknown",
+      "timeline": "unknown",
+      "risk": "unknown",
+      "budget": "unknown",
+      "quality": "unknown"
+    },
+    "confidence": 90,
+    "assumptions": [
+      "Live data replaced with project local memory placeholder items."
+    ]
+  }
+}

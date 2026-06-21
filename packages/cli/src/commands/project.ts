@@ -48,11 +48,11 @@ projectCommand
       .action(async (opts) => {
         const lang = getLang();
         const msgsLang = msgs[lang];
-        const spinner = ora(msgsLang.loading).start();
+        const spinner = opts.json ? null : ora(msgsLang.loading).start();
 
         try {
           const result = await scanProject(opts.path);
-          spinner.succeed(msgsLang.done);
+          spinner?.succeed(msgsLang.done);
 
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
@@ -86,7 +86,7 @@ projectCommand
 
           console.log(table(data));
         } catch (error) {
-          spinner.fail(msgsLang.loading + ' failed');
+          spinner?.fail(msgsLang.loading + ' failed');
           console.error(error);
         }
       })

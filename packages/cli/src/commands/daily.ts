@@ -1,9 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { generateDailyBriefing, type DailyBriefingInputItem } from '@ai-pm/core/workflows';
-import { LocalProjectStore, MemoryStore, ApprovalQueue } from '@ai-pm/core/runtime';
-import { loadMcpConfig } from '@ai-pm/mcp/connectionManager';
+import { generateContextualBriefing, type DailyBriefingInputItem } from '@ai-pm/core/workflows';
 
 const msgs = {
   en: {
@@ -82,31 +80,21 @@ export function createDailyCommand(): Command {
       const msgsLang = msgs[lang];
       const format = opts.json ? 'json' : opts.format;
 
-    const config = loadMcpConfig(process.cwd());
-    if (config.servers.filter(s => s.enabled).length === 0) {
-      console.log(chalk.yellow(msgsLang.noServers));
-      return;
-    }
-
-    const spinner = ora(msgsLang.loading).start();
+    const spinner = format === 'json' ? null : ora(msgsLang.loading).start();
 
     try {
-      // Load real data from local store
-      const store = new LocalProjectStore(process.cwd());
-      const localItems = await store.loadDailyBriefingItems();
-      const items = localItems.length > 0 ? localItems : defaultLocalItems();
-
-      const briefing = generateDailyBriefing({
-        projectId: 'local-project',
-        date: todayIso(),
-        items,
-        unavailableSources: ['online-mcp'],
-        assumptions: localItems.length === 0
-          ? [msgsLang.noData]
-          : ['Live data from configured MCP connectors.'],
+      const briefing = await generateContextualBriefing({
+        projectRoot: process.cwd(),
       });
 
-      spinner.succeed(msgsLang.done);
+      if (briefing.topPriorities.length === 0) {
+        const fallback = defaultLocalItems()[0];
+        briefing.topPriorities.push(fallback.title);
+        briefing.sourceCoverage.push(fallback.source);
+        briefing.assumptions.push(`${msgsLang.noData} ${msgsLang.noServers}`);
+      }
+
+      spinner?.succeed(msgsLang.done);
 
       // Render output
       let content: string;
@@ -138,7 +126,7 @@ export function createDailyCommand(): Command {
         console.log(content);
       }
     } catch (error) {
-      spinner.fail(msgsLang.error);
+      spinner?.fail(msgsLang.error);
       console.error(error);
     }
   });

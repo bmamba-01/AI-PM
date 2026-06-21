@@ -1,6 +1,9 @@
 // MCP Connection Manager
 // Handles loading/saving MCP server configurations per project
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 export interface MCPServerConfig {
   id: string; // kebab-case unique identifier
   name: string; // display name
@@ -30,8 +33,6 @@ export function getMcpConfigPath(projectRoot: string): string {
  * Load MCP config from file; returns default if file doesn't exist or invalid
  */
 export function loadMcpConfig(projectRoot: string): MCPConfig {
-  const fs = require('fs');
-  const path = require('path');
   const configPath = getMcpConfigPath(projectRoot);
 
   if (!fs.existsSync(configPath)) {
@@ -56,8 +57,6 @@ export function loadMcpConfig(projectRoot: string): MCPConfig {
  * Save MCP config to file
  */
 export function saveMcpConfig(projectRoot: string, config: MCPConfig): void {
-  const fs = require('fs');
-  const path = require('path');
   const configPath = getMcpConfigPath(projectRoot);
   const dir = path.dirname(configPath);
   if (!fs.existsSync(dir)) {

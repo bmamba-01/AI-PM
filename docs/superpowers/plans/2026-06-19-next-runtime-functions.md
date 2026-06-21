@@ -10,17 +10,39 @@
 
 ## Current Verification State
 
-Verified on 2026-06-21 from `C:\Works\AI-PM` after Wave 9 review:
+Verified on 2026-06-21 from `C:\Works\AI-PM` after completed agent wave review and toolkit self-use hardening:
 
 ```text
-corepack pnpm@9.4.0 -r run test              PASS
 corepack pnpm@9.4.0 -r run build             PASS
-packages/core test                           PASS (19 files, 244 tests)
-packages/mcp test                            PASS (1 file, 26 tests)
-packages/server test                         PASS (3 files, 121 tests)
-packages/cli test                            PASS (8 files, 128 tests)
+corepack pnpm@9.4.0 -r run test              PASS
+packages/core test                           PASS (35 files, 429 tests)
+packages/mcp test                            PASS (2 files, 36 tests)
+packages/server test                         PASS (5 files, 132 tests)
+packages/cli test                            PASS (11 files, 185 tests)
 packages/mobile test                         PASS (1 file, 10 tests)
-node schemas/validate-fixtures.mjs           PASS (30/30)
+node schemas/validate-fixtures.mjs           PASS (32/32)
+setup doctor on this repo                    PASS (score 100)
+project scan on this repo                    PASS (score 100, ready true)
+daily --json on this repo                    PASS (local-first fallback)
+mcp validate --json                          PASS
+marker scan                                  PASS (no active unresolved markers)
+```
+
+Additional self-test project verification on 2026-06-21:
+
+```text
+Self-test project root                       examples/ai-pm-tm-test-project
+Commercial model                             T&M / time_and_material
+Role model                                   one PM role
+Primary chat channel                         Discord via Hermes Agent Bot
+Tracker                                      Notion local import artifacts
+Target completion date                       2026-06-28
+setup doctor                                 PASS (score 100)
+project scan                                 PASS (score 100, ready true)
+project profile validate                     PASS
+memory summary                               PASS (4 tasks, 2 artifacts)
+daily --json                                 PASS (project profile + memory loaded)
+mcp doctor --json                            PASS as parseable JSON; health degraded until live connectors are configured
 ```
 
 Notes:
@@ -58,6 +80,27 @@ Notes:
 | Chat Action Protocol | Complete first slice | read-only query, action proposal, history; server tests pass |
 | Desktop Command Center | Complete first slice | desktop build passes |
 | Mobile Command Center | Complete first slice | mobile state/screen and tests pass |
+| Setup Core Contract | Complete first slice | `packages/core/src/setup`; core tests pass |
+| Setup CLI Doctor/Repair | Complete first slice | `ai-pm setup doctor/repair`; self-use score 100 |
+| Existing Project Adoption CLI | Partial | `adopt --json` reports readiness; actual writes are performed by `setup repair` |
+| Desktop Setup Gateway | Complete build slice | setup gateway/wizards/guide dialogs build; manual Electron click-through still needed |
+| Mobile Setup Status | Complete build slice | `SetupStatusScreen`; mobile build passes |
+| Meeting Intelligence Workflow | Complete | `meetingIntelligence.ts` + unit/integration tests pass |
+| DevOps Release Workflow | Complete | `devopsRelease.ts` + unit/integration tests pass |
+| Auth Middleware | Complete | `packages/server/src/middleware/auth.ts` + tests pass |
+| Security Documentation | Complete | `docs/security/threat-model.md`, `docs/security/auth-boundaries.md` |
+| Connector Fixtures | Complete | `schemas/fixtures/connectors/*.json` + `connectorFixtures.test.ts` pass |
+| Final Acceptance Matrix | Complete | `docs/superpowers/plans/final-green-gate.md` updated |
+
+## Acceptance Status By Wave
+
+| Wave | Area | Status | Gaps |
+|---|---|---|---|
+| Wave 10 | CLI smoke + setup docs | Complete | — |
+| Wave 13 | Meeting/DevOps workflows | Complete | — |
+| Wave 14 | Auth + security | Complete | — |
+| Wave 15 | Connector fixtures | Complete | Live sync not implemented |
+| Wave 16 | Final acceptance | Complete | Build blocked by pre-existing `adopt.ts` regression |
 
 ## Review Findings From Wave 7
 
@@ -87,9 +130,14 @@ Notes:
 
 ## Current Gaps
 
-### Gap 0: First-Run Setup Is Not A Product Gateway Yet
+### Gap 0: Setup Gateway Needs Manual Smoke And Adopt Write Consolidation
 
-CLI init and project scan exist, but desktop first-run still needs a formal New Project / Adopt Existing Project / Demo Project gateway. Existing-project adoption, setup doctor/repair, contextual guide dialogs, and read-only mobile setup status must become a blocking setup wave before the remaining orchestrator work is treated as PM-usable.
+The setup gateway is implemented enough to build and the CLI can self-adopt this repository to readiness 100. Remaining setup hardening is narrower:
+
+- Run real Electron click-through smoke for New Project, Adopt Existing Project, and Demo Project.
+- Consolidate `adopt --defaults` so it can optionally write missing files directly or clearly delegate to `setup repair`.
+- Add tests that assert JSON commands do not emit spinner/status text on stdout.
+- Add mobile setup status device/simulator smoke.
 
 Detailed plan:
 
@@ -115,11 +163,19 @@ WBS/project plan, milestone/Gantt, budget/burn, strict scope verification, UAT/u
 
 MCP registry/profiles/contracts and context snapshots exist, but approved external sync for Google Workspace, Jira, Linear, GitHub, Notion, Confluence, Slack/Teams, and Figma is still not implemented.
 
+### Gap 6: Self-Test Project Needs Live Notion And Discord/Hermes Wiring
+
+`examples/ai-pm-tm-test-project` is now the project used to test AI-PM against itself. The local project setup is ready, but live external integration is still intentionally degraded:
+
+- Notion tracking exists as `integrations/notion/issues.csv` and `notion-database-schema.md`; live Notion sync requires a Notion MCP/API profile and approval-gated mutation path.
+- Discord/Hermes is the configured communication channel, but the runtime adapter must remain read-only until identity, approval callback, and audit are verified.
+- MCP doctor reports degraded health until connector credentials and live profiles are configured.
+
 ## Next Work Sequence
 
-Use the remaining master plan assignment set:
+Use the remaining master plan assignment set, adjusted by verified state:
 
-- Blocking Setup Wave: first-run desktop gateway, new project wizard, existing project adoption, setup doctor/repair CLI, guided dialogs, mobile setup status.
+- Setup hardening: desktop click-through smoke, adopt/write consolidation, JSON stdout regression tests, mobile setup smoke.
 - Wave 10: profile, capability registry, MCP doctor, template tables, init hardening, completion gate.
 - Wave 11: daily/weekly full orchestration and artifact adoption.
 - Wave 12: WBS, project plan, milestones, cost, strict scope, UAT/user guide.
@@ -130,8 +186,9 @@ Use the remaining master plan assignment set:
 
 ## Active Prompt Set
 
-Use this file for the next wave:
+Use these files for the next wave:
 
+- `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`
 - `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
 
 Historical prompt sets are reference only unless explicitly reactivated:

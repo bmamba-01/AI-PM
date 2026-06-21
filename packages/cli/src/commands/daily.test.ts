@@ -2,32 +2,22 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createDailyCommand } from './daily.js';
 
 vi.mock('@ai-pm/core/workflows', () => ({
-  generateDailyBriefing: vi.fn().mockReturnValue({
+  generateContextualBriefing: vi.fn().mockResolvedValue({
     date: '2026-06-19',
     projectId: 'local-project',
     topPriorities: ['Review project status', 'Deploy v2.1.0'],
+    meetingsToPrepare: [],
     urgentBlockers: ['CI pipeline broken'],
     risksToReview: ['Database migration risk'],
     pendingApprovals: ['Approve release PR'],
     suggestedFollowups: ['Reply to vendor'],
+    memoryTasks: { total: 0, active: 0, completed: 0 },
+    memoryArtifacts: { total: 0, active: 0 },
+    connectorStatus: {},
     sourceCoverage: ['local-memory'],
+    degradedSources: [],
     assumptions: ['Live data from configured MCP connectors.'],
     confidence: 85,
-  }),
-}));
-
-vi.mock('@ai-pm/core/runtime', () => ({
-  LocalProjectStore: vi.fn().mockImplementation(() => ({
-    loadDailyBriefingItems: vi.fn().mockResolvedValue([]),
-  })),
-  MemoryStore: vi.fn().mockImplementation(() => ({})),
-  ApprovalQueue: vi.fn().mockImplementation(() => ({})),
-}));
-
-vi.mock('@ai-pm/mcp/connectionManager', () => ({
-  loadMcpConfig: vi.fn().mockReturnValue({
-    version: '1.0',
-    servers: [{ id: 'test', enabled: true, name: 'test', type: 'custom' }],
   }),
 }));
 

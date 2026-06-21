@@ -13,6 +13,8 @@ import { orchestratorCommand, agentCommand } from '../dist/commands/orchestrator
 import { riskCommand } from '../dist/commands/risk.js';
 import { traceabilityCommand } from '../dist/commands/traceability.js';
 import { codeQualityCommand } from '../dist/commands/code-quality.js';
+import { adoptCommand } from '../dist/commands/adopt.js';
+import { setupCommand } from '../dist/commands/setup.js';
 import { Command } from 'commander';
 import chalk from 'chalk';
 
@@ -27,8 +29,20 @@ program
   .command('init')
   .description('Initialize a new AI-PM project')
   .argument('[name]', 'Project name', 'my-ai-pm-project')
+  .option('--defaults', 'Use default setup settings')
   .option('--methodology <method>', 'Project methodology (scrum, kanban, waterfall, hybrid)')
-  .action((name, opts) => runInit(name, { methodology: opts.methodology }));
+  .option('--project-type <type>', 'Project type')
+  .option('--commercial-model <model>', 'Commercial model')
+  .option('--connector-profile <profile>', 'Connector profile')
+  .option('--json', 'Output as JSON')
+  .action((name, opts) => runInit(name, {
+    defaults: opts.defaults,
+    methodology: opts.methodology,
+    projectType: opts.projectType,
+    commercialModel: opts.commercialModel,
+    connectorProfile: opts.connectorProfile,
+    json: opts.json,
+  }));
 
 program.addCommand(mcpCommand);
 program.addCommand(methodologyCommand);
@@ -44,6 +58,8 @@ program.addCommand(agentCommand);
 program.addCommand(riskCommand);
 program.addCommand(traceabilityCommand);
 program.addCommand(codeQualityCommand);
+program.addCommand(adoptCommand);
+program.addCommand(setupCommand);
 
 program.on('command', () => {});
 

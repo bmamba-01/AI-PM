@@ -10,6 +10,7 @@ import {
   Server, Wifi, WifiOff, HardDrive, ClipboardCheck,
   FileText, Activity, Zap, Search
 } from "lucide-react";
+import { SetupGuideDialog, GuideButton } from "../setup/SetupGuideDialog";
 
 interface Props { project: Project }
 
@@ -60,6 +61,7 @@ export function CommandCenterTab({ project }: Props) {
   const [serverStatus, setServerStatus] = useState<{ running: boolean; port: number; url: string; health: { ok: boolean } } | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [showGuide, setShowGuide] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -110,11 +112,28 @@ export function CommandCenterTab({ project }: Props) {
 
   return (
     <div className="space-y-4">
+      {/* Setup Guide Dialog */}
+      {showGuide && (
+        <SetupGuideDialog
+          title="Command Center Setup Guide"
+          purpose="The command center provides a unified view of orchestrator runs, approvals, memory, and server status. Use quick actions to trigger daily briefs, weekly reports, and risk summaries."
+          requiredSetup={[
+            "Project profile configured",
+            "Local server running for mobile access",
+            "MCP connectors for live data",
+          ]}
+          currentReadiness={{ score: 80, blocking: ["Configure MCP connectors"] }}
+          cliEquivalent="ai-pm project scan --json"
+          onClose={() => setShowGuide(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-semibold text-foreground">Command Center</h2>
+            <GuideButton onClick={() => setShowGuide(true)} />
             <Badge variant="outline" className="text-[10px]">
               {project.name}
             </Badge>

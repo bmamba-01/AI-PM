@@ -188,7 +188,7 @@ export async function checkReadiness(projectRoot: string): Promise<SetupReadines
   const warnings = checks.filter(c => !c.required && !c.present).map(c => c.label);
 
   return {
-    mode: 'new_project',
+    mode: await determineSetupMode(projectRoot),
     projectRoot,
     score,
     checks,

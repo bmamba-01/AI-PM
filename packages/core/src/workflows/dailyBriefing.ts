@@ -19,11 +19,25 @@ export interface DailyBriefingInput {
   assumptions?: string[];
 }
 
+export interface ProjectContext {
+  projectName: string;
+  targetDate: string | null;
+  commercialModel: string | null;
+  timezone: string | null;
+  trackingSystem: string | null;
+  primaryChannel: string | null;
+  adapter: string | null;
+  activeConnectors: string[];
+  degradedConnectors: string[];
+  currentGaps: string[];
+}
+
 export interface DailyBriefing {
   projectId: string;
   date: string;
   methodology?: string;
   projectType?: string;
+  projectContext?: ProjectContext;
   topPriorities: string[];
   meetingsToPrepare: string[];
   urgentBlockers: string[];
@@ -105,12 +119,62 @@ export async function generateContextualBriefing(
   ctx: DailyBriefingContext,
 ): Promise<DailyBriefing> {
   const { projectRoot, methodology, projectType } = ctx;
-  const projectId = path.basename(projectRoot);
+  let projectId = path.basename(projectRoot);
+  let resolvedMethodology = methodology;
+  let resolvedProjectType = projectType;
   const today = new Date().toISOString().slice(0, 10);
   const degradedSources: string[] = [];
   const assumptions: string[] = [];
   const items: DailyBriefingInputItem[] = [];
   const connectorStatus: Record<string, 'available' | 'unavailable' | 'degraded'> = {};
+
+  let projectContext: ProjectContext | undefined;
+
+  try {
+    const { loadProfile } = await import('../runtime/projectProfile.js');
+    const profile = await loadProfile(projectRoot);
+    if (profile.valid) {
+      const p = profile.profile;
+      projectId = p.project.project_id || projectId;
+      resolvedMethodology = resolvedMethodology ?? p.project.methodology ?? undefined;
+      resolvedProjectType = resolvedProjectType ?? p.project.project_type ?? undefined;
+      assumptions.push(`Project profile loaded: ${p.project.name}.`);
+
+      const profileAny = p as unknown as Record<string, unknown>;
+      const activeConnectors = Object.entries((profileAny.source_systems ?? profileAny.connectors ?? {}) as Record<string, unknown>)
+        .filter(([, v]) => v === true || (typeof v === 'object' && v !== null && (v as Record<string, unknown>).enabled === true))
+        .map(([k]) => k);
+      const degradedConnectors = Object.entries((profileAny.source_systems ?? profileAny.connectors ?? {}) as Record<string, unknown>)
+        .filter(([, v]) => v !== true && !(typeof v === 'object' && v !== null && (v as Record<string, unknown>).enabled === true))
+        .map(([k]) => k);
+
+      const tracking = (profileAny.tracking ?? {}) as Record<string, unknown>;
+      const communication = (profileAny.communication ?? {}) as Record<string, unknown>;
+
+      const currentGaps: string[] = [];
+      if (!activeConnectors.includes('notion') && tracking.system === 'notion') {
+        currentGaps.push('Notion tracking prepared as local CSV but live sync not yet connected');
+      }
+      if (!activeConnectors.includes('discord') && communication.primary_channel === 'discord') {
+        currentGaps.push('Discord/Hermes channel documented but read-only adapter not yet smoke-tested');
+      }
+
+      projectContext = {
+        projectName: p.project.name,
+        targetDate: (p.project as any).target_completion_date ?? null,
+        commercialModel: (p.project as any).commercial_model ?? null,
+        timezone: (p.project as any).timezone ?? null,
+        trackingSystem: (tracking as any).system ?? null,
+        primaryChannel: (communication as any).primary_channel ?? null,
+        adapter: (communication as any).adapter ?? null,
+        activeConnectors,
+        degradedConnectors,
+        currentGaps,
+      };
+    }
+  } catch {
+    assumptions.push('Project profile unavailable — using project folder defaults.');
+  }
 
   // --- 1. Load MCP Context Snapshot (connector availability) ---
   try {
@@ -262,8 +326,8 @@ export async function generateContextualBriefing(
   const briefing = generateDailyBriefing(enrichedInput);
 
   // Enrich with context-specific fields
-  briefing.methodology = methodology;
-  briefing.projectType = projectType;
+  briefing.methodology = resolvedMethodology;
+  briefing.projectType = resolvedProjectType;
   briefing.memoryTasks = memoryTasks;
   briefing.memoryArtifacts = memoryArtifacts;
   briefing.connectorStatus = connectorStatus;
@@ -284,4 +348,3 @@ export async function generateContextualBriefing(
 
   return briefing;
 }
-

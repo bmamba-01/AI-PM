@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { CostModel, Methodology, ProjectType, RoleType, Status, type Project, type User, type Sprint, type Story, type Task, type Risk } from "@ai-pm/core/domain";
+import { RoleType, type Project, type User, type Sprint, type Story, type Task, type Risk } from "@ai-pm/core/domain";
 
 export type ActiveView =
   | "dashboard" | "daily-brief" | "sprint" | "meeting"
@@ -52,34 +52,6 @@ export const useProjectStore = create<ProjectState>()(
           if (projects.length > 0) {
             set({ currentProject: projects[0] });
           }
-        } else {
-          // First visit: create a default project so the app is usable immediately
-          const defaultProject: Project = {
-            id: crypto.randomUUID(),
-            name: "Dashboard (beta)",
-            description: "Default project – MCP Server Manager",
-            key: "DASH",
-            type: ProjectType.SOFTWARE,
-            methodology: Methodology.SCRUM,
-            costModel: CostModel.FIXED_COST,
-            startDate: new Date(),
-            tags: ["dashboard", "mcp"],
-            status: Status.IN_PROGRESS,
-            healthScore: 100,
-            settings: {
-              workingDays: [1, 2, 3, 4, 5],
-              hoursPerDay: 8,
-              autoAssign: false,
-              notifications: { email: true, slack: false, push: true, inApp: true, digestFrequency: "daily" },
-              integrations: {}
-            },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            createdBy: "system",
-            version: 1
-          };
-          set({ projects: [defaultProject], currentProject: defaultProject });
-          localStorage.setItem("ai-pm-projects", JSON.stringify([defaultProject]));
         }
         
         const savedUser = localStorage.getItem("ai-pm-user");
