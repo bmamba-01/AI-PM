@@ -133,7 +133,8 @@ schemaCommand
           if (!schema) {
             spinner.fail();
             console.error(chalk.red(`${msgsLang.schemaNotFound} ${opts.workflow}`));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
 
           // Load input from file, stdin, or json-string
@@ -157,13 +158,15 @@ schemaCommand
             } else {
               spinner.fail();
               console.error(chalk.red('Error: --input or --json-string is required'));
-              process.exit(1);
+              process.exitCode = 1;
+              return;
             }
             inputData = JSON.parse(raw);
           } catch (err) {
             spinner.fail();
             console.error(chalk.red(`${msgsLang.fileNotFound} ${opts.input || 'json-string'}`));
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
 
           // Validate
@@ -183,11 +186,11 @@ schemaCommand
               console.log(chalk.red(result.errors.map(e => `  - ${e}`).join('\n')));
             }
           }
-          process.exit(result.valid ? 0 : 1);
+          process.exitCode = result.valid ? 0 : 1;
         } catch (error) {
           spinner.fail();
           console.error(error);
-          process.exit(1);
+          process.exitCode = 1;
         }
       })
   )

@@ -80,4 +80,30 @@ describe('completion gate', () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain('approval');
   });
+
+  it('orchestrator --help exits 0', () => {
+    const { exitCode, stdout } = run('orchestrator --help');
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('orchestration');
+  });
+
+  it('agent status --json returns capability report', () => {
+    const { exitCode, stdout } = run('agent status --json');
+    expect(exitCode).toBe(0);
+    const data = parseJSON(stdout) as Record<string, unknown>;
+    expect(data.name).toBe('ai-pm');
+    expect(Array.isArray(data.capabilities)).toBe(true);
+  });
+
+  it('traceability build --help exits 0', () => {
+    const { exitCode, stdout } = run('traceability build --help');
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('traceability matrix');
+  });
+
+  it('code-quality review --help exits 0', () => {
+    const { exitCode, stdout } = run('code-quality review --help');
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('Review a local diff');
+  });
 });

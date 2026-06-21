@@ -53,6 +53,9 @@ interface ElectronApi {
     tasks: (filter?: { status?: string }) => Promise<Array<{ task_id: string; name: string; status: string }>>;
     artifacts: (filter?: { status?: string; type?: string }) => Promise<Array<{ artifact_id: string; name: string; status: string }>>;
   };
+  audit: {
+    runs: () => Promise<Array<{ runId: string; workflowId: string; projectId: string; status: string; startedAt: string; completedAt: string; outputSummary: string; sourceCoverage: string[]; assumptions: string[] }>>;
+  };
   server: {
     getStatus: () => Promise<{ running: boolean; host: string; port: number; url: string; projectRoot: string; health: { ok: boolean; version?: string } }>;
     health: () => Promise<{ ok: boolean; version?: string }>;

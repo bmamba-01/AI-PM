@@ -33,6 +33,9 @@ const api = {
     tasks: (filter?: { status?: string }): Promise<any[]> => ipcRenderer.invoke("memory:tasks", filter),
     artifacts: (filter?: { status?: string; type?: string }): Promise<any[]> => ipcRenderer.invoke("memory:artifacts", filter),
   },
+  audit: {
+    runs: (): Promise<Array<{ runId: string; workflowId: string; projectId: string; status: string; startedAt: string; completedAt: string; outputSummary: string; sourceCoverage: string[]; assumptions: string[] }>> => ipcRenderer.invoke("audit:runs"),
+  },
   server: {
     getStatus: (): Promise<{ running: boolean; host: string; port: number; url: string; projectRoot: string; health: { ok: boolean; version?: string } }> => ipcRenderer.invoke("server:getStatus"),
     health: (): Promise<{ ok: boolean; version?: string }> => ipcRenderer.invoke("server:health"),

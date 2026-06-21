@@ -57,6 +57,10 @@
     "./artifacts": {
       "import": "./dist/artifacts/index.js",
       "types": "./dist/artifacts/index.d.ts"
+    },
+    "./orchestrator": {
+      "import": "./dist/orchestrator/index.js",
+      "types": "./dist/orchestrator/index.d.ts"
     }
   },
   "scripts": {

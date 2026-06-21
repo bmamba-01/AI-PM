@@ -14,6 +14,7 @@ export function DashboardScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.grid}>
+        <DashboardCard title="Command Center" icon="🎯" onPress={() => navigation.navigate('CommandCenter')} />
         <DashboardCard title="Tasks" icon="📋" onPress={() => navigation.navigate('Tasks')} />
         <DashboardCard title="Approvals" icon="✅" onPress={() => navigation.navigate('Approvals')} />
         <DashboardCard title="Chat" icon="💬" onPress={() => navigation.navigate('Chat')} />

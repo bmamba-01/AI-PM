@@ -262,7 +262,7 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
-- Active Wave 9 prompt set: `docs/agent-delegation/2026-06-21-wave9-assignment.md`
+  - Remaining master plan assignment set: `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
 - Runtime implementation plan: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`
 - Historical prompt sets are reference only unless a newer active plan explicitly names them.
 

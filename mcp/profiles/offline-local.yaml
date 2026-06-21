@@ -5,6 +5,7 @@ description: "Offline-first profile for local files, local memory, and manual im
 enabled_servers:
   - filesystem
   - sqlite
+  - codebase-memory
 
 disabled_online_servers:
   - github

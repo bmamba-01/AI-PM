@@ -146,6 +146,7 @@ function gitignore(): string {
     '.ai-pm/audit/',
     '.ai-pm/approvals/',
     '.ai-pm/approvals.json',
+    '.ai-pm/orchestrator/',
     '',
     '# Environment & secrets',
     '.env',
@@ -225,6 +226,21 @@ export function runInit(projectName: string) {
 
   fs.writeFileSync(path.join(target, '.gitignore'), gitignore());
 
+  // ── MCP config for codebase-memory-mcp ──
+  const claudeMcpDir = path.join(target, '.claude');
+  fs.mkdirSync(claudeMcpDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(claudeMcpDir, '.mcp.json'),
+    JSON.stringify({
+      mcpServers: {
+        'codebase-memory-mcp': {
+          command: 'codebase-memory-mcp',
+          args: [],
+        },
+      },
+    }, null, 2) + '\n'
+  );
+
   // ── README ──
 
   fs.writeFileSync(
@@ -238,6 +254,7 @@ export function runInit(projectName: string) {
   console.log(`  ✓ .ai-pm/profile.yaml`);
   console.log(`  ✓ AGENTS.md, CODEX.md, CLAUDE.md`);
   console.log(`  ✓ .gitignore`);
+  console.log(`  ✓ .claude/.mcp.json (codebase-memory-mcp)`);
   console.log(`  ✓ reports/, templates/, notes/`);
   console.log(`  ✓ README.md`);
   console.log(`\n✅ "${projectName}" ${t.done}`);

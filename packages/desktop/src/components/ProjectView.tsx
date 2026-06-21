@@ -12,6 +12,7 @@ import { McpServersTab } from "./tabs/McpServersTab";
 import { AgentsTab } from "./tabs/AgentsTab";
 import { SettingsTab } from "./tabs/SettingsTab";
 import { ApprovalsTab } from "./tabs/ApprovalsTab";
+import { CommandCenterTab } from "./tabs/CommandCenterTab";
 import { FolderOpen } from "lucide-react";
 
 export function ProjectView() {
@@ -46,6 +47,7 @@ export function ProjectView() {
     "code-review": <CodeReviewTab project={currentProject} />,
     "reports": <ReportsTab project={currentProject} />,
     "approvals": <ApprovalsTab project={currentProject} />,
+    "command-center": <CommandCenterTab project={currentProject} />,
   };
 
   return (

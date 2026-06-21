@@ -233,5 +233,31 @@ servers:
       - update_message
       - create_meeting
 
+  codebase-memory:
+    category: code_intelligence
+    priority: 1
+    contracts:
+      - code-intelligence
+    required_for:
+      - code-quality-guard
+      - agent-supervision
+    read_capabilities:
+      - search_graph
+      - trace_path
+      - detect_changes
+      - query_graph
+      - get_graph_schema
+      - get_code_snippet
+      - get_architecture
+      - search_code
+      - list_projects
+      - index_status
+      - manage_adr
+    mutation_capabilities:
+      - index_repository
+      - delete_project
+      - ingest_traces
+      - manage_adr
+
 approval_required_for_all_mutations: true
 

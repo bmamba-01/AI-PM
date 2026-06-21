@@ -8,6 +8,7 @@ import { json, err } from "./helpers.js";
 const PORT = Number(process.env.PORT ?? 3847);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const PROJECT_ROOT = process.env.PROJECT_ROOT ?? process.cwd();
+const AUTH_TOKEN = process.env.AI_PM_AUTH_TOKEN || null;
 
 const queue = new ApprovalQueue(PROJECT_ROOT);
 const memory = new MemoryStore(PROJECT_ROOT);
@@ -69,6 +70,20 @@ function matchRoute(
 
 // ── Request handler ─────────────────────────────────────────────────────────
 
+function checkAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  if (!AUTH_TOKEN) return true; // Phase 1: no auth configured
+
+  // Skip auth for health check and CORS preflight
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+  if (url.pathname === "/api/health" || req.method === "OPTIONS") return true;
+
+  const authHeader = req.headers.authorization ?? "";
+  if (authHeader === `Bearer ${AUTH_TOKEN}`) return true;
+
+  err(res, 401, "Unauthorized. Provide Authorization: Bearer <token> header.");
+  return false;
+}
+
 async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const origin = req.headers.origin as string | undefined;
   setCors(res, origin);
@@ -78,6 +93,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     res.end();
     return;
   }
+
+  // Phase 2 auth check
+  if (!checkAuth(req, res)) return;
 
   const url = new URL(req.url!, `http://${req.headers.host}`);
   const pathname = url.pathname;
@@ -110,4 +128,9 @@ const server = createServer(handleRequest);
 server.listen(PORT, HOST, () => {
   console.log(`[ai-pm server] listening on http://${HOST}:${PORT}`);
   console.log(`[ai-pm server] project root: ${PROJECT_ROOT}`);
+  if (AUTH_TOKEN) {
+    console.log(`[ai-pm server] auth: bearer token enabled (Phase 2)`);
+  } else {
+    console.log(`[ai-pm server] auth: localhost trust (Phase 1)`);
+  }
 });

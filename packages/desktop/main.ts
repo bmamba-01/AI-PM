@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { loadMcpConfig, upsertMcpServer, removeMcpServer, setMcpServerEnabled, MCPServerConfig } from "@ai-pm/mcp/connectionManager";
-import { ApprovalQueue, MemoryStore, type ApprovalDecision } from "@ai-pm/core/runtime";
+import { ApprovalQueue, MemoryStore, LocalProjectStore, type ApprovalDecision } from "@ai-pm/core/runtime";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -255,6 +255,13 @@ ipcMain.handle("memory:artifacts", async (_, filter?: { status?: string; type?: 
       ? { status: filter.status as any, type: filter.type }
       : undefined,
   );
+});
+
+// Audit Trail IPC handlers
+const projectStore = new LocalProjectStore(currentProjectRoot);
+
+ipcMain.handle("audit:runs", async () => {
+  return projectStore.loadWorkflowAuditRecords();
 });
 
 // Local Server IPC handlers

@@ -10,15 +10,16 @@
 
 ## Current Verification State
 
-Verified on 2026-06-21 from `C:\Works\AI-PM` after Wave 8 review:
+Verified on 2026-06-21 from `C:\Works\AI-PM` after Wave 9 review:
 
 ```text
 corepack pnpm@9.4.0 -r run test              PASS
 corepack pnpm@9.4.0 -r run build             PASS
-packages/core test                           PASS (17 files, 213 tests)
+packages/core test                           PASS (19 files, 244 tests)
 packages/mcp test                            PASS (1 file, 26 tests)
-packages/server test                         PASS (3 files, 97 tests)
-packages/cli test                            PASS (8 files, 124 tests)
+packages/server test                         PASS (3 files, 121 tests)
+packages/cli test                            PASS (8 files, 128 tests)
+packages/mobile test                         PASS (1 file, 10 tests)
 node schemas/validate-fixtures.mjs           PASS (30/30)
 ```
 
@@ -52,6 +53,11 @@ Notes:
 | Artifact Factory | Complete first slice | template registry validation and Markdown/HTML/JSON renderers; core tests pass |
 | Scope Traceability Runtime | Complete first slice | core workflow and `ai-pm traceability build`; tests/build pass |
 | Code Quality Guard Runtime | Complete first slice | core workflow and `ai-pm code-quality review`; tests/build pass |
+| Orchestrator Execution Records | Complete first slice | project-scoped execution records and audit log; core tests pass |
+| MCP Context Snapshot | Complete first slice | local registry/profile snapshot; core tests pass |
+| Chat Action Protocol | Complete first slice | read-only query, action proposal, history; server tests pass |
+| Desktop Command Center | Complete first slice | desktop build passes |
+| Mobile Command Center | Complete first slice | mobile state/screen and tests pass |
 
 ## Review Findings From Wave 7
 
@@ -66,50 +72,51 @@ Notes:
 - Agent 6 implemented the core code quality guard but missed the required CLI command. Added `packages/cli/src/commands/code-quality.ts` and registered it in the CLI entrypoint.
 - CLI entrypoint had `riskCommand` exported but not registered in `packages/cli/bin/ai-pm.js`; fixed during Wave 8 review.
 
+## Review Findings From Wave 9
+
+- Wave 9 added execution records, MCP context snapshots, chat history/action proposals, desktop command center, and mobile command center.
+- Build initially failed because `@ai-pm/core/orchestrator` was imported by CLI but not exported by `packages/core/package.json`. Fixed by adding the `./orchestrator` export.
+- Completion gate initially missed the new CLI smoke checks. Added checks for `orchestrator --help`, `agent status --json`, `traceability build --help`, and `code-quality review --help`.
+
 ## Current Gaps
 
-### Gap 1: Orchestrator Loop Is Executable But Not Yet Driving Real Multi-Agent Work
+### Gap 1: Orchestrator Loop Still Needs Full Workflow Dispatch
 
-The repo now has a first local orchestrator state machine and CLI. The next gap is connecting that loop to workflow execution, audit persistence, artifact factory output, approval queue decisions, and future specialist-agent dispatch records.
+The repo now has a state machine, execution records, audit records, context snapshots, and CLI commands. The CLI workflow adapter still uses narrow placeholder dispatch for daily/weekly/risk and must be replaced by full core orchestrated workflow dispatch.
 
-### Gap 2: Chat/Mobile Command Gateway Is Read-Only Only
+### Gap 2: Chat/Mobile Gateway Needs Identity And Real Adapter
 
-Server has read-only chat command endpoints. The next gap is a safe command-action protocol for approval-protected actions and mobile/chat surfaces that can show command history, pending approvals, and degraded source coverage.
+Server has read-only commands, action proposals, and history. It still needs identity/auth, Hermes/OpenClaw/Telegram-style adapter packaging, and safe approval callback flows.
 
-### Gap 3: Artifact Factory Needs Workflow Adoption
+### Gap 3: Artifact Factory Needs Full Workflow Adoption
 
 The central renderer exists. Weekly, risk, traceability, code-quality, meeting, and DevOps workflows still need to consume it consistently and persist artifact references in memory/audit.
 
-### Gap 4: Desktop And Mobile Need Runtime Surfaces For New Capabilities
+### Gap 4: Planning, Cost, Meeting, DevOps, And Release Workflows Remain
 
-Desktop and mobile currently expose only earlier runtime slices. They need panels/screens for orchestrator runs, chat command queries, traceability matrices, code quality findings, and artifact outputs without duplicating core rules.
+WBS/project plan, milestone/Gantt, budget/burn, strict scope verification, UAT/user guide, meeting intelligence, DevOps/release readiness, and stronger code-quality supervision remain to be implemented.
 
-### Gap 5: MCP Gateway Is Documented But Not Yet Feeding Context Packs
+### Gap 5: External Connector Sync Is Still Contract-Only
 
-MCP registry/profiles/contracts exist, but orchestrated workflows do not yet consume a normalized connector availability/context pack.
+MCP registry/profiles/contracts and context snapshots exist, but approved external sync for Google Workspace, Jira, Linear, GitHub, Notion, Confluence, Slack/Teams, and Figma is still not implemented.
 
 ## Next Work Sequence
 
-### Phase 9a: Make Orchestrator Runs Useful
+Use the remaining master plan assignment set:
 
-1. Core Runtime Agent: connect orchestrator runs to audit/memory/artifact records.
-2. MCP/DB Agent: add connector availability snapshot and local SQLite-ready project context query layer.
-
-### Phase 9b: Make Remote Control Practical
-
-3. Server/API Agent: add approval-safe chat action protocol and command history endpoints.
-4. Desktop UI Agent: add orchestrator/chat/artifact runtime panels backed by server/core APIs.
-5. Mobile UI Agent: add mobile command center for read-only chat queries and pending approvals.
-
-### Phase 9c: Make It Release-Ready For PM Use
-
-6. QA/Integration Agent: add end-to-end smoke coverage for CLI, server, desktop build, mobile build, and command contracts.
+- Wave 10: profile, capability registry, MCP doctor, template tables, init hardening, completion gate.
+- Wave 11: daily/weekly full orchestration and artifact adoption.
+- Wave 12: WBS, project plan, milestones, cost, strict scope, UAT/user guide.
+- Wave 13: meeting intelligence, DevOps, code-quality supervision, automation test evidence.
+- Wave 14: chat adapter, identity, approval actions, mobile approval UX, security.
+- Wave 15: approved external connector sync and setup wizard.
+- Wave 16: release hardening, packaging, documentation, final acceptance.
 
 ## Active Prompt Set
 
 Use this file for the next wave:
 
-- `docs/agent-delegation/2026-06-21-wave9-assignment.md`
+- `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
 
 Historical prompt sets are reference only unless explicitly reactivated:
 

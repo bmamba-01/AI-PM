@@ -1,11 +1,10 @@
 /**
- * Orchestrator CLI — narrow adapter over existing workflow functions.
+ * Orchestrator CLI — integrates with core orchestrator state machine.
  *
- * INTEGRATION ASSUMPTIONS (Agent 1 not yet merged):
- * - No dedicated orchestrator state machine in core.
- * - Run records stored in .ai-pm/orchestrator/runs.json (file-backed).
- * - Workflow dispatch is a simple map to existing generate* functions.
- * - Once Agent 1 merges, replace the dispatch map with core orchestrator calls.
+ * Uses:
+ * - @ai-pm/core/orchestrator for state machine (createOrchestratorRun, advanceToNext, etc.)
+ * - @ai-pm/core/workflows for workflow dispatch
+ * - .ai-pm/orchestrator/runs.json for run record persistence
  */
 
 import { Command } from 'commander';
@@ -15,6 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { generateDailyBriefing, generateWeeklyReport, generateRiskControlSummary, validateWorkflowOutput } from '@ai-pm/core/workflows';
+import { createOrchestratorRun, advanceToNext, failRun, toAuditRecord, finalizeOrchestratorRun, type OrchestratorRun } from '@ai-pm/core/orchestrator';
 import { LocalProjectStore, MemoryStore, ApprovalQueue } from '@ai-pm/core/runtime';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -107,65 +107,175 @@ function dispatchWorkflow(workflowId: string, projectRoot: string): unknown {
 // ─── Run command ─────────────────────────────────────────────────────────────
 
 async function runWorkflow(workflowId: string, projectRoot: string, json: boolean): Promise<OrchestratorRunResult> {
-  const runId = randomUUID();
-  const startedAt = new Date().toISOString();
   const errors: string[] = [];
   const warnings: string[] = [];
   let output: unknown = null;
   let status: RunStatus = 'completed';
 
+  // Create orchestrator run via state machine
+  let run = createOrchestratorRun({
+    project_id: path.basename(projectRoot),
+    workflow_id: workflowId,
+    trigger: { type: 'cli', actor: 'pm' },
+  });
+
   try {
+    // Walk through states using state machine
+    const stateSteps = [
+      'project_resolution', 'context_pack', 'workflow_selection',
+      'agent_assignment',
+    ] as const;
+
+    for (const state of stateSteps) {
+      run = advanceToNext(run, {
+        agents: state === 'agent_assignment' ? [workflowId + '-agent'] : undefined,
+      });
+    }
+
+    // Dispatch workflow
     output = dispatchWorkflow(workflowId, projectRoot);
 
-    // Validate against schema if available
-    // NOTE: Adapter-generated output may not fully satisfy schemas (empty items).
-    // Validation issues are recorded as warnings, not failures, until Agent 1
-    // replaces this with the real orchestrator that produces schema-compliant output.
+    // Validate against schema
     const validation = await validateWorkflowOutput(workflowId, output);
     if (!validation.valid) {
       warnings.push(...validation.errors.map(e => `schema: ${e}`));
     }
     warnings.push(...validation.warnings);
+
+    // Continue through remaining states
+    run = advanceToNext(run); // validation
+    run = advanceToNext(run); // approval_gate
+    run = advanceToNext(run, {
+      artifacts: [{ name: `${workflowId}-output`, path: `reports/${workflowId}.json`, type: 'report' }],
+    }); // artifact_persistence
+    run = advanceToNext(run); // completion_report
+    run = advanceToNext(run); // audit_write
+    run = advanceToNext(run); // completed
+
   } catch (err) {
     status = 'failed';
     const msg = err instanceof Error ? err.message : String(err);
     errors.push(msg);
     output = { error: msg };
+    run = failRun(run, msg);
   }
 
-  const completedAt = new Date().toISOString();
-  const record: RunRecord = {
-    runId,
-    workflowId,
-    status,
-    startedAt,
-    completedAt,
-    output,
-    errors,
-    warnings,
-  };
-
-  // Persist run record (best-effort, degrade gracefully)
+  // Finalize to disk via core orchestrator
+  let record_id = '';
   try {
+    const record = await finalizeOrchestratorRun(run, projectRoot, {
+      assumptions: ['local CLI run'],
+      confidence: warnings.length === 0 ? 100 : 75,
+      source_coverage: {
+        total: 8,
+        available: ['github', 'jira', 'calendar'],
+        unavailable: ['linear', 'email', 'confluence', 'notion', 'slack'],
+      },
+    });
+    record_id = record.record_id;
+
+    // Link to memory store
+    try {
+      const memStore = new MemoryStore(projectRoot);
+      const task = await memStore.createTask({
+        project_id: path.basename(projectRoot),
+        name: `orchestrator: ${workflowId}`,
+        description: `CLI workflow run ${run.run_id.slice(0, 8)}`,
+        status: status === 'completed' ? 'completed' : 'pending',
+        completed_at: status === 'completed' ? record.completed_at : null,
+        assigned_to: 'ai-pm-cli',
+        dependencies: [],
+        artifacts: [record.record_id],
+        tags: ['orchestrator', workflowId],
+      });
+      // Write back memory_task_id to the record (best-effort)
+      record.memory_task_id = task.task_id;
+      const recPath = path.join(projectRoot, '.ai-pm', 'orchestrator', 'runs', `${record.record_id}.json`);
+      await writeFile(recPath, JSON.stringify(record, null, 2), 'utf-8');
+    } catch {
+      warnings.push('Could not link to memory store');
+    }
+  } catch {
+    warnings.push('Could not finalize orchestrator run to disk');
+  }
+
+  try {
+    const legacyRecord: RunRecord = {
+      runId: run.run_id,
+      workflowId,
+      status,
+      startedAt: run.started_at,
+      completedAt: run.completed_at,
+      output,
+      errors,
+      warnings,
+    };
     const runs = await loadRuns(projectRoot);
-    runs.push(record);
+    runs.push(legacyRecord);
     await saveRuns(projectRoot, runs);
   } catch {
-    warnings.push('Could not persist run record (missing .ai-pm directory?)');
+    warnings.push('Could not persist legacy run record');
   }
 
-  return { valid: status === 'completed', runId, workflowId, status, output, errors, warnings };
+  return { valid: status === 'completed', runId: run.run_id, workflowId, status, output, errors, warnings };
 }
 
 // ─── Status command ──────────────────────────────────────────────────────────
 
 async function getRunStatus(runId: string, projectRoot: string): Promise<RunRecord | null> {
+  // Check legacy runs.json first
   const runs = await loadRuns(projectRoot);
-  return runs.find(r => r.runId === runId || r.runId.startsWith(runId)) ?? null;
+  const legacy = runs.find(r => r.runId === runId || r.runId.startsWith(runId));
+  if (legacy) return legacy;
+
+  // Fallback: check execution records
+  try {
+    const { listExecutionRecords, readExecutionRecord } = await import('@ai-pm/core/orchestrator');
+    const records = await listExecutionRecords(projectRoot);
+    const match = records.find(r => r.run_id === runId || r.run_id.startsWith(runId));
+    if (match) {
+      const full = await readExecutionRecord(projectRoot, match.record_id);
+      if (full) {
+        return {
+          runId: full.run_id,
+          workflowId: full.workflow_id,
+          status: full.state as RunStatus,
+          startedAt: full.started_at,
+          completedAt: full.completed_at,
+          output: null,
+          errors: full.errors,
+          warnings: full.assumptions,
+        };
+      }
+    }
+  } catch { /* graceful fallback */ }
+  return null;
 }
 
 async function listRuns(projectRoot: string): Promise<RunRecord[]> {
-  return loadRuns(projectRoot);
+  const legacyRuns = await loadRuns(projectRoot);
+
+  // Merge with execution records
+  try {
+    const { listExecutionRecords } = await import('@ai-pm/core/orchestrator');
+    const records = await listExecutionRecords(projectRoot);
+    for (const r of records) {
+      if (!legacyRuns.find(l => l.runId === r.run_id)) {
+        legacyRuns.push({
+          runId: r.run_id,
+          workflowId: r.workflow_id,
+          status: r.state as RunStatus,
+          startedAt: r.started_at,
+          completedAt: r.completed_at,
+          output: null,
+          errors: [],
+          warnings: [],
+        });
+      }
+    }
+  } catch { /* graceful fallback */ }
+
+  return legacyRuns;
 }
 
 // ─── Agent capability report ─────────────────────────────────────────────────

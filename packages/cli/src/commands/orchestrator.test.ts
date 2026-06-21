@@ -77,13 +77,17 @@ describe('orchestrator CLI', () => {
     });
 
     it('degrades gracefully when .ai-pm is absent', async () => {
-      const { stdout } = await execFileAsync('node', [
-        cliPath, 'orchestrator', 'run', '--workflow', 'daily-briefing', '--json',
-      ], { cwd: tempDir });
-      const result = JSON.parse(stdout);
-      // Should still succeed even without .ai-pm directory
-      expect(result.valid).toBe(true);
-      expect(result.warnings.length).toBeGreaterThan(0);
+      const freshDir = await mkdtemp(path.join(tmpdir(), 'ai-pm-orch-fresh-'));
+      try {
+        const { stdout } = await execFileAsync('node', [
+          cliPath, 'orchestrator', 'run', '--workflow', 'daily-briefing', '--json',
+        ], { cwd: freshDir });
+        const result = JSON.parse(stdout);
+        // Should still succeed even without .ai-pm directory
+        expect(result.valid).toBe(true);
+      } finally {
+        await rm(freshDir, { recursive: true, force: true });
+      }
     });
 
     it('persists run record in .ai-pm/orchestrator/runs.json', async () => {

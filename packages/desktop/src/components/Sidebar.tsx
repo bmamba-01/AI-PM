@@ -5,7 +5,8 @@ import {
   LayoutDashboard, CalendarClock, Columns3, Users,
   ListOrdered, GanttChart, ShieldAlert,
   GitPullRequest, FileBarChart, ClipboardCheck,
-  Server, Bot, Settings, FolderOpen, Plus, Zap
+  Server, Bot, Settings, FolderOpen, Plus, Zap,
+  Command
 } from "lucide-react";
 
 interface NavItem {
@@ -23,6 +24,7 @@ const navSections: NavSection[] = [
   {
     title: "Operations",
     items: [
+      { id: "command-center", label: "Command Center", icon: Command },
       { id: "daily-brief", label: "Daily Brief", icon: CalendarClock },
       { id: "sprint", label: "Sprint Board", icon: Columns3 },
       { id: "meeting", label: "Meeting Center", icon: Users },
