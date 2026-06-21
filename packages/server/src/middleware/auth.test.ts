@@ -9,6 +9,7 @@ function makeRes() {
   return {
     get statusCode() { return out.statusCode; },
     set statusCode(v: number) { out.statusCode = v; },
+    writeHead(code: number) { out.statusCode = code; },
     end(body?: string) { out.ended = true; out.body = body ?? ''; },
     get ended() { return out.ended; },
     get body() { return out.body; },

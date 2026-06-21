@@ -1,0 +1,15 @@
+{
+  "source": "fixture",
+  "issues": [
+    {
+      "id": "GH-1",
+      "title": "Fix login regression",
+      "status": "open",
+      "priority": "high",
+      "assignee": "dev-1",
+      "labels": ["bug"],
+      "created_at": "2026-06-20T10:00:00Z",
+      "updated_at": "2026-06-21T08:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "project": {
+    "project_id": "proj-001",
+    "name": "AI-PM Toolkit",
+    "root": ".",
+    "description": "Local-first PM toolkit",
+    "methodology": "scrum",
+    "project_type": "product",
+    "timezone": "Asia/Saigon",
+    "tags": ["ai", "toolkit"]
+  },
+  "connectors": {
+    "github": { "enabled": true, "repo": "bmamba-01/AI-PM" },
+    "jira": { "enabled": false }
+  },
+  "artifacts": {
+    "root": ".",
+    "reports": "reports",
+    "templates": "templates",
+    "notes": "notes"
+  },
+  "approval_policy": {
+    "require_approval_for_email": true,
+    "require_approval_for_chat": true,
+    "require_approval_for_issue_update": true,
+    "require_approval_for_pr_comment": true,
+    "require_approval_for_report_publish": true,
+    "require_approval_for_scope_change": true,
+    "auto_approve_read_only": true
+  }
+}

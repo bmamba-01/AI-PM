@@ -1,0 +1,16 @@
+{
+  "project_id": "proj-1",
+  "run_id": "release-2026-06-21-1",
+  "environment": "staging",
+  "readiness": "ready",
+  "deployment_status": "deployed",
+  "ci_cd_health": "healthy",
+  "environment_blockers": [],
+  "incident_risk": "none",
+  "blockers": [],
+  "recommended_actions": ["Proceed with release approval."],
+  "source_coverage": ["deployment-status", "ci-cd-health", "environment-checks"],
+  "confidence": 100,
+  "assumptions": ["Live CI evidence replaced with synthetic items for test."],
+  "generated_at": "2026-06-21T17:30:00.000Z"
+}

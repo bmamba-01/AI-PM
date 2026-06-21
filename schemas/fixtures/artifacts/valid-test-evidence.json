@@ -1,0 +1,27 @@
+{
+  "project_id": "proj-1",
+  "total": 10,
+  "passed": 8,
+  "failed": 1,
+  "skipped": 1,
+  "error": 0,
+  "pass_rate": 80,
+  "total_duration_ms": 2400,
+  "avg_duration_ms": 240,
+  "failure_details": [
+    {
+      "test_name": "login works",
+      "error_message": "Expected 200 but got 500",
+      "file": "auth.test.ts",
+      "line": 42
+    }
+  ],
+  "suite_summary": {
+    "auth": { "total": 5, "passed": 4, "failed": 1 },
+    "checkout": { "total": 5, "passed": 4, "skipped": 1 }
+  },
+  "source_file": "junit.xml",
+  "assumptions": ["Test summary parsed from fixture."],
+  "confidence": 90,
+  "generated_at": "2026-06-21T17:30:00.000Z"
+}

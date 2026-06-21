@@ -1,0 +1,15 @@
+{
+  "source": "fixture",
+  "issues": [
+    {
+      "id": "LIN-1",
+      "title": "Update onboarding flow",
+      "status": "backlog",
+      "priority": "medium",
+      "assignee": "pm-1",
+      "labels": ["ux"],
+      "created_at": "2026-06-19T11:00:00Z",
+      "updated_at": "2026-06-20T16:00:00Z"
+    }
+  ]
+}
