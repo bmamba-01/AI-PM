@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Budget and Burn Tracking",
+  "description": "CSV-compatible budget tracking with planned, actual, variance, and forecast columns",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "category", "type": "string", "description": "Budget line item category", "required": true },
+    { "name": "planned_amount", "type": "number", "description": "Planned budget amount", "required": true },
+    { "name": "actual_amount", "type": "number", "description": "Actual spend to date", "required": true },
+    { "name": "variance", "type": "number", "description": "Planned minus actual variance" },
+    { "name": "variance_pct", "type": "number", "description": "Variance as percentage" },
+    { "name": "forecast_amount", "type": "number", "description": "Projected total at completion" },
+    { "name": "committed_amount", "type": "number", "description": "Committed but not yet spent" },
+    { "name": "currency", "type": "string", "description": "Currency code (e.g., USD)" },
+    { "name": "period", "type": "string", "description": "Reporting period (e.g., 2026-Q2)" },
+    { "name": "notes", "type": "string", "description": "Additional notes or explanation" }
+  ],
+  "required_columns": ["category", "planned_amount", "actual_amount"]
+}

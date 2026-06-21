@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Risk Register Table",
+  "description": "CSV-compatible risk register with probability, impact, owner, and mitigation tracking",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "risk_id", "type": "string", "description": "Unique risk identifier (e.g., RISK-001)", "required": true },
+    { "name": "risk_statement", "type": "string", "description": "Clear description of the risk", "required": true },
+    { "name": "category", "type": "enum", "description": "Risk category", "enum_values": ["technical", "schedule", "budget", "resource", "scope", "external", "compliance"], "required": true },
+    { "name": "probability", "type": "enum", "description": "Likelihood of occurrence", "enum_values": ["low", "medium", "high", "very_high"], "required": true },
+    { "name": "impact", "type": "enum", "description": "Impact if risk materializes", "enum_values": ["low", "medium", "high", "critical"], "required": true },
+    { "name": "risk_score", "type": "number", "description": "Calculated risk score (1-16)" },
+    { "name": "owner", "type": "string", "description": "Risk owner responsible for mitigation" },
+    { "name": "mitigation", "type": "string", "description": "Planned mitigation strategy" },
+    { "name": "contingency", "type": "string", "description": "Contingency plan if risk occurs" },
+    { "name": "status", "type": "enum", "description": "Current risk status", "enum_values": ["open", "monitoring", "mitigated", "closed", "realized"], "required": true },
+    { "name": "date_identified", "type": "date", "description": "Date risk was first identified" },
+    { "name": "last_reviewed", "type": "date", "description": "Date of last risk review" },
+    { "name": "review_notes", "type": "string", "description": "Notes from last review" }
+  ],
+  "required_columns": ["risk_id", "risk_statement", "category", "probability", "impact", "owner", "status"]
+}

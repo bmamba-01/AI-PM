@@ -21,6 +21,8 @@ export interface TemplateEntry {
   required_inputs: string[];
   approval_gate?: string;
   source_workflow: string;
+  /** Optional table schema ID for CSV/table validation (e.g., "risk-register") */
+  table_schema?: string;
 }
 
 export interface TemplateCatalog {

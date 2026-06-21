@@ -9,6 +9,7 @@ import {
   type RegistryValidationResult,
 } from './templateRegistry.js';
 import { renderArtifact, type RenderFormat, type RenderedArtifact } from './artifactRenderer.js';
+import { validateArtifactTable, type TableValidationResult } from './tableSchema.js';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,15 @@ export interface FactoryResult {
   templateId: string;
   outputs: ArtifactOutput[];
   validation: RegistryValidationResult;
+}
+
+export interface GenerateArtifactOptions {
+  formats?: RenderFormat[];
+  outputPath?: string;
+  /** When true, validates table data against the template's table_schema before rendering */
+  validateTable?: boolean;
+  /** Override schemas directory for table validation */
+  tableSchemasDir?: string;
 }
 
 // ── Factory ─────────────────────────────────────────────────────────────────
@@ -41,12 +51,31 @@ export async function validateRegistry(yamlPath?: string): Promise<RegistryValid
   return validateTemplateFamilies(catalog);
 }
 
+export interface GenerateArtifactResult {
+  outputs: ArtifactOutput[];
+  tableValidation?: TableValidationResult;
+}
+
 export async function generateArtifact(
   templateId: string,
   data: Record<string, unknown>,
-  formats: RenderFormat[] = ['markdown', 'html', 'json'],
-  outputPath?: string,
+  formatsOrOptions?: RenderFormat[] | GenerateArtifactOptions,
 ): Promise<ArtifactOutput[]> {
+  // Support legacy signature: generateArtifact(id, data, formats[], path?)
+  let formats: RenderFormat[] = ['markdown', 'html', 'json'];
+  let outputPath: string | undefined;
+  let validateTable = false;
+  let tableSchemasDir: string | undefined;
+
+  if (Array.isArray(formatsOrOptions)) {
+    formats = formatsOrOptions;
+  } else if (formatsOrOptions) {
+    formats = formatsOrOptions.formats ?? formats;
+    outputPath = formatsOrOptions.outputPath;
+    validateTable = formatsOrOptions.validateTable ?? false;
+    tableSchemasDir = formatsOrOptions.tableSchemasDir;
+  }
+
   const catalog = await getCatalog();
   const template = getTemplateById(catalog, templateId);
 
@@ -54,11 +83,23 @@ export async function generateArtifact(
     throw new Error(`Template "${templateId}" not found in catalog`);
   }
 
+  // Table validation: if template has table_schema and data is tabular (rows array)
+  if (validateTable && template.table_schema) {
+    const rows = Array.isArray(data.rows) ? data.rows as Array<Record<string, unknown>> : [data];
+    const tableResult = await validateArtifactTable(template.table_schema, rows, tableSchemasDir);
+    if (!tableResult.valid) {
+      throw new Error(
+        `Table validation failed for schema "${template.table_schema}":\n` +
+        tableResult.errors.join('\n')
+      );
+    }
+  }
+
   const outputs: ArtifactOutput[] = [];
 
   for (const format of formats) {
     const rendered = renderArtifact(template, data, format);
-    const ext = format === 'markdown' ? 'md' : format === 'html' ? 'html' : 'json';
+    const ext = format === 'markdown' ? 'md' : format === 'html' ? 'html' : format === 'csv' ? 'csv' : 'json';
     const filePath = outputPath
       ? resolve(outputPath, `${templateId}.${ext}`)
       : `${template.path.replace(/\.[^.]+$/, '')}.${ext}`;
@@ -90,7 +131,7 @@ export async function generateAndWrite(
   targetDir: string,
   formats: RenderFormat[] = ['markdown', 'html', 'json'],
 ): Promise<string[]> {
-  const outputs = await generateArtifact(templateId, data, formats, targetDir);
+  const outputs = await generateArtifact(templateId, data, { formats, outputPath: targetDir });
   const paths: string[] = [];
 
   for (const output of outputs) {

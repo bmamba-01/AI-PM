@@ -27,7 +27,8 @@ program
   .command('init')
   .description('Initialize a new AI-PM project')
   .argument('[name]', 'Project name', 'my-ai-pm-project')
-  .action((name) => runInit(name));
+  .option('--methodology <method>', 'Project methodology (scrum, kanban, waterfall, hybrid)')
+  .action((name, opts) => runInit(name, { methodology: opts.methodology }));
 
 program.addCommand(mcpCommand);
 program.addCommand(methodologyCommand);

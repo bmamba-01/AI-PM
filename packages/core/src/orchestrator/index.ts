@@ -54,3 +54,26 @@ export type {
   AgentDefinition,
   AgentRouteResult,
 } from './agentRegistry.js';
+export {
+  getAllCapabilities,
+  getCapabilityById,
+  getCapabilitiesForWorkflow,
+  routeCapability,
+  getCapabilityRegistrySummary,
+} from './capabilityRegistry.js';
+export type {
+  AgentRole as CapabilityRole,
+  ApprovalBoundary as CapabilityBoundary,
+  AgentCapability,
+  AgentRouteResult as CapabilityRouteResult,
+} from './capabilityRegistry.js';
+export {
+  dispatchWorkflow,
+  isValidWorkflow,
+  SUPPORTED_WORKFLOWS,
+} from './dispatch.js';
+export type {
+  WorkflowId,
+  DispatchResult,
+  DispatchInput,
+} from './dispatch.js';

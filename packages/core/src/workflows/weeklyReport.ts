@@ -1,5 +1,9 @@
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { LocalProjectStore } from '../runtime/localProjectStore.js';
 import type { ApprovalQueue } from '../runtime/approvalQueue.js';
+import { generateArtifact, writeArtifact, type ArtifactOutput } from '../artifacts/artifactFactory.js';
 
 export type WeeklyReportInputItem = {
   source: string;
@@ -113,13 +117,24 @@ export function generateWeeklyReport(input: WeeklyReportInput): WeeklyReport {
   };
 }
 
+export interface WeeklyReportResult {
+  report: WeeklyReport;
+  approvalItemId: string | null;
+  artifacts: Array<{
+    id: string;
+    path: string;
+    format: string;
+    persisted: boolean;
+  }>;
+}
+
 export async function generateWeeklyReportForProject(options: {
   projectRoot: string;
   reportingPeriodStart: string;
   reportingPeriodEnd: string;
   store: LocalProjectStore;
   approvalQueue: ApprovalQueue;
-}): Promise<{ report: WeeklyReport; approvalItemId: string | null }> {
+}): Promise<WeeklyReportResult> {
   const { projectRoot, reportingPeriodStart, reportingPeriodEnd, store, approvalQueue } = options;
   const reportDate = new Date().toISOString().slice(0, 10);
 
@@ -167,8 +182,67 @@ export async function generateWeeklyReportForProject(options: {
     assumptions: report.assumptions,
   });
 
+  // ── Artifact generation ──────────────────────────────────────────────────
+  const templateData = {
+    report_id: `weekly-report-${reportDate}`,
+    period_start: reportingPeriodStart,
+    period_end: reportingPeriodEnd,
+    generated_at: new Date().toISOString(),
+    source_coverage: report.sourceCoverage,
+    summary: {
+      accomplishments: report.accomplishments,
+      risks: report.riskSummary,
+      decisions: report.decisions,
+      next_week_focus: report.nextWeekFocus,
+      milestones: report.milestones,
+    },
+    rag: report.rag,
+    confidence: report.confidence,
+    assumptions: report.assumptions,
+  };
+
+  const outputs = await generateArtifact('weekly-status', templateData, {
+    formats: ['markdown', 'html', 'json'],
+  });
+
+  // Write artifacts to reports directory
+  const reportsDir = path.join(projectRoot, 'reports');
+  await mkdir(reportsDir, { recursive: true });
+
+  const artifacts: WeeklyReportResult['artifacts'] = [];
+
+  for (const output of outputs) {
+    const artifactId = randomUUID();
+    const filePath = await writeArtifact(output, reportsDir);
+
+    // Persist artifact ref in memory store
+    try {
+      await store.createArtifact({
+        project_id: report.projectId,
+        name: `weekly-report-${reportDate}.${output.format === 'markdown' ? 'md' : output.format}`,
+        path: filePath,
+        type: output.format,
+        status: 'active',
+        archived_at: null,
+        archive_reason: null,
+        task_id: null,
+      });
+    } catch (err) {
+      console.warn('[weekly-report] Failed to persist artifact ref:', err);
+    }
+
+    artifacts.push({
+      id: artifactId,
+      path: filePath,
+      format: output.format,
+      persisted: true,
+    });
+  }
+
+  // ── Queue approval item ──────────────────────────────────────────────────
   let approvalItemId: string | null = null;
   try {
+    const artifactPaths = artifacts.map(a => path.relative(projectRoot, a.path));
     const approval = await approvalQueue.createItem({
       project_id: report.projectId,
       action_type: 'publish_weekly_report',
@@ -180,7 +254,7 @@ export async function generateWeeklyReportForProject(options: {
       requested_by_role: 'pm',
       title: `Approve weekly status report ${reportDate}`,
       description: 'Draft weekly report generated from local inputs. Approval is required before external publication.',
-      summary_diff: `Period: ${reportingPeriodStart} to ${reportingPeriodEnd}.\nReport date: ${reportDate}.\nStatus derived from local placeholder sources only.`,
+      summary_diff: `Period: ${reportingPeriodStart} to ${reportingPeriodEnd}.\nReport date: ${reportDate}.\nArtifacts: ${artifactPaths.join(', ')}`,
       confidence: report.confidence,
       source_refs: report.sourceCoverage.map(source => ({ type: 'source', id: source })),
       priority: 'medium',
@@ -191,5 +265,5 @@ export async function generateWeeklyReportForProject(options: {
     console.warn('[weekly-report] Failed to queue approval item:', error);
   }
 
-  return { report, approvalItemId };
+  return { report, approvalItemId, artifacts };
 }

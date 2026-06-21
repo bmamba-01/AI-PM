@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UAT Sign-off",
+  "description": "CSV-compatible UAT sign-off tracking test scenarios, pass/fail results, and stakeholder approval",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "scenario_id", "type": "string", "description": "Unique test scenario ID", "required": true },
+    { "name": "scenario_name", "type": "string", "description": "Test scenario title", "required": true },
+    { "name": "description", "type": "string", "description": "Steps to execute" },
+    { "name": "expected_result", "type": "string", "description": "What should happen" },
+    { "name": "actual_result", "type": "string", "description": "What actually happened" },
+    { "name": "status", "type": "enum", "description": "Test execution result", "enum_values": ["pass", "fail", "blocked", "not_tested"], "required": true },
+    { "name": "tester", "type": "string", "description": "Person who executed the test" },
+    { "name": "executed_date", "type": "date", "description": "Date test was executed" },
+    { "name": "linked_issue", "type": "string", "description": "Related defect issue ID" },
+    { "name": "signoff_status", "type": "enum", "description": "Stakeholder sign-off", "enum_values": ["pending", "signed", "rejected"] },
+    { "name": "signoff_by", "type": "string", "description": "Name of signing stakeholder" },
+    { "name": "signoff_date", "type": "date", "description": "Date of sign-off" },
+    { "name": "notes", "type": "string", "description": "Additional observations" }
+  ],
+  "required_columns": ["scenario_id", "scenario_name", "status"]
+}

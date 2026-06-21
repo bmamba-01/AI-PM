@@ -1,0 +1,62 @@
+[
+  {
+    "risk_id": "RISK-001",
+    "risk_statement": "Third-party payment API may impose rate limits affecting transaction throughput",
+    "category": "technical",
+    "probability": "medium",
+    "impact": "high",
+    "risk_score": 6,
+    "owner": "Tech Lead",
+    "mitigation": "Implement request queuing and caching layer",
+    "contingency": "Switch to backup payment provider",
+    "status": "monitoring",
+    "date_identified": "2026-05-15",
+    "last_reviewed": "2026-06-19",
+    "review_notes": "Rate limit tests passed. Monitoring dashboard active."
+  },
+  {
+    "risk_id": "RISK-002",
+    "risk_statement": "Key developer going on extended leave during critical sprint",
+    "category": "resource",
+    "probability": "high",
+    "impact": "medium",
+    "risk_score": 6,
+    "owner": "PM",
+    "mitigation": "Cross-training sessions completed, documentation updated",
+    "contingency": "Contract backup developer on standby",
+    "status": "mitigated",
+    "date_identified": "2026-06-01",
+    "last_reviewed": "2026-06-18",
+    "review_notes": "Knowledge transfer completed. Backup developer briefed."
+  },
+  {
+    "risk_id": "RISK-003",
+    "risk_statement": "Client may request scope changes after UAT demos",
+    "category": "scope",
+    "probability": "high",
+    "impact": "high",
+    "risk_score": 8,
+    "owner": "PM",
+    "mitigation": "Clear scope baseline documented and signed off",
+    "contingency": "Change request process with impact assessment required",
+    "status": "open",
+    "date_identified": "2026-04-20",
+    "last_reviewed": "2026-06-15",
+    "review_notes": "Scope baseline v3.1 approved. Client review scheduled 2026-06-25."
+  },
+  {
+    "risk_id": "RISK-004",
+    "risk_statement": "Database migration may cause data loss during production cutover",
+    "category": "technical",
+    "probability": "low",
+    "impact": "critical",
+    "risk_score": 4,
+    "owner": "DBA",
+    "mitigation": "Full backup and rollback plan tested in staging",
+    "contingency": "Restore from point-in-time backup, estimated 2hr downtime",
+    "status": "monitoring",
+    "date_identified": "2026-05-01",
+    "last_reviewed": "2026-06-18",
+    "review_notes": "Migration tested twice in staging. Zero data loss confirmed."
+  }
+]

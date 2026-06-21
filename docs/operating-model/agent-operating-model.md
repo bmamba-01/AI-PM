@@ -4,6 +4,16 @@
 
 This document defines how AI agents collaborate inside AI-PM Toolkit. It is the runtime-independent operating model for Codex, Claude Code, Claude Cowork, and future local or remote agents.
 
+## Capability Registry
+
+The runtime capability registry (`packages/core/src/orchestrator/capabilityRegistry.ts`) provides a static, queryable registry of all agent roles. Use `ai-pm agent status --json` to query the full registry, or `ai-pm agent route --workflow <id> --json` to route a workflow to the best-fit agent.
+
+Each agent role defines:
+- Supported workflows
+- Required inputs and output formats
+- Approval boundaries
+- Required and optional MCP capabilities
+
 ## Agent Hierarchy
 
 ```text
@@ -103,14 +113,16 @@ Use for:
 
 ## Role Agents
 
-Role agents follow `playbooks/roles/`.
+Role agents follow `playbooks/roles/` and are registered in the capability registry.
 
-- PM Agent: project control, stakeholder communication, governance.
-- BA Agent: requirements, AC, traceability, ambiguity detection.
-- Tech Lead Agent: architecture, standards, technical risk, review strategy.
-- Developer Agent: implementation plan, code changes, refactor plan, test creation.
-- QA Agent: test strategy, test cases, regression and UAT readiness.
-- Stakeholder Agent: business summary, decisions needed, approval framing.
+| Role | Registry ID | Key Responsibilities |
+|---|---|---|
+| PM Agent | `pm-commander` | Project control, stakeholder communication, governance |
+| BA Agent | `ba-analyst` | Requirements, AC, traceability, ambiguity detection |
+| Tech Lead Agent | `tech-lead` | Architecture, standards, technical risk, review strategy |
+| Developer Agent | `developer` | Implementation plan, code changes, refactor plan, test creation |
+| QA Agent | `qa-engineer` | Test strategy, test cases, regression and UAT readiness |
+| Stakeholder Agent | `delivery-control` | Business summary, decisions needed, approval framing |
 
 ## Routing Rules
 

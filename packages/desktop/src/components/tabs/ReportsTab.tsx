@@ -1,104 +1,214 @@
-import React from "react";
+import React, { useEffect, useCallback } from "react";
 import { Project } from "@ai-pm/core";
+import { useReportingStore, type AuditRun, type MemoryArtifact } from "../../state/reporting-store";
+import { CheckCircle2, AlertTriangle, Clock, ArrowRight, FileText, RotateCcw, Loader2 } from "lucide-react";
 
-export function ReportsTab({ project }: { project: Project }) {
-  const [period, setPeriod] = React.useState("weekly");
+interface Props { project: Project }
+
+export function ReportsTab({ project }: Props) {
+  const { auditRuns, artifacts, memorySummary, isLoading, error, lastUpdated, loadAll } = useReportingStore();
+
+  const load = useCallback(() => loadAll(), [loadAll]);
+  useEffect(() => { load(); }, [load]);
+
+  const recentRuns = auditRuns.slice(0, 10);
+  const activeArtifacts = artifacts.filter(a => a.status === "active");
+  const archivedArtifacts = artifacts.filter(a => a.status === "archived");
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Reports & Exports</h2>
-          <p className="text-muted-foreground">Generate and schedule automated reports</p>
+          <h2 className="text-xl font-semibold text-foreground">Reports & Exports</h2>
+          <p className="text-sm text-muted-foreground">
+            Workflow runs, generated artifacts, and audit trail for {project.name}
+            {lastUpdated && (
+              <span className="ml-2 text-xs opacity-60">
+                Refreshed {new Date(lastUpdated).toLocaleTimeString()}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
-          <select value={period} onChange={e => setPeriod(e.target.value)} className="px-3 py-2 glass-input rounded-lg text-foreground text-sm">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="sprint">Sprint</option>
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-          </select>
-          <button className="px-4 py-2 bg-[#007AFF] hover:bg-[#007AFF]/80 rounded-lg text-sm font-medium text-white">Generate Report</button>
+          <button
+            onClick={() => load()}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium text-foreground transition-colors"
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+            {isLoading ? "Loading..." : "Refresh"}
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {reportTemplates.map(t => (
-          <ReportCard key={t.id} template={t} />
-        ))}
-      </div>
+      {/* Error state */}
+      {error && (
+        <div className="glass-card rounded-xl p-4 border border-[#FF3B30]/30 flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-[#FF3B30] shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm text-foreground">{error}</p>
+            <p className="text-xs text-muted-foreground mt-1">Some data may be unavailable.</p>
+          </div>
+          <button
+            onClick={() => load()}
+            className="px-3 py-1.5 text-xs border border-[#FF3B30]/30 rounded-lg text-[#FF3B30] hover:bg-[#FF3B30]/10"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-      <Card title="Scheduled Reports">
-        <table className="w-full">
-          <thead className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            <tr><th className="p-4">Report</th><th className="p-4">Frequency</th><th className="p-4">Recipients</th><th className="p-4">Last Sent</th><th className="p-4">Next Run</th><th className="p-4">Actions</th></tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {scheduledReports.map(r => (
-              <tr key={r.id} className="hover:bg-white/5">
-                <td className="p-4 text-sm font-medium text-foreground">{r.name}</td>
-                <td className="p-4 text-sm text-muted-foreground">{r.frequency}</td>
-                <td className="p-4 text-sm text-muted-foreground">{r.recipients.join(", ")}</td>
-                <td className="p-4 text-sm text-muted-foreground">{r.lastSent}</td>
-                <td className="p-4 text-sm text-muted-foreground">{r.nextRun}</td>
-                <td className="p-4"><button className="px-2 py-1 text-xs glass hover:bg-white/5 rounded">Edit</button></td>
-              </tr>
+      {/* Loading skeleton */}
+      {isLoading && !memorySummary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="glass-card rounded-xl p-5 animate-pulse">
+              <div className="h-4 bg-white/10 rounded w-1/3 mb-3" />
+              <div className="h-3 bg-white/5 rounded w-2/3 mb-2" />
+              <div className="h-3 bg-white/5 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Summary stats */}
+      {memorySummary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "Total Tasks", value: memorySummary.totalTasks, color: "#007AFF" },
+            { label: "Completed", value: memorySummary.completedTasks, color: "#34C759" },
+            { label: "Artifacts", value: memorySummary.totalArtifacts, color: "#AF52DE" },
+            { label: "Archived", value: memorySummary.archivedArtifacts, color: "#8E8E93" },
+          ].map(s => (
+            <div key={s.label} className="glass-card rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Workflow Run History */}
+      <div className="glass-card rounded-xl p-5">
+        <h3 className="font-medium text-foreground mb-4">Workflow Run History</h3>
+        {recentRuns.length === 0 ? (
+          <div className="text-center py-8">
+            <Clock className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No workflow runs yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Run a workflow with <code className="px-1.5 py-0.5 glass rounded text-[11px]">ai-pm orchestrator run</code> to see results here.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentRuns.map((run, i) => (
+              <RunRow key={i} run={run} />
             ))}
-          </tbody>
-        </table>
-      </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Generated Artifacts */}
+      <div className="glass-card rounded-xl p-5">
+        <h3 className="font-medium text-foreground mb-4">Generated Artifacts</h3>
+        {activeArtifacts.length === 0 && archivedArtifacts.length === 0 ? (
+          <div className="text-center py-8">
+            <FileText className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No artifacts yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Artifacts are created when workflows produce reports, matrices, or other deliverables.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activeArtifacts.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Active</p>
+                {activeArtifacts.map((art, i) => (
+                  <ArtifactRow key={i} artifact={art} />
+                ))}
+              </div>
+            )}
+            {archivedArtifacts.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Archived</p>
+                {archivedArtifacts.map((art, i) => (
+                  <ArtifactRow key={i} artifact={art} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Empty state when everything is truly empty */}
+      {!isLoading && !error && auditRuns.length === 0 && artifacts.length === 0 && (
+        <div className="glass-card rounded-xl p-8 text-center">
+          <p className="text-lg text-foreground font-medium mb-2">No reports data yet</p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            This panel shows data from workflow runs and generated artifacts.
+            Run workflows with the CLI to populate this view, or check the Daily Brief for a summary.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-interface ReportCardProps {
-  template: { id: string; name: string; description: string; format: string[]; icon: string };
-}
-
-function ReportCard({ template }: ReportCardProps) {
-  const icons: Record<string, JSX.Element> = {
-    dashboard: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
-    chart: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
-    list: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-  };
+function RunRow({ run }: { run: AuditRun }) {
+  const statusColor =
+    run.status === "completed" ? "#34C759"
+    : run.status === "failed" ? "#FF3B30"
+    : "#8E8E93";
 
   return (
-    <Card className="p-5 hover:border-white/14 transition-colors cursor-pointer">
-      <div className="flex items-start justify-between mb-4">
-        <div className="p-3 bg-[#007AFF]/15 rounded-lg text-[#007AFF]">{icons[template.icon]}</div>
-        <span className="px-2 py-0.5 text-xs glass rounded text-muted-foreground">{template.format.join(", ")}</span>
+    <div className="flex items-start gap-3 p-3 rounded-lg glass hover:bg-white/5 transition-colors">
+      <div className="mt-0.5">
+        {run.status === "completed"
+          ? <CheckCircle2 className="w-4 h-4" style={{ color: statusColor }} />
+          : run.status === "failed"
+          ? <AlertTriangle className="w-4 h-4" style={{ color: statusColor }} />
+          : <Clock className="w-4 h-4" style={{ color: statusColor }} />
+        }
       </div>
-      <h3 className="font-medium text-foreground mb-1">{template.name}</h3>
-      <p className="text-sm text-muted-foreground">{template.description}</p>
-      <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Updated 2 days ago</span>
-        <button className="px-3 py-1.5 text-sm bg-[#007AFF] hover:bg-[#007AFF]/80 rounded-lg text-white">Generate</button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{run.workflowId}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ color: statusColor, backgroundColor: `${statusColor}15` }}>
+            {run.status}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">{run.outputSummary}</p>
+        {run.sourceCoverage.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {run.sourceCoverage.slice(0, 4).map((src, i) => (
+              <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded ${src.startsWith("unavailable:") ? "bg-[#FF3B30]/15 text-[#FF3B30]" : "bg-white/5 text-muted-foreground"}`}>
+                {src.startsWith("unavailable:") ? `✗ ${src.replace("unavailable:", "")}` : src}
+              </span>
+            ))}
+            {run.sourceCoverage.length > 4 && (
+              <span className="text-[10px] text-muted-foreground">+{run.sourceCoverage.length - 4}</span>
+            )}
+          </div>
+        )}
       </div>
-    </Card>
-  );
-}
-
-function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`glass-card rounded-xl p-5 ${className}`}>
-      {title && <h3 className="font-medium text-foreground mb-4">{title}</h3>}
-      {children}
+      <span className="text-xs text-muted-foreground shrink-0">
+        {new Date(run.completedAt ?? run.startedAt).toLocaleDateString()}
+      </span>
     </div>
   );
 }
 
-const reportTemplates = [
-  { id: "daily-standup", name: "Daily Standup Summary", description: "Yesterday's progress, today's plan, blockers", format: ["PDF", "Slack", "Email"], icon: "dashboard" },
-  { id: "weekly-status", name: "Weekly Status Report", description: "Sprint progress, risks, budget, team health", format: ["PDF", "HTML", "Email"], icon: "chart" },
-  { id: "sprint-review", name: "Sprint Review", description: "Completed work, demo notes, retrospective actions", format: ["PDF", "HTML"], icon: "list" },
-  { id: "executive-summary", name: "Executive Summary", description: "High-level KPIs, milestones, budget, risks", format: ["PDF", "PPTX"], icon: "chart" },
-  { id: "risk-report", name: "Risk Assessment", description: "Risk register, Monte Carlo, mitigation status", format: ["PDF", "XLSX"], icon: "list" },
-  { id: "budget-forecast", name: "Budget Forecast", description: "Burn rate, EAC, variance analysis, scenarios", format: ["PDF", "XLSX"], icon: "chart" }
-];
-
-const scheduledReports = [
-  { id: 1, name: "Weekly Status Report", frequency: "Weekly (Mon 9am)", recipients: ["pm@company.com", "tech-lead@company.com"], lastSent: "2024-08-05", nextRun: "2024-08-12" },
-  { id: 2, name: "Daily Standup Summary", frequency: "Daily (weekdays 9am)", recipients: ["team@company.com"], lastSent: "2024-08-09", nextRun: "2024-08-12" },
-  { id: 3, name: "Executive Summary", frequency: "Monthly (1st Mon)", recipients: ["cto@company.com", "vp-eng@company.com"], lastSent: "2024-07-01", nextRun: "2024-09-02" }
-];
+function ArtifactRow({ artifact }: { artifact: MemoryArtifact }) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg glass hover:bg-white/5 transition-colors">
+      <div className="p-2 bg-[#AF52DE]/15 rounded-lg">
+        <FileText className="w-4 h-4 text-[#AF52DE]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{artifact.name}</p>
+        <p className="text-xs text-muted-foreground">{artifact.path}</p>
+      </div>
+      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-muted-foreground shrink-0">
+        {artifact.type}
+      </span>
+      <span className="text-[10px] text-muted-foreground shrink-0">v{artifact.version}</span>
+    </div>
+  );
+}

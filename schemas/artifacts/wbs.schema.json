@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Work Breakdown Structure",
+  "description": "CSV-compatible WBS table schema with task hierarchy, estimates, and status tracking",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "wbs_id", "type": "string", "description": "Unique WBS identifier (e.g., 1.2.3)", "required": true },
+    { "name": "parent_id", "type": "string", "description": "Parent WBS node for hierarchy" },
+    { "name": "task_name", "type": "string", "description": "Task or work package name", "required": true },
+    { "name": "level", "type": "number", "description": "Hierarchy depth (1 = top level)", "required": true },
+    { "name": "owner", "type": "string", "description": "Responsible person or team" },
+    { "name": "estimated_hours", "type": "number", "description": "Estimated effort in hours" },
+    { "name": "actual_hours", "type": "number", "description": "Actual effort spent" },
+    { "name": "status", "type": "enum", "description": "Current status", "enum_values": ["not_started", "in_progress", "completed", "blocked", "deferred"] },
+    { "name": "start_date", "type": "date", "description": "Planned start date" },
+    { "name": "end_date", "type": "date", "description": "Planned end date" },
+    { "name": "dependency", "type": "string", "description": "Depends on WBS ID" }
+  ],
+  "required_columns": ["wbs_id", "task_name", "level", "status"]
+}

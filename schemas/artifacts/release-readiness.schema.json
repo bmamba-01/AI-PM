@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Release Readiness Checklist",
+  "description": "CSV-compatible release readiness tracking checklist items across CI/CD, monitoring, security, and rollback",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "check_id", "type": "string", "description": "Unique checklist item ID", "required": true },
+    { "name": "category", "type": "enum", "description": "Checklist category", "enum_values": ["ci_cd", "monitoring", "security", "rollback", "documentation", "infrastructure", "testing", "communication"], "required": true },
+    { "name": "check_item", "type": "string", "description": "What needs to be verified", "required": true },
+    { "name": "status", "type": "enum", "description": "Verification status", "enum_values": ["not_started", "in_progress", "complete", "failed", "not_applicable"], "required": true },
+    { "name": "owner", "type": "string", "description": "Person responsible for verification" },
+    { "name": "verified_by", "type": "string", "description": "Person who verified" },
+    { "name": "verified_date", "type": "date", "description": "Date verified" },
+    { "name": "evidence", "type": "string", "description": "Link to evidence or proof" },
+    { "name": "notes", "type": "string", "description": "Additional notes" },
+    { "name": "go_live_required", "type": "boolean", "description": "Must be complete for go-live" }
+  ],
+  "required_columns": ["check_id", "category", "check_item", "status"]
+}

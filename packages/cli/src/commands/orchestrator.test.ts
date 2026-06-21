@@ -150,7 +150,63 @@ describe('orchestrator CLI', () => {
       expect(result.name).toBe('ai-pm');
       expect(result.version).toBe('0.1.0');
       expect(Array.isArray(result.agents)).toBe(true);
-      expect(result.agents.length).toBeGreaterThan(0);
+      expect(result.agents.length).toBeGreaterThanOrEqual(10);
+      expect(result.registry).toBeDefined();
+      expect(result.registry.totalAgents).toBeGreaterThanOrEqual(10);
+    });
+
+    it('includes all expected roles', async () => {
+      const { stdout } = await execFileAsync('node', [
+        cliPath, 'agent', 'status', '--json',
+      ]);
+      const result = JSON.parse(stdout);
+      const roles = result.agents.map((a: any) => a.role);
+      expect(roles).toContain('pm_commander');
+      expect(roles).toContain('ba_analyst');
+      expect(roles).toContain('developer');
+      expect(roles).toContain('delivery_control');
+    });
+
+    it('each agent has MCP capabilities', async () => {
+      const { stdout } = await execFileAsync('node', [
+        cliPath, 'agent', 'status', '--json',
+      ]);
+      const result = JSON.parse(stdout);
+      for (const agent of result.agents) {
+        expect(Array.isArray(agent.requiredMcpCapabilities)).toBe(true);
+        expect(Array.isArray(agent.outputFormats)).toBe(true);
+      }
+    });
+  });
+
+  describe('agent route', () => {
+    it('routes daily-briefing workflow', async () => {
+      const { stdout } = await execFileAsync('node', [
+        cliPath, 'agent', 'route', '--workflow', 'daily-briefing', '--json',
+      ]);
+      const result = JSON.parse(stdout);
+      expect(result.workflowId).toBe('daily-briefing');
+      expect(result.primaryAgent).toBeDefined();
+      expect(result.primaryAgent.id).toBeDefined();
+      expect(result.supportingAgents).toBeDefined();
+      expect(result.approvalRequired).toBeDefined();
+      expect(result.estimatedSteps).toBeDefined();
+    });
+
+    it('returns error for unknown workflow', async () => {
+      const result = await execFileAsync('node', [
+        cliPath, 'agent', 'route', '--workflow', 'nonexistent', '--json',
+      ]).catch((e: any) => e);
+      expect(result.code).toBe(1);
+    });
+
+    it('includes approval boundary in route result', async () => {
+      const { stdout } = await execFileAsync('node', [
+        cliPath, 'agent', 'route', '--workflow', 'risk-control', '--json',
+      ]);
+      const result = JSON.parse(stdout);
+      expect(result.primaryAgent.approvalBoundary).toBeDefined();
+      expect(typeof result.primaryAgent.approvalBoundary.requiresApproval).toBe('boolean');
     });
   });
 });

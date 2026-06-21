@@ -20,15 +20,27 @@ export interface DailyBriefingInput {
 export interface DailyBriefing {
   projectId: string;
   date: string;
+  methodology?: string;
+  projectType?: string;
   topPriorities: string[];
   meetingsToPrepare: string[];
   urgentBlockers: string[];
   risksToReview: string[];
   pendingApprovals: string[];
   suggestedFollowups: string[];
+  memoryTasks: { total: number; active: number; completed: number };
+  memoryArtifacts: { total: number; active: number };
+  connectorStatus: Record<string, 'available' | 'unavailable' | 'degraded'>;
   sourceCoverage: string[];
+  degradedSources: string[];
   assumptions: string[];
   confidence: number;
+}
+
+export interface DailyBriefingContext {
+  projectRoot: string;
+  methodology?: string;
+  projectType?: string;
 }
 
 const priorityRank: Record<DailyBriefingPriority, number> = {
@@ -73,9 +85,181 @@ export function generateDailyBriefing(input: DailyBriefingInput): DailyBriefing 
     risksToReview: titlesFor(input.items, 'risk'),
     pendingApprovals: titlesFor(input.items, 'approval'),
     suggestedFollowups: titlesFor(input.items, 'follow_up'),
+    memoryTasks: { total: 0, active: 0, completed: 0 },
+    memoryArtifacts: { total: 0, active: 0 },
+    connectorStatus: {},
     sourceCoverage: sourceCoverage(input),
+    degradedSources: input.unavailableSources ?? [],
     assumptions: input.assumptions ?? [],
     confidence: confidenceFor(input),
   };
+}
+
+/**
+ * Generate a contextual daily briefing by loading data from runtime stores.
+ * This is the upgraded entry point that loads real project context.
+ */
+export async function generateContextualBriefing(
+  ctx: DailyBriefingContext,
+): Promise<DailyBriefing> {
+  const { projectRoot, methodology, projectType } = ctx;
+  const projectId = path.basename(projectRoot);
+  const today = new Date().toISOString().slice(0, 10);
+  const degradedSources: string[] = [];
+  const assumptions: string[] = [];
+  const items: DailyBriefingInputItem[] = [];
+  const connectorStatus: Record<string, 'available' | 'unavailable' | 'degraded'> = {};
+
+  // --- 1. Load MCP Context Snapshot (connector availability) ---
+  try {
+    const { buildContextPack } = await import('../orchestrator/contextSnapshot.js');
+    const pack = await buildContextPack(projectRoot);
+    for (const snap of pack.snapshot) {
+      connectorStatus[snap.connectorId] = snap.enabled ? 'available' : 'unavailable';
+      if (snap.health === 'degraded') {
+        connectorStatus[snap.connectorId] = 'degraded';
+        degradedSources.push(snap.connectorId);
+      }
+      if (!snap.enabled) {
+        degradedSources.push(snap.connectorId);
+      }
+    }
+    assumptions.push(`Context snapshot loaded: ${pack.snapshot.length} connectors registered.`);
+  } catch (err) {
+    degradedSources.push('mcp-context');
+    assumptions.push('MCP context snapshot unavailable — connector status unknown.');
+  }
+
+  // --- 2. Load Approval Queue pending items ---
+  let pendingApprovalCount = 0;
+  try {
+    const { ApprovalQueue } = await import('../runtime/approvalQueue.js');
+    const queue = new ApprovalQueue(projectRoot);
+    const approvals = await queue.listItems({ status: 'pending' });
+    pendingApprovalCount = approvals.length;
+    for (const approval of approvals.slice(0, 5)) {
+      items.push({
+        source: 'approval-queue',
+        type: 'approval',
+        title: approval.title,
+        priority: approval.priority === 'critical' || approval.priority === 'high'
+          ? approval.priority
+          : 'medium',
+      });
+    }
+    connectorStatus['approval-queue'] = 'available';
+  } catch (err) {
+    degradedSources.push('approval-queue');
+    connectorStatus['approval-queue'] = 'unavailable';
+  }
+
+  // --- 3. Load Memory Tasks and Artifacts ---
+  let memoryTasks = { total: 0, active: 0, completed: 0 };
+  let memoryArtifacts = { total: 0, active: 0 };
+  try {
+    const { MemoryStore } = await import('../runtime/memory.js');
+    const memStore = new MemoryStore(projectRoot);
+    const tasks = await memStore.listTasks();
+    const activeTasks = tasks.filter(t => t.status === 'in_progress' || t.status === 'pending');
+    const completedTasks = tasks.filter(t => t.status === 'completed');
+    memoryTasks = { total: tasks.length, active: activeTasks.length, completed: completedTasks.length };
+
+    // Surface active tasks as priorities
+    for (const task of activeTasks.slice(0, 3)) {
+      items.push({
+        source: 'memory-store',
+        type: 'priority',
+        title: task.name,
+        priority: task.status === 'in_progress' ? 'high' : 'medium',
+      });
+    }
+
+    const artifacts = await memStore.listArtifacts();
+    memoryArtifacts = {
+      total: artifacts.length,
+      active: artifacts.filter(a => a.status === 'active').length,
+    };
+    connectorStatus['memory-store'] = 'available';
+  } catch (err) {
+    degradedSources.push('memory-store');
+    connectorStatus['memory-store'] = 'unavailable';
+  }
+
+  // --- 4. Load Risk Register Items ---
+  let riskCount = 0;
+  try {
+    const { listProjectRisks } = await import('./riskControl.js');
+    const { MemoryStore } = await import('../runtime/memory.js');
+    const memStore = new MemoryStore(projectRoot);
+    const risks = await listProjectRisks({ store: memStore });
+    const openRisks = risks.filter(r => r.status === 'open' || r.status === 'mitigating');
+    riskCount = openRisks.length;
+
+    for (const risk of openRisks.slice(0, 3)) {
+      items.push({
+        source: 'risk-register',
+        type: 'risk',
+        title: risk.title,
+        priority: risk.impact === 'critical' || risk.probability === 'high'
+          ? 'high'
+          : 'medium',
+      });
+    }
+    connectorStatus['risk-register'] = 'available';
+  } catch (err) {
+    degradedSources.push('risk-register');
+    connectorStatus['risk-register'] = 'unavailable';
+  }
+
+  // --- 5. Load local daily-items.json (existing behavior) ---
+  try {
+    const { LocalProjectStore } = await import('../runtime/localProjectStore.js');
+    const store = new LocalProjectStore(projectRoot);
+    const localItems = await store.loadDailyBriefingItems();
+    if (localItems.length > 0) {
+      items.push(...localItems);
+      connectorStatus['daily-items-json'] = 'available';
+    }
+  } catch (err) {
+    degradedSources.push('daily-items-json');
+  }
+
+  // --- 6. Build final output ---
+  const availableCount = Object.values(connectorStatus).filter(s => s === 'available').length;
+  const totalConnectors = Object.keys(connectorStatus).length;
+  const allSources = Array.from(new Set(items.map(i => i.source))).sort();
+
+  const enrichedInput: DailyBriefingInput = {
+    projectId,
+    date: today,
+    items,
+    unavailableSources: degradedSources,
+    assumptions,
+  };
+
+  const briefing = generateDailyBriefing(enrichedInput);
+
+  // Enrich with context-specific fields
+  briefing.methodology = methodology;
+  briefing.projectType = projectType;
+  briefing.memoryTasks = memoryTasks;
+  briefing.memoryArtifacts = memoryArtifacts;
+  briefing.connectorStatus = connectorStatus;
+  briefing.degradedSources = [...new Set(degradedSources)];
+  briefing.sourceCoverage = [...allSources, ...degradedSources.map(s => `unavailable:${s}`)];
+
+  // Recalculate confidence based on actual source availability
+  if (totalConnectors > 0) {
+    const availabilityRatio = availableCount / totalConnectors;
+    briefing.confidence = Math.round(
+      briefing.confidence * 0.5 + availabilityRatio * 50,
+    );
+  }
+
+  if (assumptions.length > 0) {
+    briefing.assumptions.push(...assumptions);
+  }
+
+  return briefing;
 }
 

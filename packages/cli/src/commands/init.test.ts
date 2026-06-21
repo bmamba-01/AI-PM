@@ -321,4 +321,178 @@ describe('init command', () => {
       process.cwd = cwd;
     }
   });
+
+  it('seeds .ai-pm/audit/workflow-runs.jsonl as empty file', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const p = path.join(root, 'test-project', '.ai-pm', 'audit', 'workflow-runs.jsonl');
+      expect(await fileExists(p)).toBe(true);
+      const content = await readFile(p, 'utf-8');
+      expect(content).toBe('');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('seeds .ai-pm/memory/state.json with correct version', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'memory', 'state.json'), 'utf-8');
+      const parsed = JSON.parse(content);
+      expect(parsed.version).toBe(1);
+      expect(parsed.tasks).toEqual([]);
+      expect(parsed.artifacts).toEqual([]);
+      expect(parsed.updated_at).toBeDefined();
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('seeds .ai-pm/approvals.json as empty array', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'approvals.json'), 'utf-8');
+      const parsed = JSON.parse(content);
+      expect(parsed).toEqual([]);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('--methodology scrum sets methodology in profile', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project', { methodology: 'scrum' });
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('methodology: "scrum"');
+      expect(content).not.toContain('methodology: null');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('--methodology kanban sets methodology in profile', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project', { methodology: 'kanban' });
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('methodology: "kanban"');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('--methodology waterfall sets methodology in profile', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project', { methodology: 'waterfall' });
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('methodology: "waterfall"');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('--methodology hybrid sets methodology in profile', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project', { methodology: 'hybrid' });
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('methodology: "hybrid"');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('no methodology defaults to null', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('methodology: null');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('profile.yaml includes source_systems placeholder', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const content = await readFile(path.join(root, 'test-project', '.ai-pm', 'profile.yaml'), 'utf-8');
+      expect(content).toContain('source_systems:');
+      expect(content).toContain('jira: false');
+      expect(content).toContain('github: false');
+      expect(content).toContain('linear: false');
+      expect(content).toContain('confluence: false');
+      expect(content).toContain('notion: false');
+      expect(content).toContain('gmail: false');
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('init creates all runtime seed files', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      const base = path.join(root, 'test-project');
+      expect(await fileExists(path.join(base, '.ai-pm', 'memory', 'state.json'))).toBe(true);
+      expect(await fileExists(path.join(base, '.ai-pm', 'approvals.json'))).toBe(true);
+      expect(await fileExists(path.join(base, '.ai-pm', 'audit', 'workflow-runs.jsonl'))).toBe(true);
+      expect(await fileExists(path.join(base, '.ai-pm', 'profile.yaml'))).toBe(true);
+      expect(await fileExists(path.join(base, 'AGENTS.md'))).toBe(true);
+      expect(await fileExists(path.join(base, 'CODEX.md'))).toBe(true);
+      expect(await fileExists(path.join(base, 'CLAUDE.md'))).toBe(true);
+      expect(await fileExists(path.join(base, '.gitignore'))).toBe(true);
+      expect(await fileExists(path.join(base, '.claude', '.mcp.json'))).toBe(true);
+      expect(await fileExists(path.join(base, 'README.md'))).toBe(true);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
+
+  it('readiness >80% after init', async () => {
+    const root = await tempRoot();
+    const cwd = process.cwd;
+    process.cwd = () => root;
+    try {
+      runInit('test-project');
+      // Verify all required dirs exist (same as project scan checks)
+      const base = path.join(root, 'test-project');
+      expect(await fileExists(path.join(base, 'AGENTS.md'))).toBe(true);
+      expect(await fileExists(path.join(base, 'README.md'))).toBe(true);
+      expect(await fileExists(path.join(base, 'reports'))).toBe(true);
+      expect(await fileExists(path.join(base, 'templates'))).toBe(true);
+      expect(await fileExists(path.join(base, 'requirements'))).toBe(true);
+      expect(await fileExists(path.join(base, 'risks'))).toBe(true);
+      expect(await fileExists(path.join(base, 'meetings'))).toBe(true);
+      expect(await fileExists(path.join(base, 'artifacts'))).toBe(true);
+    } finally {
+      process.cwd = cwd;
+    }
+  });
 });

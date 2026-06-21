@@ -2,7 +2,7 @@ import type { TemplateEntry } from './templateRegistry.js';
 
 // ── Render output types ──────────────────────────────────────────────────────
 
-export type RenderFormat = 'markdown' | 'html' | 'json';
+export type RenderFormat = 'markdown' | 'html' | 'json' | 'csv';
 
 export interface RenderedArtifact {
   templateId: string;
@@ -164,6 +164,45 @@ function renderJson(template: TemplateEntry, data: Record<string, unknown>): str
   return JSON.stringify(output, null, 2);
 }
 
+// ── CSV renderer ─────────────────────────────────────────────────────────────
+
+function escapeCsvField(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function renderCsv(template: TemplateEntry, data: Record<string, unknown>): string {
+  const lines: string[] = [];
+
+  // If data contains a "rows" array, render as tabular CSV
+  const rows = Array.isArray((data as Record<string, unknown>).rows)
+    ? (data as Record<string, unknown>).rows as Array<Record<string, unknown>>
+    : null;
+
+  if (rows && rows.length > 0) {
+    // Use column keys from first row as headers
+    const headers = Object.keys(rows[0]);
+    lines.push(headers.map(h => escapeCsvField(h)).join(','));
+    for (const row of rows) {
+      lines.push(headers.map(h => escapeCsvField(row[h])).join(','));
+    }
+  } else {
+    // Fallback: render required_inputs as key-value pairs
+    lines.push('field,value');
+    for (const key of template.required_inputs) {
+      const value = data[key];
+      const display = Array.isArray(value) ? value.join('; ') : (value ?? '');
+      lines.push(`${escapeCsvField(key)},${escapeCsvField(display)}`);
+    }
+  }
+
+  return lines.join('\n') + '\n';
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export function renderArtifact(
@@ -193,6 +232,9 @@ export function renderArtifact(
       break;
     case 'json':
       content = renderJson(template, data);
+      break;
+    case 'csv':
+      content = renderCsv(template, data);
       break;
     default:
       throw new Error(`Unknown render format: ${format}`);

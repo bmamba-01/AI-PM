@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Traceability Matrix",
+  "description": "CSV-compatible traceability matrix linking requirements to test cases and deliverables",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "requirement_id", "type": "string", "description": "Unique requirement identifier (e.g., REQ-001)", "required": true },
+    { "name": "requirement_title", "type": "string", "description": "Short requirement title", "required": true },
+    { "name": "requirement_type", "type": "enum", "description": "Type of requirement", "enum_values": ["functional", "non_functional", "business", "technical", "compliance"], "required": true },
+    { "name": "priority", "type": "enum", "description": "Requirement priority", "enum_values": ["critical", "high", "medium", "low"] },
+    { "name": "source", "type": "string", "description": "Originating document or stakeholder" },
+    { "name": "design_doc_id", "type": "string", "description": "Linked design document ID" },
+    { "name": "test_case_id", "type": "string", "description": "Linked test case ID" },
+    { "name": "code_module", "type": "string", "description": "Linked code module or file" },
+    { "name": "test_status", "type": "enum", "description": "Test execution status", "enum_values": ["not_tested", "pass", "fail", "blocked", "skipped"] },
+    { "name": "coverage_notes", "type": "string", "description": "Additional coverage notes" }
+  ],
+  "required_columns": ["requirement_id", "requirement_title", "requirement_type", "test_status"]
+}

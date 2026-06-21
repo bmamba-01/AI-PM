@@ -96,6 +96,7 @@ templates:
       - impact
       - owner
       - mitigation
+    table_schema: risk-register
     approval_gate: >
       Risk Owner validates assessment. PM consolidates and approves before
       distribution. SteerCo reviews high/critical risks.
@@ -192,6 +193,7 @@ templates:
       - test_cases
       - design_documents
       - code_modules
+    table_schema: traceability-matrix
     approval_gate: >
       BA maintains the matrix. QA Lead validates test coverage.
       PM reviews before sprint demos.
@@ -211,6 +213,7 @@ templates:
       - pass_fail_results
       - defects_found
       - stakeholder_signoff
+    table_schema: uat-signoff
     approval_gate: >
       QA Lead compiles results. Business owner signs off.
       PM approves go-live recommendation. Sponsor for critical projects.
@@ -250,6 +253,7 @@ templates:
       - rollback_plan
       - security_scan_results
       - infrastructure_status
+    table_schema: release-readiness
     approval_gate: >
       Tech Lead verifies all checklist items. Security review required.
       PM approves deployment window. Sponsor for production releases.

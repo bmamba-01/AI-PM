@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Milestone Plan",
+  "description": "CSV-compatible milestone plan with dates, dependencies, status, and critical path flag",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "milestone_id", "type": "string", "description": "Unique milestone identifier (e.g., MS-001)", "required": true },
+    { "name": "name", "type": "string", "description": "Milestone name", "required": true },
+    { "name": "description", "type": "string", "description": "What this milestone delivers" },
+    { "name": "target_date", "type": "date", "description": "Planned completion date", "required": true },
+    { "name": "actual_date", "type": "date", "description": "Actual completion date" },
+    { "name": "status", "type": "enum", "description": "Current status", "enum_values": ["planned", "on_track", "at_risk", "delayed", "completed", "cancelled"], "required": true },
+    { "name": "owner", "type": "string", "description": "Person responsible for delivery" },
+    { "name": "dependency", "type": "string", "description": "Depends on milestone ID" },
+    { "name": "critical_path", "type": "boolean", "description": "Whether on critical path" },
+    { "name": "deliverables", "type": "string", "description": "Key deliverables for this milestone" },
+    { "name": "notes", "type": "string", "description": "Status notes or blockers" }
+  ],
+  "required_columns": ["milestone_id", "name", "target_date", "status"]
+}

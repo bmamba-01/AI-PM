@@ -192,23 +192,49 @@ mcpCommand
     new Command('doctor')
       .description('Inspect project MCP setup and report health')
       .option('--json', 'Output as JSON')
-      .option('--profile <name>', 'Profile name to use', 'default')
+      .option('--profile <name>', 'Profile name: default, offline, or custom path', 'default')
+      .option('--all', 'Check all builtin profiles')
       .action(async (opts) => {
         const spinner = ora('Running MCP health check...').start();
 
         try {
           const registry = loadRegistry();
           const builtin = loadBuiltinProfiles();
-          let profile = builtin.defaultProfile;
-          if (opts.profile === 'offline-local' || opts.profile === 'offline') {
-            profile = builtin.offlineProfile;
+
+          // Build profile list
+          const profiles: Array<{ name: string; profile: typeof builtin.defaultProfile }> = [];
+
+          if (opts.all) {
+            profiles.push({ name: 'default', profile: builtin.defaultProfile });
+            profiles.push({ name: 'offline-local', profile: builtin.offlineProfile });
+          } else {
+            let profile = builtin.defaultProfile;
+            let profileName = opts.profile;
+            if (profileName === 'offline-local' || profileName === 'offline') {
+              profile = builtin.offlineProfile;
+            } else if (profileName !== 'default' && profileName !== builtin.defaultProfile.name) {
+              try {
+                profile = loadProfile(profileName);
+                profileName = profile.name;
+              } catch {
+                // Fall back to default if custom profile not found
+                profileName = 'default';
+              }
+            }
+            profiles.push({ name: profileName, profile });
           }
 
-          const report = runDoctor(process.cwd(), registry, profile);
+          // Run doctor for each profile
+          const reports = profiles.map(p => ({
+            profileName: p.name,
+            report: runDoctor(process.cwd(), registry, p.profile),
+          }));
+
           spinner.succeed('Health check complete');
 
           if (opts.json) {
-            console.log(JSON.stringify(report, null, 2));
+            const output = reports.length === 1 ? reports[0].report : reports;
+            console.log(JSON.stringify(output, null, 2));
             return;
           }
 
@@ -220,48 +246,50 @@ mcpCommand
           };
           const healthIcons = { healthy: '✓', degraded: '⚠', critical: '✗' };
 
-          console.log(chalk.bold('\nMCP Doctor Report\n'));
-          console.log(`Profile: ${report.profile}`);
-          console.log(`Project: ${report.project_root}`);
-          console.log(`Health:  ${healthColors[report.health](healthIcons[report.health] + ' ' + report.health)}\n`);
+          for (const { profileName, report } of reports) {
+            console.log(chalk.bold(`\nMCP Doctor Report — ${profileName}\n`));
+            console.log(`Profile: ${report.profile}`);
+            console.log(`Project: ${report.project_root}`);
+            console.log(`Health:  ${healthColors[report.health](healthIcons[report.health] + ' ' + report.health)}\n`);
 
-          // Connector summary
-          console.log(chalk.bold('Connectors:'));
-          const connectorData = [
-            [chalk.bold('ID'), chalk.bold('Category'), chalk.bold('Status'), chalk.bold('Token'), chalk.bold('Mutations')],
-            ...report.connectors.map(c => [
-              c.server_id,
-              c.category,
-              c.status === 'enabled' ? chalk.green('enabled') :
-                c.status === 'disabled' ? chalk.red('disabled') : chalk.gray('not configured'),
-              c.has_token ? chalk.green('✓') : chalk.gray('—'),
-              c.mutation_capabilities.length > 0 ? chalk.yellow(String(c.mutation_capabilities.length)) : chalk.gray('—'),
-            ]),
-          ];
-          console.log(table(connectorData));
+            // Connector summary
+            console.log(chalk.bold('Connectors:'));
+            const connectorData = [
+              [chalk.bold('ID'), chalk.bold('Category'), chalk.bold('Status'), chalk.bold('Token'), chalk.bold('Mutations')],
+              ...report.connectors.map(c => [
+                c.server_id,
+                c.category,
+                c.status === 'enabled' ? chalk.green('enabled') :
+                  c.status === 'disabled' ? chalk.red('disabled') : chalk.gray('not configured'),
+                c.has_token ? chalk.green('✓') : chalk.gray('—'),
+                c.mutation_capabilities.length > 0 ? chalk.yellow(String(c.mutation_capabilities.length)) : chalk.gray('—'),
+              ]),
+            ];
+            console.log(table(connectorData));
 
-          // Workflow degradation
-          const degraded = report.workflows.filter(w => w.degraded);
-          if (degraded.length > 0) {
-            console.log(chalk.bold(chalk.yellow('Degraded Workflows:')));
-            for (const w of degraded) {
-              console.log(`  ${chalk.yellow('⚠')} ${w.workflow_id}: ${w.degraded_reasons.join('; ')}`);
+            // Workflow degradation
+            const degraded = report.workflows.filter(w => w.degraded);
+            if (degraded.length > 0) {
+              console.log(chalk.bold(chalk.yellow('Degraded Workflows:')));
+              for (const w of degraded) {
+                console.log(`  ${chalk.yellow('⚠')} ${w.workflow_id}: ${w.degraded_reasons.join('; ')}`);
+              }
+            } else {
+              console.log(chalk.green('All workflows operational.'));
             }
-          } else {
-            console.log(chalk.green('All workflows operational.'));
-          }
 
-          // Mutation summary
-          if (report.mutations.servers_with_mutations.length > 0) {
-            console.log(chalk.bold('\nMutation Approval:'));
-            console.log(`  Global policy: ${report.mutations.global_approval_required ? chalk.green('approval required') : chalk.yellow('not enforced')}`);
-            console.log(`  Servers with mutations: ${report.mutations.servers_with_mutations.join(', ')}`);
-          }
+            // Mutation summary
+            if (report.mutations.servers_with_mutations.length > 0) {
+              console.log(chalk.bold('\nMutation Approval:'));
+              console.log(`  Global policy: ${report.mutations.global_approval_required ? chalk.green('approval required') : chalk.yellow('not enforced')}`);
+              console.log(`  Servers with mutations: ${report.mutations.servers_with_mutations.join(', ')}`);
+            }
 
-          // Summary
-          console.log(chalk.bold('\nSummary:'));
-          console.log(`  Connectors: ${report.summary.enabled} enabled, ${report.summary.disabled} disabled, ${report.summary.not_configured} not configured`);
-          console.log(`  Workflows:  ${report.summary.degraded_workflows} degraded / ${report.summary.total_workflows} total`);
+            // Summary
+            console.log(chalk.bold('\nSummary:'));
+            console.log(`  Connectors: ${report.summary.enabled} enabled, ${report.summary.disabled} disabled, ${report.summary.not_configured} not configured`);
+            console.log(`  Workflows:  ${report.summary.degraded_workflows} degraded / ${report.summary.total_workflows} total`);
+          }
 
         } catch (error) {
           spinner.fail('Health check failed');

@@ -69,14 +69,18 @@ function defaultLocalItems(): DailyBriefingInputItem[] {
   ];
 }
 
-export const dailyCommand = new Command('daily');
+export function createDailyCommand(): Command {
+  const cmd = new Command('daily');
 
-dailyCommand
-  .description('Generate daily briefing, deadline highlights, and report reminders')
-  .option('--output <format>', 'Output format: text, json, markdown', 'text')
-  .action(async (opts) => {
-    const lang = getLang();
-    const msgsLang = msgs[lang];
+  cmd
+    .description('Generate daily briefing, deadline highlights, and report reminders')
+    .option('--format <type>', 'Output format: text, json, markdown, html', 'text')
+    .option('--json', 'Output as JSON (alias for --format json)')
+    .option('--output <dir>', 'Write draft files to specified directory')
+    .action(async (opts) => {
+      const lang = getLang();
+      const msgsLang = msgs[lang];
+      const format = opts.json ? 'json' : opts.format;
 
     const config = loadMcpConfig(process.cwd());
     if (config.servers.filter(s => s.enabled).length === 0) {
@@ -104,66 +108,138 @@ dailyCommand
 
       spinner.succeed(msgsLang.done);
 
-      if (opts.output === 'json') {
-        console.log(JSON.stringify(briefing, null, 2));
-      } else if (opts.output === 'markdown') {
-        console.log(`# ${msgsLang.title}`);
-        console.log(`\n**${msgsLang.priorities}:**`);
-        briefing.topPriorities.length
-          ? briefing.topPriorities.forEach((item: string) => console.log(`- ${item}`))
-          : console.log(`- ${msgsLang.none}`);
-        console.log(`\n**${msgsLang.blockers}:**`);
-        briefing.urgentBlockers.length
-          ? briefing.urgentBlockers.forEach((item: string) => console.log(`- ${item}`))
-          : console.log(`- ${msgsLang.none}`);
-        console.log(`\n**${msgsLang.risks}:**`);
-        briefing.risksToReview.length
-          ? briefing.risksToReview.forEach((item: string) => console.log(`- ${item}`))
-          : console.log(`- ${msgsLang.none}`);
-        console.log(`\n**${msgsLang.approvals}:**`);
-        briefing.pendingApprovals.length
-          ? briefing.pendingApprovals.forEach((item: string) => console.log(`- ${item}`))
-          : console.log(`- ${msgsLang.none}`);
-        console.log(`\n**${msgsLang.followups}:**`);
-        briefing.suggestedFollowups.length
-          ? briefing.suggestedFollowups.forEach((item: string) => console.log(`- ${item}`))
-          : console.log(`- ${msgsLang.none}`);
-        console.log(`\n**${msgsLang.sources}:**`);
-        briefing.sourceCoverage.forEach((source: string) => console.log(`- ${source}`));
-        console.log(`\n**${msgsLang.assumptions}:**`);
-        briefing.assumptions.forEach((a: string) => console.log(`- ${a}`));
-        console.log(`\n**${msgsLang.confidence}:** ${briefing.confidence}%`);
+      // Render output
+      let content: string;
+      let ext: string;
+
+      if (format === 'json') {
+        content = JSON.stringify(briefing, null, 2);
+        ext = 'json';
+      } else if (format === 'html') {
+        content = renderHtml(briefing, msgsLang);
+        ext = 'html';
+      } else if (format === 'markdown') {
+        content = renderMarkdown(briefing, msgsLang);
+        ext = 'md';
       } else {
         // Text format (default)
-        console.log(chalk.bold(`\n${msgsLang.title} - ${briefing.date}\n`));
-        console.log(chalk.bold(`${msgsLang.priorities}:`));
-        briefing.topPriorities.length
-          ? briefing.topPriorities.forEach((item: string) => console.log(`  - ${item}`))
-          : console.log(`  ${msgsLang.none}`);
-        console.log(chalk.bold(`\n${msgsLang.blockers}:`));
-        briefing.urgentBlockers.length
-          ? briefing.urgentBlockers.forEach((item: string) => console.log(`  - ${item}`))
-          : console.log(`  ${msgsLang.none}`);
-        console.log(chalk.bold(`\n${msgsLang.risks}:`));
-        briefing.risksToReview.length
-          ? briefing.risksToReview.forEach((item: string) => console.log(`  - ${item}`))
-          : console.log(`  ${msgsLang.none}`);
-        console.log(chalk.bold(`\n${msgsLang.approvals}:`));
-        briefing.pendingApprovals.length
-          ? briefing.pendingApprovals.forEach((item: string) => console.log(`  - ${item}`))
-          : console.log(`  ${msgsLang.none}`);
-        console.log(chalk.bold(`\n${msgsLang.followups}:`));
-        briefing.suggestedFollowups.length
-          ? briefing.suggestedFollowups.forEach((item: string) => console.log(`  - ${item}`))
-          : console.log(`  ${msgsLang.none}`);
-        console.log(chalk.bold(`\n${msgsLang.sources}:`));
-        briefing.sourceCoverage.forEach((source: string) => console.log(`  - ${source}`));
-        console.log(chalk.bold(`\n${msgsLang.assumptions}:`));
-        briefing.assumptions.forEach((a: string) => console.log(`  - ${a}`));
-        console.log(chalk.bold(`\n${msgsLang.confidence}:`) + ` ${briefing.confidence}%`);
+        content = renderText(briefing, msgsLang);
+        ext = 'txt';
+      }
+
+      if (opts.output) {
+        const { mkdirSync, writeFileSync } = await import('node:fs');
+        const { join } = await import('node:path');
+        mkdirSync(opts.output, { recursive: true });
+        const filePath = join(opts.output, `daily-briefing-${briefing.date}.${ext}`);
+        writeFileSync(filePath, content, 'utf-8');
+        console.log(chalk.green(`Draft written to ${filePath}`));
+      } else {
+        console.log(content);
       }
     } catch (error) {
       spinner.fail(msgsLang.error);
       console.error(error);
     }
   });
+
+  return cmd;
+}
+
+/** Singleton for CLI bin (backward-compatible) */
+export const dailyCommand = createDailyCommand();
+
+// ── Formatters ──────────────────────────────────────────────────────────────
+
+function renderMarkdown(briefing: any, msgsLang: any): string {
+  const lines: string[] = [];
+  lines.push(`# ${msgsLang.title}`);
+  lines.push(`\n**Date:** ${briefing.date}`);
+  lines.push(`\n**${msgsLang.priorities}:**`);
+  lines.push(briefing.topPriorities.length
+    ? briefing.topPriorities.map((item: string) => `- ${item}`).join('\n')
+    : `- ${msgsLang.none}`);
+  lines.push(`\n**${msgsLang.blockers}:**`);
+  lines.push(briefing.urgentBlockers.length
+    ? briefing.urgentBlockers.map((item: string) => `- ${item}`).join('\n')
+    : `- ${msgsLang.none}`);
+  lines.push(`\n**${msgsLang.risks}:**`);
+  lines.push(briefing.risksToReview.length
+    ? briefing.risksToReview.map((item: string) => `- ${item}`).join('\n')
+    : `- ${msgsLang.none}`);
+  lines.push(`\n**${msgsLang.approvals}:**`);
+  lines.push(briefing.pendingApprovals.length
+    ? briefing.pendingApprovals.map((item: string) => `- ${item}`).join('\n')
+    : `- ${msgsLang.none}`);
+  lines.push(`\n**${msgsLang.followups}:**`);
+  lines.push(briefing.suggestedFollowups.length
+    ? briefing.suggestedFollowups.map((item: string) => `- ${item}`).join('\n')
+    : `- ${msgsLang.none}`);
+  lines.push(`\n**${msgsLang.sources}:**`);
+  lines.push(briefing.sourceCoverage.map((s: string) => `- ${s}`).join('\n'));
+  lines.push(`\n**${msgsLang.assumptions}:**`);
+  lines.push(briefing.assumptions.map((a: string) => `- ${a}`).join('\n'));
+  lines.push(`\n**${msgsLang.confidence}:** ${briefing.confidence}%`);
+  lines.push(`\n---\n*Generated by AI-PM Toolkit*`);
+  return lines.join('\n');
+}
+
+function renderHtml(briefing: any, msgsLang: any): string {
+  const section = (title: string, items: string[]) =>
+    `<h2>${title}</h2>\n<ul>${items.map(i => `<li>${escHtml(i)}</li>`).join('')}</ul>`;
+  const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>${msgsLang.title}</title>
+<style>body{font-family:sans-serif;max-width:800px;margin:0 auto;padding:2rem;color:#1a1a1a}
+h1{border-bottom:2px solid #e5e7eb;padding-bottom:.5rem}ul{line-height:1.8}
+.section{margin-bottom:1.5rem}.meta{color:#6b7280;font-size:.875rem}</style></head>
+<body><h1>${msgsLang.title}</h1><p class="meta">${briefing.date}</p>
+${section(msgsLang.priorities, briefing.topPriorities)}
+${section(msgsLang.blockers, briefing.urgentBlockers)}
+${section(msgsLang.risks, briefing.risksToReview)}
+${section(msgsLang.approvals, briefing.pendingApprovals)}
+${section(msgsLang.followups, briefing.suggestedFollowups)}
+${section(msgsLang.sources, briefing.sourceCoverage)}
+${section(msgsLang.assumptions, briefing.assumptions)}
+<p><strong>${msgsLang.confidence}:</strong> ${briefing.confidence}%</p>
+<hr><p><em>Generated by AI-PM Toolkit</em></p></body></html>`;
+}
+
+function renderText(briefing: any, msgsLang: any): string {
+  const lines: string[] = [];
+  lines.push(`${msgsLang.title} - ${briefing.date}`);
+  lines.push('');
+  lines.push(`${msgsLang.priorities}:`);
+  briefing.topPriorities.length
+    ? briefing.topPriorities.forEach((item: string) => lines.push(`  - ${item}`))
+    : lines.push(`  ${msgsLang.none}`);
+  lines.push('');
+  lines.push(`${msgsLang.blockers}:`);
+  briefing.urgentBlockers.length
+    ? briefing.urgentBlockers.forEach((item: string) => lines.push(`  - ${item}`))
+    : lines.push(`  ${msgsLang.none}`);
+  lines.push('');
+  lines.push(`${msgsLang.risks}:`);
+  briefing.risksToReview.length
+    ? briefing.risksToReview.forEach((item: string) => lines.push(`  - ${item}`))
+    : lines.push(`  ${msgsLang.none}`);
+  lines.push('');
+  lines.push(`${msgsLang.approvals}:`);
+  briefing.pendingApprovals.length
+    ? briefing.pendingApprovals.forEach((item: string) => lines.push(`  - ${item}`))
+    : lines.push(`  ${msgsLang.none}`);
+  lines.push('');
+  lines.push(`${msgsLang.followups}:`);
+  briefing.suggestedFollowups.length
+    ? briefing.suggestedFollowups.forEach((item: string) => lines.push(`  - ${item}`))
+    : lines.push(`  ${msgsLang.none}`);
+  lines.push('');
+  lines.push(`${msgsLang.sources}:`);
+  briefing.sourceCoverage.forEach((s: string) => lines.push(`  - ${s}`));
+  lines.push('');
+  lines.push(`${msgsLang.assumptions}:`);
+  briefing.assumptions.forEach((a: string) => lines.push(`  - ${a}`));
+  lines.push('');
+  lines.push(`${msgsLang.confidence}: ${briefing.confidence}%`);
+  return lines.join('\n');
+}

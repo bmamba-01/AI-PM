@@ -218,8 +218,7 @@ describe('Artifact Factory', () => {
     const outputs = await generateArtifact(
       'daily-briefing',
       { completed_tasks: 'Done', blockers: 'None', in_progress_tasks: 'Working' },
-      ['markdown', 'html', 'json'],
-      '/tmp/test-output',
+      { formats: ['markdown', 'html', 'json'], outputPath: '/tmp/test-output' },
     );
 
     expect(outputs).toHaveLength(3);
@@ -235,8 +234,130 @@ describe('Artifact Factory', () => {
   });
 
   it('generateArtifact defaults to all local artifact formats', async () => {
-    const outputs = await generateArtifact('daily-briefing', { completed_tasks: 'Done' });
+    const outputs = await generateArtifact('daily-briefing', { completed_tasks: 'Done' }, ['markdown', 'html', 'json']);
     expect(outputs).toHaveLength(3);
     expect(outputs.map(o => o.format).sort()).toEqual(['html', 'json', 'markdown']);
+  });
+});
+
+describe('Template table_schema field', () => {
+  it('risk-register template has table_schema', async () => {
+    const catalog = await loadTemplateCatalog(TEMPLATES_PATH);
+    const tmpl = getTemplateById(catalog, 'risk-register');
+    expect(tmpl).toBeDefined();
+    expect(tmpl!.table_schema).toBe('risk-register');
+  });
+
+  it('traceability-matrix template has table_schema', async () => {
+    const catalog = await loadTemplateCatalog(TEMPLATES_PATH);
+    const tmpl = getTemplateById(catalog, 'traceability-matrix');
+    expect(tmpl!.table_schema).toBe('traceability-matrix');
+  });
+
+  it('uat-report template has table_schema', async () => {
+    const catalog = await loadTemplateCatalog(TEMPLATES_PATH);
+    const tmpl = getTemplateById(catalog, 'uat-report');
+    expect(tmpl!.table_schema).toBe('uat-signoff');
+  });
+
+  it('devops-readiness template has table_schema', async () => {
+    const catalog = await loadTemplateCatalog(TEMPLATES_PATH);
+    const tmpl = getTemplateById(catalog, 'devops-readiness');
+    expect(tmpl!.table_schema).toBe('release-readiness');
+  });
+
+  it('daily-briefing template has no table_schema', async () => {
+    const catalog = await loadTemplateCatalog(TEMPLATES_PATH);
+    const tmpl = getTemplateById(catalog, 'daily-briefing');
+    expect(tmpl!.table_schema).toBeUndefined();
+  });
+});
+
+describe('CSV rendering', () => {
+  let catalog: TemplateCatalog;
+
+  beforeEach(async () => {
+    catalog = await loadTemplateCatalog(TEMPLATES_PATH);
+  });
+
+  it('renders CSV with tabular rows data', () => {
+    const tmpl = getTemplateById(catalog, 'risk-register')!;
+    const data = {
+      rows: [
+        { risk_id: 'R-1', risk_statement: 'API rate limits', category: 'technical', probability: 'medium', impact: 'high', owner: 'TL', status: 'open' },
+        { risk_id: 'R-2', risk_statement: 'Key dev leave', category: 'resource', probability: 'high', impact: 'medium', owner: 'PM', status: 'mitigated' },
+      ],
+    };
+    const rendered = renderArtifact(tmpl, data, 'csv');
+    expect(rendered.format).toBe('csv');
+    const lines = rendered.content.trim().split('\n');
+    expect(lines[0]).toContain('risk_id');
+    expect(lines[0]).toContain('risk_statement');
+    expect(lines.length).toBe(3); // header + 2 rows
+  });
+
+  it('renders CSV key-value fallback when no rows', () => {
+    const tmpl = getTemplateById(catalog, 'daily-briefing')!;
+    const data = { completed_tasks: 'Task A', blockers: 'None' };
+    const rendered = renderArtifact(tmpl, data, 'csv');
+    const lines = rendered.content.trim().split('\n');
+    expect(lines[0]).toBe('field,value');
+    expect(lines.some(l => l.includes('completed_tasks'))).toBe(true);
+  });
+
+  it('CSV escapes fields with commas', () => {
+    const tmpl = getTemplateById(catalog, 'risk-register')!;
+    const data = {
+      rows: [{ risk_id: 'R-1', risk_statement: 'High, critical risk', category: 'technical', probability: 'medium', impact: 'high', owner: 'TL', status: 'open' }],
+    };
+    const rendered = renderArtifact(tmpl, data, 'csv');
+    expect(rendered.content).toContain('"High, critical risk"');
+  });
+});
+
+describe('Factory table validation', () => {
+  it('validates table data when validateTable option is set', async () => {
+    // This should succeed with valid risk-register data
+    const outputs = await generateArtifact('risk-register', {
+      rows: [
+        { risk_id: 'R-1', risk_statement: 'Test risk', category: 'technical', probability: 'medium', impact: 'high', owner: 'TL', status: 'open' },
+      ],
+    }, {
+      formats: ['csv'],
+      validateTable: true,
+    });
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0].format).toBe('csv');
+  });
+
+  it('throws when table validation fails', async () => {
+    await expect(
+      generateArtifact('risk-register', {
+        rows: [
+          { risk_id: 'R-1', risk_statement: 'Missing required fields' }, // missing category, probability, etc.
+        ],
+      }, {
+        formats: ['csv'],
+        validateTable: true,
+      })
+    ).rejects.toThrow('Table validation failed');
+  });
+
+  it('skips table validation when template has no table_schema', async () => {
+    // daily-briefing has no table_schema — validation is skipped
+    const outputs = await generateArtifact('daily-briefing', { completed_tasks: 'Done' }, {
+      formats: ['markdown'],
+      validateTable: true,
+    });
+    expect(outputs).toHaveLength(1);
+  });
+
+  it('skips table validation when validateTable is false', async () => {
+    // Even with invalid data, validation is skipped
+    const outputs = await generateArtifact('risk-register', { anything: true }, {
+      formats: ['json'],
+      validateTable: false,
+    });
+    expect(outputs).toHaveLength(1);
   });
 });

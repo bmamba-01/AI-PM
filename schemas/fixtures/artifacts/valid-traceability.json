@@ -1,0 +1,62 @@
+[
+  {
+    "requirement_id": "REQ-001",
+    "requirement_title": "User authentication via OAuth2",
+    "requirement_type": "functional",
+    "priority": "critical",
+    "source": "Client stakeholder meeting 2026-05-10",
+    "design_doc_id": "DES-001",
+    "test_case_id": "TC-001",
+    "code_module": "src/auth/oauth2.ts",
+    "test_status": "pass",
+    "coverage_notes": "Full coverage including error paths"
+  },
+  {
+    "requirement_id": "REQ-002",
+    "requirement_title": "API response time under 200ms at P95",
+    "requirement_type": "non_functional",
+    "priority": "high",
+    "source": "Architecture review board",
+    "design_doc_id": "DES-002",
+    "test_case_id": "TC-010",
+    "code_module": "src/api/middleware.ts",
+    "test_status": "pass",
+    "coverage_notes": "Load tested with 1000 concurrent users"
+  },
+  {
+    "requirement_id": "REQ-003",
+    "requirement_title": "GDPR data retention policy",
+    "requirement_type": "compliance",
+    "priority": "critical",
+    "source": "Legal department policy doc",
+    "design_doc_id": null,
+    "test_case_id": "TC-020",
+    "code_module": "src/data/retention.ts",
+    "test_status": "fail",
+    "coverage_notes": "Audit log cleanup not implemented"
+  },
+  {
+    "requirement_id": "REQ-004",
+    "requirement_title": "Dark mode support",
+    "requirement_type": "functional",
+    "priority": "low",
+    "source": "UX team request",
+    "design_doc_id": "DES-003",
+    "test_case_id": null,
+    "code_module": null,
+    "test_status": "not_tested",
+    "coverage_notes": "Design complete, implementation deferred to Q3"
+  },
+  {
+    "requirement_id": "REQ-005",
+    "requirement_title": "Mobile responsive dashboard",
+    "requirement_type": "functional",
+    "priority": "medium",
+    "source": "Product backlog grooming",
+    "design_doc_id": "DES-004",
+    "test_case_id": "TC-030",
+    "code_module": "src/components/Dashboard.tsx",
+    "test_status": "pass",
+    "coverage_notes": "Tested on iOS Safari, Chrome Android"
+  }
+]

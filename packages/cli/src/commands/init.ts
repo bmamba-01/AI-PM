@@ -103,13 +103,21 @@ ai-pm project scan
 `;
 }
 
-function profileYaml(name: string): string {
+function profileYaml(name: string, methodology?: string): string {
+  const methodLine = methodology ? `methodology: "${methodology}"` : 'methodology: null   # scrum | kanban | waterfall | hybrid';
   return `version: 1
 project:
   name: "${name}"
-  methodology: null   # scrum | kanban | waterfall | hybrid
+  ${methodLine}
   project_type: null  # tm | fixed_cost | maintenance | product
   tags: []
+source_systems:
+  jira: false
+  github: false
+  linear: false
+  confluence: false
+  notion: false
+  gmail: false
 connectors:
   github:
     enabled: false
@@ -182,7 +190,11 @@ function approvalsJson(): string {
 
 // ─── Main init function ───────────────────────────────────────────────────────
 
-export function runInit(projectName: string) {
+export interface InitOptions {
+  methodology?: string;
+}
+
+export function runInit(projectName: string, options?: InitOptions) {
   const lang = getLang();
   const t = msgs[lang];
   const root = process.cwd();
@@ -210,6 +222,12 @@ export function runInit(projectName: string) {
     'meetings',
     'templates',
     'notes',
+    'workflows',
+    'playbooks',
+    'docs/superpowers/specs',
+    'docs/superpowers/plans',
+    'docs/operating-model',
+    'mcp',
   ];
   for (const d of dirs) {
     fs.mkdirSync(path.join(target, d), { recursive: true });
@@ -219,10 +237,18 @@ export function runInit(projectName: string) {
 
   fs.writeFileSync(path.join(target, '.ai-pm/memory/state.json'), memoryStateJson(projectName));
   fs.writeFileSync(path.join(target, '.ai-pm/approvals.json'), approvalsJson());
+  fs.writeFileSync(path.join(target, '.ai-pm/audit/workflow-runs.jsonl'), '');
+
+  // ── Seed MCP registry (empty, ready for configuration) ──
+
+  fs.writeFileSync(
+    path.join(target, 'mcp', 'registry.yaml'),
+    `# MCP Server Registry\n# Add MCP servers here or use 'ai-pm mcp add' to configure.\nservers: []\n`
+  );
 
   // ── Project profile ──
 
-  fs.writeFileSync(path.join(target, '.ai-pm/profile.yaml'), profileYaml(projectName));
+  fs.writeFileSync(path.join(target, '.ai-pm/profile.yaml'), profileYaml(projectName, options?.methodology));
 
   // ── Agent entrypoints ──
 
@@ -259,7 +285,10 @@ export function runInit(projectName: string) {
   // ── Summary ──
 
   console.log(`  ✓ .ai-pm/ (runtime dirs + seeds)`);
-  console.log(`  ✓ .ai-pm/profile.yaml`);
+  console.log(`  ✓ .ai-pm/profile.yaml${options?.methodology ? ` (methodology: ${options.methodology})` : ''}`);
+  console.log(`  ✓ .ai-pm/audit/workflow-runs.jsonl (empty)`);
+  console.log(`  ✓ .ai-pm/memory/state.json`);
+  console.log(`  ✓ .ai-pm/approvals.json (empty)`);
   console.log(`  ✓ AGENTS.md, CODEX.md, CLAUDE.md`);
   console.log(`  ✓ .gitignore`);
   console.log(`  ✓ .claude/.mcp.json (codebase-memory-mcp)`);
@@ -271,4 +300,5 @@ export function runInit(projectName: string) {
   for (const cmd of t.nextCommands) {
     console.log(`  ${cmd}`);
   }
+  console.log(`  ai-pm project scan --json   # verify >80% readiness`);
 }

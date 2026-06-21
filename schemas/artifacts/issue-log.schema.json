@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Issue Log",
+  "description": "CSV-compatible issue log tracking defects, incidents, and blockers with status and priority",
+  "type": "object",
+  "properties": {
+    "columns": { "type": "array" },
+    "required_columns": { "type": "array" }
+  },
+  "required": ["columns", "required_columns"],
+  "columns": [
+    { "name": "issue_id", "type": "string", "description": "Unique issue identifier (e.g., ISS-001)", "required": true },
+    { "name": "title", "type": "string", "description": "Brief issue title", "required": true },
+    { "name": "description", "type": "string", "description": "Detailed description" },
+    { "name": "type", "type": "enum", "description": "Issue type", "enum_values": ["defect", "incident", "blocker", "enhancement", "task", "question"], "required": true },
+    { "name": "priority", "type": "enum", "description": "Issue priority", "enum_values": ["critical", "high", "medium", "low"], "required": true },
+    { "name": "severity", "type": "enum", "description": "Impact severity", "enum_values": ["blocker", "critical", "major", "minor", "trivial"] },
+    { "name": "status", "type": "enum", "description": "Current status", "enum_values": ["open", "in_progress", "resolved", "closed", "deferred", "duplicate"], "required": true },
+    { "name": "assignee", "type": "string", "description": "Person responsible" },
+    { "name": "reporter", "type": "string", "description": "Person who reported" },
+    { "name": "reported_date", "type": "date", "description": "Date reported" },
+    { "name": "resolved_date", "type": "date", "description": "Date resolved" },
+    { "name": "linked_pr", "type": "string", "description": "Related pull request" },
+    { "name": "linked_requirement", "type": "string", "description": "Related requirement ID" },
+    { "name": "environment", "type": "string", "description": "Where the issue was found" },
+    { "name": "fix_version", "type": "string", "description": "Target version for fix" }
+  ],
+  "required_columns": ["issue_id", "title", "type", "priority", "status"]
+}

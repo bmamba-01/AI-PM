@@ -13,9 +13,10 @@ import ora from 'ora';
 import { randomUUID } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { generateDailyBriefing, generateWeeklyReport, generateRiskControlSummary, validateWorkflowOutput } from '@ai-pm/core/workflows';
+import { dispatchWorkflow as coreDispatch, isValidWorkflow, SUPPORTED_WORKFLOWS } from '@ai-pm/core/orchestrator';
 import { createOrchestratorRun, advanceToNext, failRun, toAuditRecord, finalizeOrchestratorRun, type OrchestratorRun } from '@ai-pm/core/orchestrator';
-import { LocalProjectStore, MemoryStore, ApprovalQueue } from '@ai-pm/core/runtime';
+import { validateWorkflowOutput } from '@ai-pm/core/workflows';
+import { MemoryStore } from '@ai-pm/core/runtime';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ interface OrchestratorRunResult {
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
-const WORKFLOW_IDS = ['daily-briefing', 'weekly-report', 'risk-control'] as const;
+const WORKFLOW_IDS = SUPPORTED_WORKFLOWS;
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────
 
@@ -67,41 +68,14 @@ async function saveRuns(projectRoot: string, runs: RunRecord[]): Promise<void> {
   await writeFile(getRunsPath(projectRoot), JSON.stringify(runs, null, 2), 'utf-8');
 }
 
-// ─── Workflow dispatcher ─────────────────────────────────────────────────────
-// NOTE: This is the narrow adapter. Replace with core orchestrator when Agent 1 merges.
+// ─── Workflow dispatcher (delegates to core orchestrator) ─────────────────────
 
 function dispatchWorkflow(workflowId: string, projectRoot: string): unknown {
-  switch (workflowId) {
-    case 'daily-briefing': {
-      return generateDailyBriefing({
-        projectId: path.basename(projectRoot),
-        date: new Date().toISOString(),
-        items: [],
-        assumptions: ['Orchestrator adapter: empty item set'],
-      });
-    }
-    case 'weekly-report': {
-      const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return generateWeeklyReport({
-        projectId: path.basename(projectRoot),
-        reportingPeriodStart: weekAgo.toISOString().slice(0, 10),
-        reportingPeriodEnd: now.toISOString().slice(0, 10),
-        reportDate: now.toISOString(),
-        items: [],
-        assumptions: ['Orchestrator adapter: empty item set'],
-      });
-    }
-    case 'risk-control': {
-      return generateRiskControlSummary({
-        projectId: path.basename(projectRoot),
-        risks: [],
-        assumptions: ['Orchestrator adapter: empty risk set'],
-      });
-    }
-    default:
-      throw new Error(`Unknown workflow: ${workflowId}`);
-  }
+  return coreDispatch({
+    workflow_id: workflowId,
+    project_id: path.basename(projectRoot),
+    project_root: projectRoot,
+  }).output;
 }
 
 // ─── Run command ─────────────────────────────────────────────────────────────
@@ -278,13 +252,13 @@ async function listRuns(projectRoot: string): Promise<RunRecord[]> {
   return legacyRuns;
 }
 
-// ─── Agent registry (delegates to core) ─────────────────────────────────────
+// ─── Agent capability registry (delegates to core) ───────────────────────────
 
-import { getAllAgents, getAgentRegistrySummary, routeWorkflow } from '@ai-pm/core/orchestrator';
+import { getAllCapabilities, getCapabilityRegistrySummary, routeCapability } from '@ai-pm/core/orchestrator';
 
 function getAgentStatus(): Record<string, unknown> {
-  const summary = getAgentRegistrySummary();
-  const agents = getAllAgents().map(a => ({
+  const summary = getCapabilityRegistrySummary();
+  const agents = getAllCapabilities().map(a => ({
     id: a.id,
     role: a.role,
     displayName: a.displayName,
@@ -292,9 +266,10 @@ function getAgentStatus(): Record<string, unknown> {
     supportedWorkflows: a.supportedWorkflows,
     requiredInputs: a.requiredInputs,
     producedOutputs: a.producedOutputs,
+    outputFormats: a.outputFormats,
     approvalBoundary: a.approvalBoundary,
-    requiredConnectors: a.requiredConnectors,
-    optionalConnectors: a.optionalConnectors,
+    requiredMcpCapabilities: a.requiredMcpCapabilities,
+    optionalMcpCapabilities: a.optionalMcpCapabilities,
   }));
 
   return {
@@ -438,7 +413,7 @@ agentCommand
       .requiredOption('--workflow <id>', 'Workflow ID')
       .option('--json', 'Output as JSON')
       .action((opts) => {
-        const result = routeWorkflow(opts.workflow);
+        const result = routeCapability(opts.workflow);
         if (!result) {
           console.error(chalk.red(`No agent found for workflow: ${opts.workflow}`));
           process.exitCode = 1;
@@ -448,12 +423,12 @@ agentCommand
           console.log(JSON.stringify(result, null, 2));
         } else {
           console.log(chalk.blue(`\nWorkflow: ${result.workflowId}\n`));
-          console.log(`  Primary agent:   ${result.assignedAgent.displayName} (${result.assignedAgent.id})`);
-          console.log(`  Role:            ${result.assignedAgent.role}`);
+          console.log(`  Primary agent:   ${result.primaryAgent.displayName} (${result.primaryAgent.id})`);
+          console.log(`  Role:            ${result.primaryAgent.role}`);
           console.log(`  Approval needed: ${result.approvalRequired ? chalk.yellow('Yes') : chalk.green('No')}`);
-          if (result.requiredAgents.length > 0) {
+          if (result.supportingAgents.length > 0) {
             console.log(`  Supporting agents:`);
-            result.requiredAgents.forEach(a => {
+            result.supportingAgents.forEach(a => {
               console.log(`    - ${a.displayName} (${a.role})`);
             });
           }
