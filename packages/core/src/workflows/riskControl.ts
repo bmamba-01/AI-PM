@@ -18,6 +18,9 @@ export interface RiskInput {
   mitigation?: string;
   status?: RiskStatus;
   dueDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  closedAt?: string | null;
 }
 
 export interface Risk extends RiskInput {
@@ -166,6 +169,9 @@ export async function addProjectRisk(options: {
     path: `risk/${id}.json`,
     type: 'risk',
     status: 'active',
+    archived_at: null,
+    archive_reason: null,
+    task_id: null,
     meta: {
       title: input.title,
       description: input.description ?? '',
@@ -272,6 +278,9 @@ export async function closeProjectRisk(options: {
     path: artifact.path,
     type: artifact.type,
     status: 'archived',
+    archived_at: now,
+    archive_reason: evidence ?? 'Closed by PM',
+    task_id: artifact.task_id,
     meta: (updatedArtifact as any).meta,
   });
 

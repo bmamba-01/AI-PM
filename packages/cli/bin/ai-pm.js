@@ -9,6 +9,10 @@ import { projectCommand } from '../dist/commands/project.js';
 import { approvalCommand } from '../dist/commands/approval.js';
 import { memoryCommand } from '../dist/commands/memory.js';
 import { schemaCommand } from '../dist/commands/schema.js';
+import { orchestratorCommand, agentCommand } from '../dist/commands/orchestrator.js';
+import { riskCommand } from '../dist/commands/risk.js';
+import { traceabilityCommand } from '../dist/commands/traceability.js';
+import { codeQualityCommand } from '../dist/commands/code-quality.js';
 import { Command } from 'commander';
 import chalk from 'chalk';
 
@@ -34,6 +38,11 @@ program.addCommand(projectCommand);
 program.addCommand(approvalCommand);
 program.addCommand(memoryCommand);
 program.addCommand(schemaCommand);
+program.addCommand(orchestratorCommand);
+program.addCommand(agentCommand);
+program.addCommand(riskCommand);
+program.addCommand(traceabilityCommand);
+program.addCommand(codeQualityCommand);
 
 program.on('command', () => {});
 
@@ -52,5 +61,10 @@ if (!process.argv.slice(2).length) {
   console.log(chalk.gray('  project scan             Scan project for readiness'));
   console.log(chalk.gray('  approval <subcommand>    Manage approval queue'));
   console.log(chalk.gray('  memory <subcommand>      Manage project runtime memory'));
+  console.log(chalk.gray('  approval <subcommand>    Manage approval queue'));
+  console.log(chalk.gray('  memory <subcommand>      Manage project runtime memory'));
   console.log(chalk.gray('  schema <subcommand>      Validate workflow outputs against JSON schemas'));
+  console.log(chalk.gray('  risk <subcommand>        Manage project risk register'));
+  console.log(chalk.gray('  traceability build       Build scope traceability matrix'));
+  console.log(chalk.gray('  code-quality review      Review local diff against requirements'));
 }

@@ -2,10 +2,11 @@ import { describe, expect, it, beforeAll, afterEach, afterAll } from 'vitest';
 import path from 'node:path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { exec } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const cliPath = path.resolve(__dirname, '../../bin/ai-pm.js');
 
 describe('schema CLI', () => {
@@ -123,6 +124,81 @@ it('handles unknown workflow ID', async () => {
     });
   });
 
+  describe('schema validate --json-string', () => {
+    it('validates a valid JSON string', async () => {
+      const validData = JSON.stringify({
+        date: '2026-06-20T00:00:00Z',
+        project_id: 'test',
+        top_priorities: ['Fix bug'],
+        meetings_to_prepare: [],
+        urgent_blockers: [],
+        risks_to_review: [],
+        pending_approvals: [],
+        suggested_followups: [],
+        source_coverage: ['jira'],
+        assumptions: ['Assumed Jira is available'],
+        confidence: 80,
+      });
+
+      const { stdout } = await execFileAsync('node', [
+        cliPath,
+        'schema',
+        'validate',
+        '--workflow',
+        'daily-briefing',
+        '--json-string',
+        validData,
+      ], { cwd: tempDir });
+      expect(stdout).toContain('Validation passed');
+    });
+
+    it('rejects an invalid JSON string', async () => {
+      const invalidData = JSON.stringify({ date: '2026-06-20T00:00:00Z' });
+
+      const result = await execFileAsync('node', [
+        cliPath,
+        'schema',
+        'validate',
+        '--workflow',
+        'daily-briefing',
+        '--json-string',
+        invalidData,
+      ], { cwd: tempDir }).catch((e: any) => e);
+
+      expect(result.stdout).toContain('Validation failed');
+      expect(result.code).toBe(1);
+    });
+
+    it('outputs valid JSON with --json flag', async () => {
+      const validData = JSON.stringify({
+        date: '2026-06-20T00:00:00Z',
+        project_id: 'test',
+        top_priorities: ['Fix bug'],
+        meetings_to_prepare: [],
+        urgent_blockers: [],
+        risks_to_review: [],
+        pending_approvals: [],
+        suggested_followups: [],
+        source_coverage: ['jira'],
+        assumptions: ['Assumed Jira is available'],
+        confidence: 80,
+      });
+
+      const { stdout } = await execFileAsync('node', [
+        cliPath,
+        'schema',
+        'validate',
+        '--workflow',
+        'daily-briefing',
+        '--json-string',
+        validData,
+        '--json',
+      ], { cwd: tempDir });
+      const parsed = JSON.parse(stdout);
+      expect(parsed.valid).toBe(true);
+    });
+  });
+
   describe('schema validate --help', () => {
     it('shows help with --help flag', async () => {
       const { stdout } = await execAsync(`node ${cliPath} schema validate --help`);
@@ -148,6 +224,28 @@ it('handles unknown workflow ID', async () => {
         { cwd: tempDir }
       ).catch((e: any) => e);
 
+      expect(result.code).toBe(1);
+    });
+  });
+
+  describe('schema inspect', () => {
+    it('shows schema structure for daily-briefing', async () => {
+      const { stdout } = await execAsync(`node ${cliPath} schema inspect daily-briefing`);
+      expect(stdout).toContain('Schema: daily-briefing');
+      expect(stdout).toContain('Required fields');
+      expect(stdout).toContain('Field');
+    });
+
+    it('outputs valid JSON with --json flag', async () => {
+      const { stdout } = await execAsync(`node ${cliPath} schema inspect daily-briefing --json`);
+      const parsed = JSON.parse(stdout);
+      expect(parsed.workflowId).toBe('daily-briefing');
+      expect(parsed.schema).toBeDefined();
+    });
+
+    it('handles unknown workflow ID', async () => {
+      const result = await execAsync(`node ${cliPath} schema inspect nonexistent-workflow`).catch((e: any) => e);
+      expect(result.stderr).toContain('Schema not found');
       expect(result.code).toBe(1);
     });
   });

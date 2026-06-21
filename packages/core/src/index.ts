@@ -7,4 +7,6 @@ export * from './security/index.js';
 export * from './skills/index.js';
 export * from './llm/index.js';
 export * from './workflows/index.js';
+export * from './artifacts/index.js';
 export { syncEngine } from './sync/index.js';
+export * from './orchestrator/index.js';

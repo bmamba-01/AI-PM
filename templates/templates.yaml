@@ -177,3 +177,80 @@ templates:
       Author completes checks before review. Reviewer verifies evidence.
       PM/Tech Lead approve for breaking changes. CI gates must pass.
     source_workflow: workflows/code-quality-guard/
+
+  - id: traceability-matrix
+    path: requirements/traceability-matrix.md
+    category: requirements
+    name: Traceability Matrix
+    description: Bidirectional mapping linking requirements to test cases and deliverables
+    workflow: scope-control
+    approval_required: false
+    output_format: markdown
+    owner_role: ba
+    required_inputs:
+      - requirements_list
+      - test_cases
+      - design_documents
+      - code_modules
+    approval_gate: >
+      BA maintains the matrix. QA Lead validates test coverage.
+      PM reviews before sprint demos.
+    source_workflow: workflows/scope-control/
+
+  - id: uat-report
+    path: qa/uat-report.md
+    category: qa
+    name: UAT Report
+    description: User acceptance testing results, pass/fail status, and go-live recommendation
+    workflow: code-quality-guard
+    approval_required: true
+    output_format: markdown
+    owner_role: qa
+    required_inputs:
+      - test_scenarios
+      - pass_fail_results
+      - defects_found
+      - stakeholder_signoff
+    approval_gate: >
+      QA Lead compiles results. Business owner signs off.
+      PM approves go-live recommendation. Sponsor for critical projects.
+    source_workflow: workflows/code-quality-guard/
+
+  - id: user-guide
+    path: documentation/user-guide.md
+    category: documentation
+    name: User Guide
+    description: End-user documentation for feature usage, workflows, and troubleshooting
+    workflow: code-quality-guard
+    approval_required: true
+    output_format: markdown
+    owner_role: ba
+    required_inputs:
+      - feature_description
+      - user_workflows
+      - screenshots
+      - faq_items
+    approval_gate: >
+      BA authors content. QA verifies accuracy against implementation.
+      PM approves for publication. Tech Lead validates technical details.
+    source_workflow: workflows/code-quality-guard/
+
+  - id: devops-readiness
+    path: devops/readiness-checklist.md
+    category: devops
+    name: DevOps Readiness Checklist
+    description: Pre-deployment verification covering CI/CD, monitoring, rollback, and security
+    workflow: code-quality-guard
+    approval_required: true
+    output_format: markdown
+    owner_role: tech_lead
+    required_inputs:
+      - ci_cd_pipeline
+      - monitoring_setup
+      - rollback_plan
+      - security_scan_results
+      - infrastructure_status
+    approval_gate: >
+      Tech Lead verifies all checklist items. Security review required.
+      PM approves deployment window. Sponsor for production releases.
+    source_workflow: workflows/code-quality-guard/

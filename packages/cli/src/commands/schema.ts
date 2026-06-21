@@ -117,9 +117,10 @@ schemaCommand
   )
   .addCommand(
     new Command('validate')
-      .description('Validate a JSON file against a workflow schema')
+      .description('Validate a JSON file or string against a workflow schema')
       .requiredOption('--workflow <workflow-id>', 'Workflow ID to validate against')
-      .requiredOption('--input <file>', 'Input JSON file to validate')
+      .option('--input <file>', 'Input JSON file (use "-" for stdin)')
+      .option('--json-string <json>', 'JSON string to validate directly')
       .option('--json', 'Output as JSON')
       .action(async (opts) => {
         const lang = getLang();
@@ -135,11 +136,14 @@ schemaCommand
             process.exit(1);
           }
 
-          // Load input file
+          // Load input from file, stdin, or json-string
           let inputData: unknown;
           try {
             let raw: string;
-            if (opts.input === '-') {
+            if (opts.jsonString) {
+              // Direct JSON string
+              raw = opts.jsonString;
+            } else if (opts.input === '-') {
               // Read from stdin
               raw = await new Promise<string>((resolve, reject) => {
                 let data = '';
@@ -148,13 +152,17 @@ schemaCommand
                 process.stdin.on('end', () => resolve(data));
                 process.stdin.on('error', reject);
               });
-            } else {
+            } else if (opts.input) {
               raw = await readFile(opts.input, 'utf-8');
+            } else {
+              spinner.fail();
+              console.error(chalk.red('Error: --input or --json-string is required'));
+              process.exit(1);
             }
             inputData = JSON.parse(raw);
           } catch (err) {
             spinner.fail();
-            console.error(chalk.red(`${msgsLang.fileNotFound} ${opts.input}`));
+            console.error(chalk.red(`${msgsLang.fileNotFound} ${opts.input || 'json-string'}`));
             process.exit(1);
           }
 
@@ -176,6 +184,62 @@ schemaCommand
             }
           }
           process.exit(result.valid ? 0 : 1);
+        } catch (error) {
+          spinner.fail();
+          console.error(error);
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('inspect')
+      .description('Show schema structure (required fields, enums, types)')
+      .argument('<workflow-id>', 'Workflow ID to inspect')
+      .option('--json', 'Output as JSON')
+      .action(async (workflowId: string, opts) => {
+        const lang = getLang();
+        const msgsLang = msgs[lang];
+        const spinner = ora(msgsLang.loading).start();
+
+        try {
+          const schema = await loadWorkflowSchema(workflowId);
+          if (!schema) {
+            spinner.fail();
+            console.error(chalk.red(`${msgsLang.schemaNotFound} ${workflowId}`));
+            process.exit(1);
+          }
+          spinner.succeed();
+
+          const properties = (schema as Record<string, unknown>).properties as Record<string, Record<string, unknown>> | undefined;
+          const required = (schema as Record<string, unknown>).required as string[] | undefined;
+
+          if (opts.json) {
+            console.log(JSON.stringify({ workflowId, schema }, null, 2));
+            return;
+          }
+
+          console.log(chalk.blue(`\nSchema: ${workflowId}\n`));
+          console.log(chalk.gray(`Description: ${(schema as Record<string, unknown>).description || 'N/A'}`));
+          console.log(chalk.gray(`Required fields: ${required?.join(', ') || 'None'}\n`));
+
+          if (properties) {
+            const rows: (string | undefined)[][] = [
+              [chalk.bold('Field'), chalk.bold('Type'), chalk.bold('Format'), chalk.bold('Enum')],
+            ];
+            for (const [field, spec] of Object.entries(properties)) {
+              const type = (spec as Record<string, unknown>).type as string || '';
+              const format = (spec as Record<string, unknown>).format as string || '';
+              const enumVals = (spec as Record<string, unknown>).enum as string[] | undefined;
+              const isRequired = required?.includes(field);
+              rows.push([
+                isRequired ? chalk.yellow(field + ' *') : field,
+                type,
+                format,
+                enumVals ? enumVals.join(', ') : '',
+              ]);
+            }
+            console.log(table(rows));
+          }
         } catch (error) {
           spinner.fail();
           console.error(error);

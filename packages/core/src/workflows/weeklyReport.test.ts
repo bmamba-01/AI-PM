@@ -52,7 +52,7 @@ describe('generateWeeklyReportForProject', () => {
   it('returns a report from local store sources', async () => {
     const fakeStore = {
       appendWorkflowAudit: async () => '',
-    } as import('../runtime/localProjectStore.js').LocalProjectStore;
+    } as unknown as import('../runtime/localProjectStore.js').LocalProjectStore;
 
     const fakeQueue = {
       createItem: async () => ({ approval_id: 'approval-1' } as any),

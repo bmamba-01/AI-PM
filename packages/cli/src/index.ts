@@ -8,4 +8,7 @@ export { projectCommand } from './commands/project.js';
 export { approvalCommand } from './commands/approval.js';
 export { memoryCommand } from './commands/memory.js';
 export { schemaCommand } from './commands/schema.js';
+export { orchestratorCommand, agentCommand } from './commands/orchestrator.js';
 export { riskCommand } from './commands/risk.js';
+export { traceabilityCommand } from './commands/traceability.js';
+export { codeQualityCommand } from './commands/code-quality.js';

@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { ApprovalQueue, MemoryStore } from "@ai-pm/core/runtime";
 import { approvalRoutes } from "./routes/approvals.js";
 import { memoryRoutes } from "./routes/memory.js";
+import { chatGatewayRoutes } from "./routes/chatGateway.js";
 import { json, err } from "./helpers.js";
 
 const PORT = Number(process.env.PORT ?? 3847);
@@ -45,6 +46,7 @@ interface Route {
 const ALL_ROUTES: Route[] = [
   ...approvalRoutes.map((r) => ({ ...r, service: queue })),
   ...memoryRoutes.map((r) => ({ ...r, service: memory })),
+  ...chatGatewayRoutes.map((r) => ({ ...r, service: { queue, memory } })),
 ];
 
 function matchRoute(

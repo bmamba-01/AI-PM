@@ -262,7 +262,7 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
-- Active Wave 6 prompt set: `docs/agent-delegation/2026-06-20-wave6-assignment.md`
+- Active Wave 9 prompt set: `docs/agent-delegation/2026-06-21-wave9-assignment.md`
 - Runtime implementation plan: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`
 - Historical prompt sets are reference only unless a newer active plan explicitly names them.
 
@@ -271,12 +271,10 @@ Current prompt set:
 Before claiming a phase complete, run:
 
 ```bash
-pnpm --filter @ai-pm/core test
-pnpm --filter @ai-pm/mcp test
-pnpm --filter @ai-pm/cli build
-pnpm test
-pnpm build
-rg -n "UNRESOLVED_" AGENTS.md README.md docs playbooks workflows mcp templates packages --glob "!docs/superpowers/plans/*.md"
+corepack pnpm@9.4.0 -r run test
+corepack pnpm@9.4.0 -r run build
+node schemas/validate-fixtures.mjs
+rg -n "UNRESOLVED_|TODO_AGENT|PLACEHOLDER" AGENTS.md README.md docs playbooks workflows mcp templates packages --glob "!docs/superpowers/plans/*.md" --glob "!**/dist/**"
 ```
 
 Warnings from Vite about Electron `fs` and `path` browser externalization are known build warnings, not current blockers, but should be tracked before desktop runtime hardening.

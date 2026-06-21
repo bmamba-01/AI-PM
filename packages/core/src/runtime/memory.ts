@@ -27,6 +27,7 @@ export interface MemoryArtifact {
   path: string;
   type: string;
   status: ArtifactStatus;
+  meta?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
