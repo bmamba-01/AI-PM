@@ -39,6 +39,7 @@ approval count                               PASS (1 pending approval)
 New finding:
 
 - The generated weekly report approval item is still scoped to `project_id: local-project` instead of `ai-pm-tm-test`. This violates the project-scoped non-negotiable and is Wave 17 priority 1.
+- Delegated tasks are not yet tracker-scoped. The PM Commander can still create prompt files without first creating or binding a task in the project-selected tracking tool. This violates the desired Notion/Jira/Linear/Excel operating loop and is now tracked by `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`.
 
 Verified on 2026-06-21 from `C:\Works\AI-PM` after completed agent wave review and toolkit self-use hardening:
 
@@ -201,6 +202,21 @@ MCP registry/profiles/contracts and context snapshots exist, but approved extern
 - Discord/Hermes is the configured communication channel, but the runtime adapter must remain read-only until identity, approval callback, and audit are verified.
 - MCP doctor reports degraded health until connector credentials and live profiles are configured.
 
+### Gap 7: Tracker-Scoped Delegation Skills Are Missing
+
+The project profile can identify a tracking system, but the orchestrator and agents do not yet have enforced built-in skills for:
+
+- resolving the project tracker
+- creating or binding the external task before delegation
+- injecting external task id/url into the subagent contract
+- requiring the agent to update the tracker on completion
+- verifying tracker completion before accepting agent output
+- syncing local memory with the external tracker
+
+Implementation plan:
+
+- `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
+
 ## Next Work Sequence
 
 Use the remaining master plan assignment set, adjusted by verified state:
@@ -218,6 +234,7 @@ Use the remaining master plan assignment set, adjusted by verified state:
 
 Use these files for the next wave:
 
+- `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
 - `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`
 - `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`

@@ -51,6 +51,7 @@ The runtime can reuse Hermes Agent or OpenClaw-style assistants for chat, voice,
 ## 4. Core Non-Negotiables
 
 - Everything is project-scoped. A command must resolve `project_id`, methodology, project type, sources, and allowed connectors before acting.
+- Delegated work must be tracker-scoped. The PM Commander must resolve the project tracking tool, create or bind a task in that tool, pass the external task id/url to the agent, and verify tracker completion before accepting the agent output.
 - Local-first must work offline for docs, templates, local memory, audit logs, and draft artifacts.
 - External mutations are approval-gated by default: email, chat, Jira, Linear, GitHub, Confluence, Notion, Drive, calendar, PR comments, issue updates, scope baseline changes, cost changes, and report publication.
 - Agents may draft and propose. The orchestrator must validate and route. The PM owns final approval.
@@ -173,8 +174,10 @@ intake
 → project resolution
 → context pack
 → workflow selection
+→ tracker task create/bind
 → agent assignment
 → agent execution
+→ tracker completion update
 → output validation
 → reviewer/gate check
 → artifact persistence
@@ -189,10 +192,12 @@ For example, weekly report generation:
 PM chat command
 → resolve project
 → gather Jira/Linear/GitHub/Gmail/Calendar/risk/budget context
+→ create/bind tracker task in the project-selected tool
 → assign Reporting Agent
 → assign Risk Agent and Code Quality Guard as supporting reviewers
 → validate report against weekly-report template
 → create Google Sheet/Drive or local artifact draft
+→ update tracker item with report artifact and completion summary
 → queue publication approval
 → after approval, sync/publish
 → report completion to PM via chat and desktop
@@ -245,6 +250,28 @@ Current self-test acceptance gates:
 - Notion tracking artifacts exist under `integrations/notion/` for import or dry-run sync.
 - Discord/Hermes behavior remains read-only until identity, callback approval, and audit are implemented.
 
+## 8C. Tracker-Scoped Agent Delegation
+
+The orchestrator must not hand an agent a free-floating prompt. Every delegated task follows the tracking tool selected by the active project profile:
+
+```text
+resolve project profile
+→ resolve tracking.system
+→ create or bind task in Notion/Jira/Linear/GitHub/Excel/local memory
+→ mirror task in `.ai-pm/memory`
+→ generate agent prompt with tracking id, URL, done status, and required completion skill
+→ agent works
+→ agent updates tracker through the required skill
+→ agent returns output with `tracking_update`
+→ orchestrator verifies external tracker and evidence
+```
+
+For the self-test project, `tracking.system: notion`. Until live Notion MCP/API access is configured, the Notion skill must operate in dry-run/local-import mode and update the local Notion import artifact without pretending that live Notion was changed.
+
+Implementation plan:
+
+- `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
+
 ## 9. Revised Roadmap
 
 ### Phase 1: Stabilize and Re-anchor
@@ -268,6 +295,7 @@ Current self-test acceptance gates:
 - Define agent capability registry.
 - Define orchestrated task state machine.
 - Extend subagent protocol with artifact handoff and validation gates.
+- Extend subagent protocol with tracker task id/url, tracking tool, and completion update requirements.
 - Add CLI design for `ai-pm orchestrator run`, `ai-pm project use`, and `ai-pm agent status`.
 
 ### Phase 3: Template and Artifact Factory
@@ -280,6 +308,7 @@ Current self-test acceptance gates:
 ### Phase 4: MCP Gateway and Setup Wizard
 
 - Support project-scoped connector profiles.
+- Support project-scoped tracker adapter profiles for Notion, Jira, Linear, GitHub Issues, Excel, and local memory.
 - Implement `ai-pm mcp validate`, `ai-pm mcp list`, `ai-pm mcp doctor`, and setup checks.
 - Prefer external MCP server configuration over custom wrappers.
 - Record read/write capability, approval rules, health, and degraded workflow behavior.
@@ -317,6 +346,7 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
+- Tracking skills implementation plan: `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
 - Wave 17 verified self-test continuation: `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - AI-PM self-test stabilization wave: `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`
 - Remaining master plan assignment set: `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
