@@ -1,7 +1,7 @@
 # PM Orchestrator Master Plan
 
 > **Status:** Current implementation plan  
-> **Updated:** 2026-06-21  
+> **Updated:** 2026-06-22  
 > **Owner:** Human PM  
 > **Purpose:** Refocus AI-PM Toolkit on a personal PM command system for managing one or two large, complex software projects with AI-agent automation across laptop, CLI, desktop, and mobile/chat surfaces.
 
@@ -317,6 +317,7 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
+- Wave 17 verified self-test continuation: `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - AI-PM self-test stabilization wave: `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`
 - Remaining master plan assignment set: `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
 - Runtime implementation plan: `docs/superpowers/plans/2026-06-19-next-runtime-functions.md`

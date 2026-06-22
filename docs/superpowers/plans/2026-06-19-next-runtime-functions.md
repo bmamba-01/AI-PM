@@ -10,6 +10,36 @@
 
 ## Current Verification State
 
+Verified on 2026-06-22 from `C:\Works\AI-PM` after reviewing the completed self-test agent wave:
+
+```text
+corepack pnpm@9.4.0 -r run build             PASS
+corepack pnpm@9.4.0 -r run test              PASS
+packages/core test                           PASS (35 files, 429 tests)
+packages/mcp test                            PASS (2 files, 36 tests)
+packages/server test                         PASS (6 files, 157 tests)
+packages/cli test                            PASS (12 files, 215 tests)
+packages/desktop test                        PASS (2 files, 9 tests)
+packages/mobile test                         PASS (1 file, 10 tests)
+node schemas/validate-fixtures.mjs           PASS (32/32)
+standard unresolved-marker scan              PASS (no matches)
+```
+
+Self-test project verification on 2026-06-22 from `examples/ai-pm-tm-test-project`:
+
+```text
+setup doctor                                 PASS (score 100, 0 blocking)
+project scan                                 PASS (score 100, ready true)
+memory summary                               PASS (5 tasks, 1 completed, 3 artifacts)
+daily --json                                 PASS (project_id ai-pm-tm-test, Scrum, T&M)
+mcp doctor --json                            PASS as parseable JSON; health degraded until live connectors are configured
+approval count                               PASS (1 pending approval)
+```
+
+New finding:
+
+- The generated weekly report approval item is still scoped to `project_id: local-project` instead of `ai-pm-tm-test`. This violates the project-scoped non-negotiable and is Wave 17 priority 1.
+
 Verified on 2026-06-21 from `C:\Works\AI-PM` after completed agent wave review and toolkit self-use hardening:
 
 ```text
@@ -100,7 +130,8 @@ Notes:
 | Wave 13 | Meeting/DevOps workflows | Complete | — |
 | Wave 14 | Auth + security | Complete | — |
 | Wave 15 | Connector fixtures | Complete | Live sync not implemented |
-| Wave 16 | Final acceptance | Complete | Build blocked by pre-existing `adopt.ts` regression |
+| Wave 16 | Final acceptance | Complete | Needs 2026-06-22 status refresh |
+| Wave 17 | Self-test continuation | Active | Weekly approval project scope, live connectors, Electron smoke, release packaging |
 
 ## Review Findings From Wave 7
 
@@ -130,22 +161,21 @@ Notes:
 
 ## Current Gaps
 
-### Gap 0: Setup Gateway Needs Manual Smoke And Adopt Write Consolidation
+### Gap 0: Setup Gateway Needs Manual Smoke
 
-The setup gateway is implemented enough to build and the CLI can self-adopt this repository to readiness 100. Remaining setup hardening is narrower:
+The setup gateway builds and desktop unit tests pass. Remaining setup hardening is narrower:
 
 - Run real Electron click-through smoke for New Project, Adopt Existing Project, and Demo Project.
-- Consolidate `adopt --defaults` so it can optionally write missing files directly or clearly delegate to `setup repair`.
-- Add tests that assert JSON commands do not emit spinner/status text on stdout.
 - Add mobile setup status device/simulator smoke.
+- Keep the automated desktop test aligned with actual setup copy.
 
 Detailed plan:
 
 - `docs/superpowers/plans/2026-06-21-setup-onboarding-gateway.md`
 
-### Gap 1: Orchestrator Loop Still Needs Full Workflow Dispatch
+### Gap 1: Weekly And Orchestrator Outputs Need Strict Project Scope
 
-The repo now has a state machine, execution records, audit records, context snapshots, and CLI commands. The CLI workflow adapter still uses narrow placeholder dispatch for daily/weekly/risk and must be replaced by full core orchestrated workflow dispatch.
+The repo now has a state machine, execution records, audit records, context snapshots, and CLI commands. Daily briefing is profile-aware, but the weekly report approval item observed in the self-test project still uses `local-project`. Weekly reports, approval items, audit records, memory artifacts, and orchestrator records must all resolve the active project profile.
 
 ### Gap 2: Chat/Mobile Gateway Needs Identity And Real Adapter
 
@@ -188,6 +218,7 @@ Use the remaining master plan assignment set, adjusted by verified state:
 
 Use these files for the next wave:
 
+- `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`
 - `docs/agent-delegation/2026-06-21-master-plan-remaining-assignments.md`
 

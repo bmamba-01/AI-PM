@@ -1,7 +1,7 @@
 # Final Green Gate — Agent 6 Acceptance Gate And Master Tracker
 
 Objective: Keep the self-test project and master plan aligned through final acceptance.
-Verified on 2026-06-21 from `C:\Works\AI-PM`.
+Verified on 2026-06-22 from `C:\Works\AI-PM`.
 
 ## Acceptance Matrix
 
@@ -13,25 +13,25 @@ Verified on 2026-06-21 from `C:\Works\AI-PM`.
 | Wave 14: Auth middleware | Complete | `packages/server/src/middleware/auth.ts` | `auth.test.ts` 3/3 | — |
 | Wave 14: Security docs | Complete | `docs/security/threat-model.md`, `docs/security/auth-boundaries.md` | No automated tests (docs only) | — |
 | Wave 15: Connector fixtures | Complete | `schemas/fixtures/connectors/*.json` | `connectorFixtures.test.ts` 4/4 | Live connector sync not implemented |
-| Wave 16: Final acceptance | Complete | `docs/superpowers/plans/final-green-gate.md` | This matrix | Build blocked by pre-existing `adopt.ts` regression |
+| Wave 16: Final acceptance | Complete | `docs/superpowers/plans/final-green-gate.md` | Full build/test gate passes on 2026-06-22 | Needs final release packaging |
 | Desktop setup gateway click-through | Partial | `examples/ai-pm-tm-test-project/reports/setup-verification-2026-06-21.md` | Desktop build passes | Manual Electron smoke still needed |
-| Hermes Discord adapter | Partial | Not implemented | Not implemented | Needs identity/auth + read-only adapter |
+| Hermes Discord adapter | Partial | `packages/server/src/chat/hermesAdapter.ts`, `examples/ai-pm-tm-test-project/integrations/discord-hermes.md`, `docs/architecture/discord-setup-guide.md` | `hermesAdapter.test.ts` 25/25 | Needs real Discord/Hermes runtime smoke |
 | Notion MCP/API sync | Partial | `examples/ai-pm-tm-test-project/integrations/notion/issues.csv` | Fixture tests pass | Live sync blocked by missing Notion MCP profile |
 | Weekly report from evidence | Complete | `packages/core/src/workflows/weeklyReport.ts` | `weeklyReport.test.ts` passes (after stale `.js` removal) | — |
-| JSON stdout regression | Partial | Completion-gate tests added | `completion-gate.test.ts` updated | Full `--json` emission coverage still expanding |
+| JSON stdout regression | Complete | `packages/cli/src/commands/json-regression.test.ts` | 30 JSON regression tests pass | — |
 
 ## Delegated Task Status (from Notion import CSV)
 
 | Task | CSV Status | Actual Status | Notes |
 |---|---|---|---|
 | Daily briefing profile and memory wiring | Done | Complete | `daily --json` verified |
-| Desktop setup gateway click-through smoke | Ready | Partial | Build passes; manual Electron smoke pending |
-| Adopt command write consolidation | Ready | Partial | `adopt --json` delegates to `setup repair` |
-| JSON stdout regression tests | Ready | Partial | Completion-gate updated; broader coverage needed |
-| Hermes Discord adapter setup | Ready | Partial | CLI/server routes exist; Hermes adapter not wired |
+| Desktop setup gateway click-through smoke | Partial | Partial | Build/unit tests pass; manual Electron smoke pending |
+| Adopt command write consolidation | Partial | Complete | `adopt --defaults --json` writes files and is covered by JSON regression tests |
+| JSON stdout regression tests | Partial | Complete | 30 JSON regression tests pass |
+| Hermes Discord adapter setup | Partial | Partial | Server adapter tests pass; real Discord/Hermes runtime smoke pending |
 | Notion MCP/API tracking sync | Ready | Partial | Fixtures exist; live sync needs Notion profile |
 | Weekly report from project evidence | Ready | Complete | Workflow + tests pass |
-| Final acceptance package | Ready | Complete | This file |
+| Final acceptance package | Done | Partial | Gate passes; final release/package checklist still needed |
 
 ## Self-Test Project Status
 
@@ -56,18 +56,18 @@ node packages/cli/bin/ai-pm.js daily --path examples/ai-pm-tm-test-project --jso
 
 ## Remaining Gaps
 
-1. **Desktop click-through smoke** — manual Electron verification required (no automated runner)
-2. **Hermes Discord adapter** — read-only routes exist; needs Hermes Agent Bot wiring
-3. **Notion live sync** — needs Notion MCP/API profile + approval-gated mutation path
-4. **`adopt.ts` build regression** — pre-existing: `@ai-pm/core/setup` module not found
-5. **Pre-existing test failures** — 10 unrelated failures in `testEvidence`, `dailyBriefing`, `setupProfile`
+1. **Weekly report project scope** — pending approval currently records `project_id: local-project`; it must use `ai-pm-tm-test`.
+2. **Desktop click-through smoke** — manual or Playwright/Electron verification required for New Project, Use Existing Project, and Demo Project.
+3. **Hermes Discord adapter** — server adapter tests pass; real Discord/Hermes runtime smoke and one-PM channel profile are still needed.
+4. **Notion live sync** — needs Notion MCP/API profile, dry-run sync command, and approval-gated mutation path.
+5. **Release packaging** — final executable/package checklist still needs to be assembled and verified.
 
 ## Verification Performed
 
 | Command | Result |
 |---|---|
-| `corepack pnpm@9.4.0 -r run build` | FAIL (pre-existing `dailyBriefing.ts` type errors + `adopt.ts` import) |
-| `corepack pnpm@9.4.0 -r run test` | FAIL (4 CLI tests fail in `adopt.test.ts`) |
+| `corepack pnpm@9.4.0 -r run build` | PASS |
+| `corepack pnpm@9.4.0 -r run test` | PASS |
 | `node schemas/validate-fixtures.mjs` | PASS (32/32) |
 | Marker scan | PASS (no UNRESOLVED_ markers) |
 | `auth.test.ts` | PASS (3/3) |
@@ -79,8 +79,8 @@ node packages/cli/bin/ai-pm.js daily --path examples/ai-pm-tm-test-project --jso
 
 ## Next Recommended Action
 
-1. Fix `packages/cli/src/commands/adopt.ts` import path to unblock full build
-2. Run real Electron click-through smoke for setup gateway
-3. Wire Hermes/Discord read-only adapter to local server
-4. Configure Notion MCP profile for live sync
-5. Continue Wave 11-12 planning workflows
+1. Fix weekly report approval and artifact project scope.
+2. Run real Electron click-through smoke for setup gateway.
+3. Wire Hermes/Discord read-only adapter to a runnable local server profile.
+4. Configure Notion MCP/API dry-run and live approval-gated sync path.
+5. Assemble final release packaging and acceptance checklist.

@@ -40,7 +40,7 @@ describe('App — setup gateway routing', () => {
     render(React.createElement(App));
 
     // Should show setup gateway, not dashboard
-    expect(screen.getByText(/Welcome to AI-PM Toolkit/)).toBeDefined();
+    expect(screen.getByRole('heading', { name: /AI-PM Toolkit/ })).toBeDefined();
     expect(screen.getByText(/New Project/)).toBeDefined();
     expect(screen.getByText(/Use Existing Project/)).toBeDefined();
     expect(screen.getByText(/Demo Project/)).toBeDefined();
