@@ -346,6 +346,7 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 
 Current prompt set:
 
+- Wave 18 tracking skills: `docs/agent-delegation/2026-06-22-wave18-tracking-skills.md`
 - Tracking skills implementation plan: `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
 - Wave 17 verified self-test continuation: `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - AI-PM self-test stabilization wave: `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseIntent, executeIntent, type AdapterServices } from './hermesAdapter.js';
 
-function mockServices(): AdapterServices {
+function mockServices(projectName = 'ai-pm-tm-test'): AdapterServices {
   return {
     queue: {
       createItem: async (input: any) => ({
@@ -38,6 +38,7 @@ function mockServices(): AdapterServices {
       listArtifacts: async () => [],
     },
     projectRoot: '/test/project',
+    projectName,
   };
 }
 
@@ -218,6 +219,95 @@ describe('executeIntent', () => {
       // Verify no Discord message was sent (we only create approval proposals)
       expect(result.data).toHaveProperty('message');
       expect((result.data as any).message).toContain('Approval');
+    }
+  });
+
+  // ── Project-scoped tests ──────────────────────────────────────────────────
+
+  it('read commands return project name in data', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const intent = parseIntent('daily brief')!;
+    const response = await executeIntent(intent, services);
+    expect(response.data.project).toBe('ai-pm-tm-test');
+    expect(response.data.message).toContain('ai-pm-tm-test');
+  });
+
+  it('read commands return memory data from project scope', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const intent = parseIntent('pending approvals')!;
+    const response = await executeIntent(intent, services);
+    expect(response.data.project).toBe('ai-pm-tm-test');
+    expect(response.data.totalTasks).toBe(5);
+    expect(response.data.completedTasks).toBe(3);
+    expect(response.data.totalArtifacts).toBe(4);
+  });
+
+  it('mutation proposals use project scope in project_id', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const intent = parseIntent('Create a task for migration')!;
+    const response = await executeIntent(intent, services);
+    expect(response.status).toBe('approval_required');
+    expect(response.data.project).toBe('ai-pm-tm-test');
+    expect(response.data.message).toContain('ai-pm-tm-test');
+  });
+
+  it('mutation proposals include project in title', async () => {
+    const services = mockServices('my-project');
+    const response = await executeIntent({ command: 'create_task', text: 'test task' }, services);
+    expect(response.data.title).toContain('my-project');
+  });
+
+  it('falls back to projectRoot when projectName is missing', async () => {
+    const services = { ...mockServices(), projectName: undefined };
+    const intent = parseIntent('daily brief')!;
+    const response = await executeIntent(intent, services);
+    expect(response.data.project).toBe('/test/project');
+  });
+
+  it('project_scan returns project name', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const intent = { command: 'project_scan', params: {} };
+    const response = await executeIntent(intent, services);
+    expect(response.data.project).toBe('ai-pm-tm-test');
+    expect(response.data.message).toContain('ai-pm-tm-test');
+  });
+
+  it('risk_summary returns stale artifact count from project memory', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const intent = parseIntent('risk summary')!;
+    const response = await executeIntent(intent, services);
+    expect(response.data.project).toBe('ai-pm-tm-test');
+    expect(response.data.staleArtifacts).toBe(0);
+    expect(response.data.totalArtifacts).toBe(4);
+  });
+
+  it('weekly_status returns project-scoped summary', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const intent = parseIntent('weekly status')!;
+    const response = await executeIntent(intent, services);
+    expect(response.data.project).toBe('ai-pm-tm-test');
+    expect(response.data.totalTasks).toBe(5);
+    expect(response.data.message).toContain('ai-pm-tm-test');
+  });
+
+  it('one-PM profile: all commands are project-scoped', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const commands = ['daily_brief', 'weekly_status', 'risk_summary', 'pending_approvals'];
+    for (const cmd of commands) {
+      const response = await executeIntent({ command: cmd }, services);
+      expect(response.status).toBe('success');
+      expect(response.data.project).toBe('ai-pm-tm-test');
+    }
+  });
+
+  it('one-PM profile: mutations create project-scoped approval proposals', async () => {
+    const services = mockServices('ai-pm-tm-test');
+    const mutations = ['create_task', 'publish_report', 'send_email'];
+    for (const cmd of mutations) {
+      const response = await executeIntent({ command: cmd, text: `test ${cmd}` }, services);
+      expect(response.status).toBe('approval_required');
+      expect(response.data.project).toBe('ai-pm-tm-test');
+      expect(response.data.title).toContain('ai-pm-tm-test');
     }
   });
 });

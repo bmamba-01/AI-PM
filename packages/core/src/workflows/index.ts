@@ -1,5 +1,11 @@
 export * from './dailyBriefing.js';
-export * from './weeklyReport.js';
+export {
+  generateWeeklyReport,
+  generateWeeklyReportForProject,
+  type WeeklyReportInput,
+  type WeeklyReport,
+  type WeeklyReportInputItem,
+} from './weeklyReport.js';
 export {
   generateRiskControlSummary,
   listProjectRisks,

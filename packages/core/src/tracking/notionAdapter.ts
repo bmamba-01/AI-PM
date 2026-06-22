@@ -1,0 +1,178 @@
+/**
+ * Notion Local-Import Adapter
+ *
+ * Creates/updates rows in a local CSV file (issues.csv) when Notion is not live.
+ * Returns external_task_id/url and dry_run_only=true when in local-import mode.
+ */
+
+import { readFile, writeFile, appendFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { TrackingAdapter, TrackingTask, CreateTaskInput, TrackingSystem, TrackingMode, TaskStatus } from './types.js';
+
+const CSV_HEADER = 'Title,Type,Status,Priority,Owner,Sprint,Due Date,Source,Acceptance Criteria,Verification,Approval Required,External System\n';
+
+function mapPriority(priority: string): string {
+  const map: Record<string, string> = {
+    critical: 'Critical',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+  };
+  return map[priority] || 'Medium';
+}
+
+function taskToRow(task: TrackingTask): string {
+  return [
+    task.title,
+    mapPriority(task.priority),
+    task.status,
+    task.assigned_agent,
+    task.description,
+    (task.acceptance_criteria ?? []).join('; '),
+    (task.verification_commands ?? []).join('; '),
+    `external_id:${task.external_task_id}`,
+    task.due_date || '',
+    (task.source_refs ?? []).join('; '),
+  ].join(',');
+}
+
+function rowToTask(line: string, projectId: string): TrackingTask {
+  const cols = line.split(',');
+  const externalId = cols.find(c => c.trim().startsWith('external_id:'))?.trim().replace('external_id:', '') || '';
+  return {
+    task_id: randomUUID(),
+    project_id: projectId,
+    title: cols[0] || 'Unknown',
+    description: '',
+    assigned_agent: '',
+    workflow_id: '',
+    priority: 'medium',
+    status: (cols[2] || 'ready') as TaskStatus,
+    due_date: null,
+    acceptance_criteria: [],
+    verification_commands: [],
+    source_refs: [],
+    local_memory_task_id: '',
+    external_task_id: externalId,
+    external_task_url: `https://notion.so/${externalId}`,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export class NotionAdapter implements TrackingAdapter {
+  readonly adapter_id: TrackingSystem = 'notion';
+  mode: TrackingMode;
+  private csvPath: string;
+
+  constructor(projectRoot: string, mode: TrackingMode = 'local_import') {
+    this.mode = mode;
+    this.csvPath = path.join(projectRoot, 'integrations', 'notion', 'issues.csv');
+  }
+
+  async createTask(input: CreateTaskInput): Promise<TrackingTask> {
+    if (this.mode === 'live') {
+      throw new Error('Live Notion not implemented');
+    }
+
+    const externalId = `notion-page-${randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+
+    const task: TrackingTask = {
+      task_id: randomUUID(),
+      project_id: input.project_id,
+      title: input.title,
+      description: input.description,
+      assigned_agent: input.assigned_agent,
+      workflow_id: input.workflow_id,
+      priority: input.priority,
+      status: input.status ?? 'ready',
+      due_date: input.due_date ?? null,
+      acceptance_criteria: input.acceptance_criteria ?? [],
+      verification_commands: input.verification_commands ?? [],
+      source_refs: input.source_refs ?? [],
+      local_memory_task_id: '',
+      external_task_id: externalId,
+      external_task_url: `https://notion.so/${externalId}`,
+      created_at: now,
+      updated_at: now,
+    };
+
+    await this.ensureCsvDir();
+    await appendFile(this.csvPath, taskToRow(task) + '\n', 'utf-8');
+    return task;
+  }
+
+  async getTask(externalTaskId: string): Promise<TrackingTask | null> {
+    if (this.mode === 'live') throw new Error('Live Notion not implemented');
+
+    try {
+      const content = await readFile(this.csvPath, 'utf-8');
+      const lines = content.trim().split('\n').filter(Boolean);
+
+      for (const line of lines) {
+        const cols = line.split(',');
+        const hasExternalId = cols.some(c => c.trim().startsWith(`external_id:${externalTaskId}`));
+        if (hasExternalId) {
+          return rowToTask(line, '');
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  async updateStatus(externalTaskId: string, status: TaskStatus, summary?: string): Promise<TrackingTask> {
+    if (this.mode === 'live') throw new Error('Live Notion not implemented');
+
+    const task = await this.getTask(externalTaskId);
+    if (!task) throw new Error(`Task ${externalTaskId} not found`);
+
+    task.status = status;
+    task.updated_at = new Date().toISOString();
+
+    // Rewrite entire CSV with updated status
+    const content = await readFile(this.csvPath, 'utf-8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    const updatedLines = lines.map(line => {
+      if (line.includes(`external_id:${externalTaskId}`)) {
+        return taskToRow(task);
+      }
+      return line;
+    });
+
+    await writeFile(this.csvPath, updatedLines.join('\n') + '\n', 'utf-8');
+    return task;
+  }
+
+  async verifyCompletion(externalTaskId: string): Promise<{ complete: boolean; evidence: string[] }> {
+    if (this.mode === 'live') throw new Error('Live Notion not implemented');
+
+    const task = await this.getTask(externalTaskId);
+    if (!task) return { complete: false, evidence: ['Task not found in local CSV'] };
+
+    return {
+      complete: task.status === 'done',
+      evidence: task.verification_commands,
+    };
+  }
+
+  async listTasks(projectId: string): Promise<TrackingTask[]> {
+    if (this.mode === 'live') throw new Error('Live Notion not implemented');
+
+    try {
+      const content = await readFile(this.csvPath, 'utf-8');
+      const lines = content.trim().split('\n').filter(Boolean);
+      return lines.map(line => rowToTask(line, projectId));
+    } catch {
+      return [];
+    }
+  }
+
+  private async ensureCsvDir(): Promise<void> {
+    const dir = path.dirname(this.csvPath);
+    await mkdir(dir, { recursive: true });
+  }
+}

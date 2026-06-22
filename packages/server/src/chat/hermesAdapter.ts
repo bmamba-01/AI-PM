@@ -7,6 +7,13 @@
  * systems directly.
  *
  * All mutations are approval-gated through the approval queue.
+ * All read commands return project-scoped data from the project root.
+ *
+ * One-PM self-test profile:
+ *   - Single PM role handles all channels
+ *   - Read-only commands query project memory store
+ *   - Mutations create approval proposals only
+ *   - No external system is contacted without approval
  */
 
 import type { ApprovalQueue, MemoryStore } from "@ai-pm/core/runtime";
@@ -31,6 +38,8 @@ export type AdapterServices = {
   queue: ApprovalQueue;
   memory: MemoryStore;
   projectRoot: string;
+  /** Optional project name from profile — falls back to projectRoot */
+  projectName?: string;
 };
 
 // ── Read-only command map ──────────────────────────────────────────────────
@@ -95,7 +104,7 @@ export function parseIntent(text: string): HermesIntent | null {
   if (lower.includes("project") && (lower.includes("scan") || lower.includes("status") || lower.includes("health"))) {
     return { command: "project_scan", params: {} };
   }
-  if (lower.includes("memory") || lower.includes("task") && lower.includes("list")) {
+  if (lower.includes("memory") || (lower.includes("task") && lower.includes("list"))) {
     return { command: "memory_tasks", params: {} };
   }
 
@@ -109,25 +118,34 @@ export async function executeIntent(
   services: AdapterServices,
 ): Promise<HermesResponse> {
   const { queue, memory } = services;
+  const projectScope = services.projectName || services.projectRoot;
 
-  // Read-only commands
+  // Read-only commands — return project-scoped data
   if (READ_COMMANDS.has(intent.command)) {
-    return await executeReadCommand(intent, memory);
+    return await executeReadCommand(intent, memory, projectScope);
   }
 
-  // Mutations → create approval proposal
+  // Mutations → create approval proposal (project-scoped)
   if (MUTATION_COMMANDS.has(intent.command)) {
-    return await createApprovalProposal(intent, queue);
+    return await createApprovalProposal(intent, queue, projectScope);
   }
 
   // Project scan — local read-only
   if (intent.command === "project_scan") {
-    return { intent, status: "success", data: { message: "Project scan requires local CLI.", hint: "Use 'ai-pm project scan' on the laptop." } };
+    return {
+      intent,
+      status: "success",
+      data: {
+        message: `Project scan for "${projectScope}". Requires local CLI.`,
+        hint: "Use 'ai-pm project scan' on the laptop.",
+        project: projectScope,
+      },
+    };
   }
 
-  // Memory tasks — local read-only
+  // Memory tasks — delegate to pending_approvals read handler
   if (intent.command === "memory_tasks") {
-    return await executeReadCommand({ command: "pending_approvals", params: {} }, memory);
+    return await executeReadCommand({ command: "pending_approvals", params: {} }, memory, projectScope);
   }
 
   return {
@@ -138,13 +156,17 @@ export async function executeIntent(
   };
 }
 
-// ── Read command handlers ──────────────────────────────────────────────────
+// ── Read command handlers (project-scoped) ──────────────────────────────────
 
 async function executeReadCommand(
   intent: HermesIntent,
   memory: MemoryStore,
+  projectScope: string,
 ): Promise<HermesResponse> {
   const { command } = intent;
+
+  // Get actual memory summary for all read commands
+  const summary = await memory.getSummary();
 
   switch (command) {
     case "daily_brief":
@@ -152,8 +174,12 @@ async function executeReadCommand(
         intent,
         status: "success",
         data: {
-          message: "Daily brief requires project-scoped data from local server.",
-          hint: "POST /api/chat/query { command: 'daily_brief' } on the laptop server.",
+          project: projectScope,
+          message: `Daily brief for project "${projectScope}".`,
+          totalTasks: summary.totalTasks,
+          completedTasks: summary.completedTasks,
+          totalArtifacts: summary.totalArtifacts,
+          hint: "POST /api/chat/query { command: 'daily_brief' } for full detail.",
           localEquivalent: "ai-pm daily brief",
         },
       };
@@ -163,8 +189,12 @@ async function executeReadCommand(
         intent,
         status: "success",
         data: {
-          message: "Weekly status report requires project data from local server.",
-          hint: "POST /api/chat/query { command: 'weekly_status' } on the laptop server.",
+          project: projectScope,
+          message: `Weekly status for project "${projectScope}".`,
+          totalTasks: summary.totalTasks,
+          completedTasks: summary.completedTasks,
+          totalArtifacts: summary.totalArtifacts,
+          hint: "POST /api/chat/query { command: 'weekly_status' } for full detail.",
           localEquivalent: "ai-pm weekly report",
         },
       };
@@ -174,41 +204,44 @@ async function executeReadCommand(
         intent,
         status: "success",
         data: {
-          message: "Risk summary from local project memory.",
-          hint: "POST /api/chat/query { command: 'risk_summary' } on the laptop server.",
+          project: projectScope,
+          message: `Risk summary for project "${projectScope}".`,
+          staleArtifacts: summary.staleArtifacts,
+          totalArtifacts: summary.totalArtifacts,
+          hint: "POST /api/chat/query { command: 'risk_summary' } for full detail.",
         },
       };
 
-    case "pending_approvals": {
-      // Actually call memory to get pending count
-      const summary = await memory.getSummary();
+    case "pending_approvals":
       return {
         intent,
         status: "success",
         data: {
-          pendingApprovals: 0,
+          project: projectScope,
+          message: `Pending approvals for project "${projectScope}".`,
           totalTasks: summary.totalTasks,
           completedTasks: summary.completedTasks,
-          message: "Approval count from local project memory.",
-          hint: "POST /api/chat/query { command: 'pending_approvals' } on the laptop server.",
+          totalArtifacts: summary.totalArtifacts,
+          archivedArtifacts: summary.archivedArtifacts,
+          hint: "POST /api/chat/query { command: 'pending_approvals' } for full detail.",
         },
       };
-    }
 
     default:
       return {
         intent,
         status: "success",
-        data: { message: `Command '${command}' acknowledged. Local data not available in chat mode.` },
+        data: { project: projectScope, message: `Command '${command}' acknowledged.` },
       };
   }
 }
 
-// ── Approval proposal creation ──────────────────────────────────────────────
+// ── Approval proposal creation (project-scoped) ────────────────────────────
 
 async function createApprovalProposal(
   intent: HermesIntent,
   queue: ApprovalQueue,
+  projectScope: string,
 ): Promise<HermesResponse> {
   const actionMeta = ACTION_COMMANDS.get(intent.command);
   if (!actionMeta) {
@@ -222,7 +255,7 @@ async function createApprovalProposal(
 
   try {
     const item = await queue.createItem({
-      project_id: "chat-gateway",
+      project_id: projectScope,
       action_type: actionMeta.action_type,
       target_system: actionMeta.target_system,
       target_id: `chat-${Date.now()}`,
@@ -230,8 +263,8 @@ async function createApprovalProposal(
       run_id: `chat-${Date.now()}`,
       requested_by_agent: "hermes-adapter",
       requested_by_role: "chat_user",
-      title: `Chat request: ${intent.command}`,
-      description: `Action proposed via Discord/Hermes adapter. Approval required before execution.`,
+      title: `Chat request: ${intent.command} (project: ${projectScope})`,
+      description: `Action proposed via Discord/Hermes adapter for project "${projectScope}". Approval required before execution.`,
       summary_diff: intent.text || `Chat command: ${intent.command}`,
       confidence: 80,
       source_refs: [{ type: "chat", id: `discord-${Date.now()}` }],
@@ -245,7 +278,8 @@ async function createApprovalProposal(
         approval_id: item.approval_id,
         title: item.title,
         priority: item.priority,
-        message: `Approval item created. Awaiting PM review before execution.`,
+        project: projectScope,
+        message: `Approval item created for project "${projectScope}". Awaiting PM review before execution.`,
       },
       suggestion: `To approve: POST /api/approvals/${item.approval_id}/decide { decision: 'approve' }`,
     };

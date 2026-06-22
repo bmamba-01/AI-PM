@@ -234,6 +234,7 @@ Use the remaining master plan assignment set, adjusted by verified state:
 
 Use these files for the next wave:
 
+- `docs/agent-delegation/2026-06-22-wave18-tracking-skills.md`
 - `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
 - `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`

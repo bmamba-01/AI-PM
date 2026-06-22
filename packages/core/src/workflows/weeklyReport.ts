@@ -27,6 +27,11 @@ export interface WeeklyReportInput {
   assumptions?: string[];
 }
 
+export interface ConnectorHealth {
+  id: string;
+  status: 'available' | 'unavailable' | 'degraded';
+}
+
 export interface WeeklyReport {
   projectId: string;
   reportingPeriodStart: string;
@@ -50,6 +55,8 @@ export interface WeeklyReport {
   dependencies: string[];
   leadershipActions: string[];
   sourceCoverage: string[];
+  degradedSources: string[];
+  connectorHealth: ConnectorHealth[];
   assumptions: string[];
   confidence: number;
 }
@@ -115,6 +122,8 @@ export function generateWeeklyReport(input: WeeklyReportInput): WeeklyReport {
     dependencies: bySection('dependency'),
     leadershipActions: bySection('decision').map(title => `Review decision: ${title}`),
     sourceCoverage,
+    degradedSources: (input.unavailableSources ?? []),
+    connectorHealth: [],
     assumptions: input.assumptions ?? [],
     confidence,
   };
@@ -142,6 +151,52 @@ export async function generateWeeklyReportForProject(options: {
   const { projectRoot, reportingPeriodStart, reportingPeriodEnd, store, approvalQueue, memoryStore } = options;
   const reportDate = new Date().toISOString().slice(0, 10);
 
+  // Resolve project_id from profile and load connector health
+  let projectId = path.basename(projectRoot);
+  const degradedSources: string[] = [];
+  const connectorHealth: Array<{ id: string; status: 'available' | 'unavailable' | 'degraded' }> = [];
+
+  try {
+    const { loadProfile } = await import('../runtime/projectProfile.js');
+    const profile = await loadProfile(projectRoot);
+    if (profile.valid) {
+      projectId = profile.profile.project.project_id || projectId;
+
+      // Derive degraded connectors from profile source_systems
+      const profileAny = profile.profile as unknown as Record<string, unknown>;
+      const sourceSystems = (profileAny.source_systems ?? {}) as Record<string, unknown>;
+      const connectors = (profileAny.connectors ?? {}) as Record<string, unknown>;
+
+      for (const [name, val] of Object.entries(connectors)) {
+        const enabled = val === true || (typeof val === 'object' && val !== null && (val as Record<string, unknown>).enabled === true);
+        connectorHealth.push({ id: name, status: enabled ? 'available' : 'unavailable' });
+        if (!enabled) degradedSources.push(name);
+      }
+    }
+  } catch {
+    // Graceful fallback: use folder name
+  }
+
+  // Load MCP context snapshot for additional connector info
+  try {
+    const { buildContextPack } = await import('../orchestrator/contextSnapshot.js');
+    const pack = await buildContextPack(projectRoot);
+    for (const snap of pack.snapshot) {
+      const status = snap.enabled ? (snap.health === 'degraded' ? 'degraded' : 'available') : 'unavailable';
+      // Merge into connectorHealth, avoid duplicates
+      if (!connectorHealth.find(c => c.id === snap.connectorId)) {
+        connectorHealth.push({ id: snap.connectorId, status });
+      }
+      if (status === 'unavailable' || status === 'degraded') {
+        if (!degradedSources.includes(snap.connectorId)) {
+          degradedSources.push(snap.connectorId);
+        }
+      }
+    }
+  } catch {
+    // MCP context unavailable — not a failure for local-first runs
+  }
+
   const weeklyItems: WeeklyReportInputItem[] = [
     {
       source: 'local-memory',
@@ -164,16 +219,22 @@ export async function generateWeeklyReportForProject(options: {
   ];
 
   const input: WeeklyReportInput = {
-    projectId: 'local-project',
+    projectId,
     reportingPeriodStart,
     reportingPeriodEnd,
     reportDate,
     items: weeklyItems,
-    unavailableSources: ['online-mcp'],
-    assumptions: ['Live data replaced with project local memory placeholder items.'],
+    unavailableSources: degradedSources.length > 0 ? degradedSources : ['online-mcp'],
+    assumptions: degradedSources.length > 0
+      ? [`Degraded connectors: ${degradedSources.join(', ')}.`, 'Live data replaced with project local memory placeholder items.']
+      : ['Live data replaced with project local memory placeholder items.'],
   };
 
   const report = generateWeeklyReport(input);
+
+  // Inject connector health into report output
+  report.connectorHealth = connectorHealth;
+  report.degradedSources = degradedSources.length > 0 ? degradedSources : report.degradedSources;
 
   await store.appendWorkflowAudit({
     workflowId: 'weekly-report',

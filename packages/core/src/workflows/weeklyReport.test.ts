@@ -76,7 +76,8 @@ describe('generateWeeklyReportForProject', () => {
         memoryStore: env.memory,
       });
       expect(result.report).toBeDefined();
-      expect(result.report.projectId).toBe('local-project');
+      // Without profile, falls back to folder name
+      expect(result.report.projectId).toBeTruthy();
       expect(result.approvalItemId).toBeTruthy();
     } finally { await env.cleanup(); }
   });
@@ -129,7 +130,7 @@ describe('generateWeeklyReportForProject', () => {
       });
       const artifacts = await env.memory.listArtifacts();
       expect(artifacts.length).toBe(3);
-      expect(artifacts.every(a => a.project_id === 'local-project')).toBe(true);
+      expect(artifacts.every(a => a.project_id === path.basename(env.root))).toBe(true);
       expect(artifacts.every(a => a.status === 'active')).toBe(true);
       expect(artifacts.every(a => a.name.startsWith('weekly-report-'))).toBe(true);
     } finally { await env.cleanup(); }
@@ -176,6 +177,70 @@ describe('generateWeeklyReportForProject', () => {
     } finally { await env.cleanup(); }
   });
 
+  it('degrades gracefully when Notion and Discord are configured but not live-connected', async () => {
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const env = await makeTestEnv();
+    try {
+      // Create profile with Notion and Discord configured
+      await mkdir(path.join(env.root, '.ai-pm'), { recursive: true });
+      await writeFile(path.join(env.root, '.ai-pm', 'profile.yaml'), [
+        'version: 1',
+        'project:',
+        '  project_id: "notion-discord-test"',
+        '  name: "Notion Discord Test"',
+        '  root: "."',
+        'source_systems:',
+        '  notion: true',
+        '  discord: true',
+        '  jira: false',
+        'connectors:',
+        '  notion:',
+        '    enabled: true',
+        '  discord:',
+        '    enabled: true',
+      ].join('\n'));
+
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+
+      // Project ID resolved from profile
+      expect(result.report.projectId).toBe('notion-discord-test');
+
+      // Connector health is populated
+      expect(result.report.connectorHealth.length).toBeGreaterThan(0);
+
+      // Source coverage includes live sources
+      expect(result.report.sourceCoverage).toContain('local-memory');
+
+      // Confidence is degraded (not 100%) due to unavailable connectors
+      expect(result.report.confidence).toBeLessThan(100);
+
+      // Assumptions mention degraded sources or connector context
+      const hasConnectorAssumption = result.report.assumptions.some(a =>
+        a.includes('Degraded') || a.includes('placeholder')
+      );
+      expect(hasConnectorAssumption).toBe(true);
+
+      // Report still completes successfully (no crash)
+      expect(result.report.accomplishments.length).toBeGreaterThanOrEqual(1);
+      expect(result.artifacts).toHaveLength(3);
+
+      // Approval uses correct project_id
+      const item = await env.queue.getItem(result.approvalItemId!);
+      expect(item!.project_id).toBe('notion-discord-test');
+
+      // Artifacts use correct project_id
+      const artifacts = await env.memory.listArtifacts();
+      expect(artifacts.every(a => a.project_id === 'notion-discord-test')).toBe(true);
+    } finally { await env.cleanup(); }
+  });
+
   it('works without memoryStore (backward compatible)', async () => {
     const env = await makeTestEnv();
     try {
@@ -192,6 +257,34 @@ describe('generateWeeklyReportForProject', () => {
       // No artifacts persisted since no memoryStore
       const artifacts = await env.memory.listArtifacts();
       expect(artifacts.length).toBe(0);
+    } finally { await env.cleanup(); }
+  });
+
+  it('uses project_id from profile.yaml instead of local-project', async () => {
+    const { mkdir, writeFile } = await import('node:fs/promises');
+    const env = await makeTestEnv();
+    try {
+      // Create .ai-pm/profile.yaml with project_id: alpha-weekly
+      await mkdir(path.join(env.root, '.ai-pm'), { recursive: true });
+      await writeFile(path.join(env.root, '.ai-pm', 'profile.yaml'),
+        'version: 1\nproject:\n  project_id: "alpha-weekly"\n  name: "Alpha Weekly"\n  root: "."\n');
+
+      const result = await generateWeeklyReportForProject({
+        projectRoot: env.root,
+        reportingPeriodStart: '2026-06-01',
+        reportingPeriodEnd: '2026-06-07',
+        store: env.store,
+        approvalQueue: env.queue,
+        memoryStore: env.memory,
+      });
+
+      expect(result.report.projectId).toBe('alpha-weekly');
+      // Approval and artifacts should use the resolved project_id
+      const item = await env.queue.getItem(result.approvalItemId!);
+      expect(item!.project_id).toBe('alpha-weekly');
+      const artifacts = await env.memory.listArtifacts();
+      expect(artifacts.length).toBe(3);
+      expect(artifacts.every(a => a.project_id === 'alpha-weekly')).toBe(true);
     } finally { await env.cleanup(); }
   });
 });

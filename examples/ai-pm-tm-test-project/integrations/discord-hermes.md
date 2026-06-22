@@ -150,3 +150,40 @@ Localhost connections (desktop/mobile app) do not require tokens.
 - No session state across messages
 - No file/image attachment handling
 - No multi-turn conversation context
+
+---
+
+## One-PM Self-Test Profile
+
+This project uses a one-PM profile where a single PM role handles all Discord channels.
+
+### Profile
+
+See `.ai-pm/discord/one-pm-profile.yaml`.
+
+### Channels
+
+| Channel | Purpose |
+|---|---|
+| `#agent-pm` | PM queries and commands |
+| `#daily-report` | Daily briefing output |
+| `#weekly-report` | Weekly status output |
+| `#approvals` | Approval notifications |
+
+### One-PM Safety
+
+- All commands are project-scoped to `ai-pm-tm-test`
+- Read-only commands query project memory store
+- Mutations (create_task, publish_report, send_email) create approval proposals only
+- No external system is contacted without PM approval
+- No Discord messages sent to external channels
+
+### Verification
+
+```bash
+# Server tests (includes one-PM project-scoped assertions)
+corepack pnpm@9.4.0 --filter @ai-pm/server test -- src/chat/hermesAdapter.test.ts src/routes/chatGateway.integration.test.ts
+
+# Server build
+corepack pnpm@9.4.0 --filter @ai-pm/server build
+```

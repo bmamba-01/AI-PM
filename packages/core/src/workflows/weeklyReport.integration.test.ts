@@ -35,7 +35,8 @@ describe('WeeklyReport — integration', () => {
     });
 
     // Verify report shape (artifact reference)
-    expect(report.projectId).toBe('local-project'); // generateWeeklyReportForProject currently hardcodes local-project
+    // Without profile.yaml, falls back to folder name
+    expect(report.projectId).toBe(path.basename(root));
     expect(report.reportingPeriodStart).toBe('2026-06-15');
     expect(report.reportingPeriodEnd).toBe('2026-06-21');
     expect(Array.isArray(report.accomplishments)).toBe(true);

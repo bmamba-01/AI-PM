@@ -383,3 +383,100 @@ ai-pm setup discord --invite
 # Test agent connection
 ai-pm setup discord --test --agent pm-commander
 ```
+
+---
+
+## 9. One-PM Self-Test Profile
+
+For small projects where one PM handles all roles, use the one-PM profile variant.
+
+### Profile Location
+
+```
+.ai-pm/discord/one-pm-profile.yaml
+```
+
+### Channel Structure (One-PM)
+
+```text
+Discord Server (One-PM)
+├── #agent-pm          → Hermes Bot (PM identity)
+├── #daily-report      → Daily briefing output
+├── #weekly-report     → Weekly status output
+└── #approvals         → Approval notifications
+```
+
+### Key Differences from Multi-Bot Template
+
+| Aspect | Multi-Bot | One-PM |
+|--------|-----------|--------|
+| Channels | 10+ (#agent-pm, #agent-qa, #agent-dev, ...) | 4 (#agent-pm, #daily-report, #weekly-report, #approvals) |
+| Roles | PM, Developer, QA, Risk, DevOps, Stakeholder | PM only |
+| Bots | 7+ Hermes bots | 1 Hermes bot |
+| Read-only commands | Per-role | All commands available to PM |
+| Mutations | Per-role approval gates | All mutations → PM approval |
+
+### One-PM Channel Config
+
+```yaml
+channels:
+  "#agent-pm":
+    purpose: "PM queries and commands via Hermes bot"
+    bot: pm-commander
+    permissions: ["read", "write"]
+    read_commands:
+      - daily_brief
+      - weekly_status
+      - risk_summary
+      - pending_approvals
+      - project_scan
+    mutation_commands:
+      - create_task
+      - publish_report
+      - send_email
+
+  "#daily-report":
+    purpose: "Daily briefing output (read-only)"
+    bot: none
+    permissions: ["read"]
+    auto_post: daily_brief
+
+  "#weekly-report":
+    purpose: "Weekly status output (read-only)"
+    bot: none
+    permissions: ["read"]
+    auto_post: weekly_status
+
+  "#approvals":
+    purpose: "Approval queue notifications"
+    bot: pm-commander
+    permissions: ["read"]
+    auto_post: approval_items
+```
+
+### One-PM Safety Model
+
+All commands are project-scoped to the active project profile:
+
+| Command Type | Behavior | External System Impact |
+|---|---|---|
+| Read-only (daily_brief, weekly_status, ...) | Query project memory | None — local data only |
+| Mutation (create_task, publish_report, ...) | Create approval proposal | None — awaiting PM approval |
+
+**What NEVER happens from one-PM Discord:**
+- No email sent
+- No Jira/Linear/GitHub issue created
+- No PR merged
+- No report published
+- No external system updated
+- No Discord messages sent to external channels
+
+### Verification
+
+```bash
+# Server tests
+corepack pnpm@9.4.0 --filter @ai-pm/server test -- src/chat/hermesAdapter.test.ts src/routes/chatGateway.integration.test.ts
+
+# Server build
+corepack pnpm@9.4.0 --filter @ai-pm/server build
+```
