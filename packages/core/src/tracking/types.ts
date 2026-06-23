@@ -42,6 +42,8 @@ export interface TrackingTask {
   external_task_id: string;
   external_task_url: string;
   dry_run_only?: boolean;
+  report_urls?: string[];
+  comments?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +92,15 @@ export interface TrackingAdapter {
 
   /** Update task status. */
   updateStatus(externalTaskId: string, status: TaskStatus, summary?: string): Promise<TrackingTask>;
+
+  /** Attach a report or artifact reference to an existing task. */
+  attachReport(externalTaskId: string, reportUrl: string): Promise<TrackingTask>;
+
+  /** Add a human-readable comment or summary to an existing task. */
+  addComment(externalTaskId: string, comment: string): Promise<TrackingTask>;
+
+  /** List tasks for a project. */
+  listProjectTasks(projectId: string): Promise<TrackingTask[]>;
 
   /** Verify that a task is complete and matches evidence. */
   verifyCompletion(externalTaskId: string): Promise<{ complete: boolean; evidence: string[] }>;

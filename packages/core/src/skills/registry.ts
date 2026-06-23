@@ -1,4 +1,6 @@
 import type { Skill } from "./loader.js";
+import type { SkillsReadModel, BuildSkillsReadModelOptions } from "./status.js";
+import { buildSkillsReadModel } from "./status.js";
 
 export class SkillRegistry {
   private skills = new Map<string, Skill>();
@@ -35,5 +37,13 @@ export class SkillRegistry {
     for (const [cat, skills] of this.byCategory) stats[cat] = skills.length;
     return stats;
   }
-}
 
+  async buildReadModel(
+    options?: Omit<BuildSkillsReadModelOptions, "skills">,
+  ): Promise<SkillsReadModel> {
+    return buildSkillsReadModel({
+      ...options,
+      skills: this.getAll(),
+    });
+  }
+}

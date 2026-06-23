@@ -1,0 +1,10 @@
+{
+  "id": "tracking.block_task",
+  "name": "Tracking Block Task",
+  "category": "tracking",
+  "description": "Mark the assigned tracker item as blocked or return a blocked dry-run payload with the missing input and evidence.",
+  "version": "1.0.0",
+  "owner": "agent",
+  "tags": ["tracking", "blocked", "delegation"],
+  "triggers": ["mark blocked", "missing input", "connector unavailable"]
+}

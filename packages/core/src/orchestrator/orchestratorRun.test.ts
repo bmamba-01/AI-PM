@@ -5,9 +5,13 @@ import {
   advanceToNext,
   failRun,
   toAuditRecord,
+  bindTrackingToRun,
+  prepareAgentAssignment,
+  acceptAgentCompletion,
 } from './orchestratorRun.js';
 import { STATE_TRANSITIONS, ORCHESTRATOR_STATES } from './types.js';
 import type { OrchestratorRun, OrchestratorRunState, ProjectContextPack } from './types.js';
+import type { TaskLifecycleState } from '../tracking/taskLifecycle.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -38,6 +42,21 @@ function makeContextPack(): ProjectContextPack {
     },
     pending_approvals: 2,
     assumptions: ['local-only mode'],
+  };
+}
+
+function makeTrackingState(): TaskLifecycleState {
+  return {
+    tracking_tool: 'notion',
+    tracking_mode: 'local_import',
+    external_task_id: 'notion-local:task-1',
+    external_task_url: 'file://integrations/notion/issues.csv',
+    local_memory_task_id: 'local-task-1',
+    status: 'ready',
+    created_at: '2026-06-22T00:00:00Z',
+    completed_at: null,
+    dry_run_only: true,
+    completion_payload: null,
   };
 }
 
@@ -80,6 +99,12 @@ describe('createOrchestratorRun', () => {
     const run = createOrchestratorRun(makeInput());
     expect(run.context_pack).toBeNull();
   });
+
+  it('has tracking placeholders null initially', () => {
+    const run = createOrchestratorRun(makeInput());
+    expect(run.tracking_state).toBeNull();
+    expect(run.agent_task_contract).toBeNull();
+  });
 });
 
 // ─── advanceOrchestratorRun ──────────────────────────────────────────────────
@@ -93,6 +118,7 @@ describe('advanceOrchestratorRun', () => {
 
   it('advances through full happy path', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     const states: OrchestratorRunState[] = [
       'project_resolution', 'context_pack', 'workflow_selection',
       'agent_assignment', 'validation', 'approval_gate',
@@ -113,6 +139,7 @@ describe('advanceOrchestratorRun', () => {
 
   it('rejects advancing completed run', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     for (let i = 0; i < 10; i++) {
       run = advanceToNext(run);
     }
@@ -132,6 +159,7 @@ describe('advanceOrchestratorRun', () => {
 
   it('accumulates agents', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     run = advanceOrchestratorRun(run, {
       target_state: 'project_resolution',
       agents: ['reporting-agent'],
@@ -146,6 +174,7 @@ describe('advanceOrchestratorRun', () => {
 
   it('accumulates artifacts', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     run = advanceToNext(run);
     run = advanceToNext(run);
     run = advanceToNext(run);
@@ -170,6 +199,55 @@ describe('advanceOrchestratorRun', () => {
     expect(failed.errors[0].message).toBe('Missing project');
     expect(failed.completed_at).toBeDefined();
   });
+
+  it('rejects agent assignment when tracking state is not bound', () => {
+    let run = createOrchestratorRun(makeInput());
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+
+    expect(() =>
+      advanceOrchestratorRun(run, {
+        target_state: 'agent_assignment',
+        agents: ['reporting-agent'],
+      }),
+    ).toThrow('Tracking state must be created or bound before agent assignment');
+  });
+
+  it('stores tracking state and agent contract at assignment', () => {
+    let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+
+    const assigned = advanceOrchestratorRun(run, {
+      target_state: 'agent_assignment',
+      agents: ['reporting-agent'],
+      agent_task_contract: {
+        task_id: 'local-task-1',
+        workflow_id: 'weekly-report',
+        agent_role: 'reporting-agent',
+        tracking: {
+          tool: 'notion',
+          mode: 'local_import',
+          external_task_id: 'notion-local:task-1',
+          external_task_url: 'file://integrations/notion/issues.csv',
+          status_field: 'Status',
+          done_status: 'Done',
+          update_required_on_completion: true,
+          skill_required: {
+            orchestrator_create: 'tracking.create_task',
+            agent_complete: 'tracking.complete_task',
+          },
+        },
+      },
+    });
+
+    expect(assigned.tracking_state?.external_task_id).toBe('notion-local:task-1');
+    expect(assigned.agent_task_contract?.tracking.skill_required.orchestrator_create).toBe('tracking.create_task');
+    expect(assigned.agent_task_contract?.tracking.skill_required.agent_complete).toBe('tracking.complete_task');
+  });
 });
 
 // ─── advanceToNext ───────────────────────────────────────────────────────────
@@ -183,6 +261,7 @@ describe('advanceToNext', () => {
 
   it('completes full sequential path', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     for (let i = 0; i < 10; i++) {
       run = advanceToNext(run);
     }
@@ -191,6 +270,7 @@ describe('advanceToNext', () => {
 
   it('throws at completed state', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     for (let i = 0; i < 10; i++) run = advanceToNext(run);
     expect(() => advanceToNext(run)).toThrow();
   });
@@ -219,6 +299,7 @@ describe('failRun', () => {
 describe('toAuditRecord', () => {
   it('creates audit record from completed run', () => {
     let run = createOrchestratorRun(makeInput());
+    run = bindTrackingToRun(run, makeTrackingState());
     run = advanceOrchestratorRun(run, {
       target_state: 'project_resolution',
       context_pack: makeContextPack(),
@@ -258,6 +339,110 @@ describe('toAuditRecord', () => {
     expect(audit.final_state).toBe('failed');
     expect(audit.errors.length).toBe(1);
     expect(audit.errors[0]).toContain('Connection lost');
+  });
+});
+
+describe('tracked delegation helpers', () => {
+  it('prepares agent assignment with tracking contract skills', () => {
+    let run = createOrchestratorRun(makeInput());
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+
+    const assigned = prepareAgentAssignment(run, {
+      agent: 'reporting-agent',
+      tracking_state: makeTrackingState(),
+      tracking_contract: {
+        task_id: 'local-task-1',
+        workflow_id: 'weekly-report',
+        agent_role: 'reporting-agent',
+        tracking: {
+          tool: 'notion',
+          mode: 'local_import',
+          external_task_id: 'notion-local:task-1',
+          external_task_url: 'file://integrations/notion/issues.csv',
+          status_field: 'Status',
+          done_status: 'Done',
+          update_required_on_completion: true,
+          skill_required: {
+            orchestrator_create: 'tracking.create_task',
+            agent_complete: 'tracking.complete_task',
+          },
+        },
+      },
+    });
+
+    expect(assigned.state).toBe('agent_assignment');
+    expect(assigned.agent_task_contract?.tracking.skill_required.agent_complete).toBe('tracking.complete_task');
+  });
+
+  it('rejects completion without tracking_update', () => {
+    let run = createOrchestratorRun(makeInput());
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = prepareAgentAssignment(run, {
+      agent: 'reporting-agent',
+      tracking_state: makeTrackingState(),
+      tracking_contract: {
+        task_id: 'local-task-1',
+        workflow_id: 'weekly-report',
+        agent_role: 'reporting-agent',
+        tracking: {
+          tool: 'notion',
+          mode: 'local_import',
+          external_task_id: 'notion-local:task-1',
+          external_task_url: 'file://integrations/notion/issues.csv',
+          update_required_on_completion: true,
+          skill_required: {
+            orchestrator_create: 'tracking.create_task',
+            agent_complete: 'tracking.complete_task',
+          },
+        },
+      },
+    });
+
+    expect(() => acceptAgentCompletion(run, null)).toThrow('Missing required tracking_update');
+  });
+
+  it('rejects completion with mismatched tracking_update task ids', () => {
+    let run = createOrchestratorRun(makeInput());
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = advanceToNext(run);
+    run = prepareAgentAssignment(run, {
+      agent: 'reporting-agent',
+      tracking_state: makeTrackingState(),
+      tracking_contract: {
+        task_id: 'local-task-1',
+        workflow_id: 'weekly-report',
+        agent_role: 'reporting-agent',
+        tracking: {
+          tool: 'notion',
+          mode: 'local_import',
+          external_task_id: 'notion-local:task-1',
+          external_task_url: 'file://integrations/notion/issues.csv',
+          update_required_on_completion: true,
+          skill_required: {
+            orchestrator_create: 'tracking.create_task',
+            agent_complete: 'tracking.complete_task',
+          },
+        },
+      },
+    });
+
+    expect(() =>
+      acceptAgentCompletion(run, {
+        tool: 'notion',
+        external_task_id: 'notion-local:other-task',
+        external_task_url: 'file://integrations/notion/issues.csv',
+        attempted: true,
+        result: 'dry_run_only',
+        status_after_update: 'done',
+        report_url: 'reports/weekly.md',
+        evidence_refs: ['reports/weekly.md'],
+      }),
+    ).toThrow('does not match assigned tracker task');
   });
 });
 

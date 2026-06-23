@@ -68,6 +68,8 @@ export class LocalMemoryAdapter implements TrackingAdapter {
       local_memory_task_id: taskId,
       external_task_id: taskId,
       external_task_url: '',
+      report_urls: [],
+      comments: [],
       created_at: now,
       updated_at: now,
       _local_version: 1,
@@ -110,6 +112,47 @@ export class LocalMemoryAdapter implements TrackingAdapter {
     return tasks[idx];
   }
 
+  async attachReport(externalTaskId: string, reportUrl: string): Promise<TrackingTask> {
+    const tasks = await readTasks(this.projectRoot);
+    const idx = tasks.findIndex(
+      t => t.task_id === externalTaskId || t.external_task_id === externalTaskId,
+    );
+    if (idx === -1) {
+      throw new Error(`Task not found: ${externalTaskId}`);
+    }
+
+    const now = new Date().toISOString();
+    tasks[idx].report_urls = [...(tasks[idx].report_urls ?? []), reportUrl];
+    tasks[idx].updated_at = now;
+    tasks[idx]._local_version += 1;
+
+    await writeTasks(this.projectRoot, tasks);
+    return tasks[idx];
+  }
+
+  async addComment(externalTaskId: string, comment: string): Promise<TrackingTask> {
+    const tasks = await readTasks(this.projectRoot);
+    const idx = tasks.findIndex(
+      t => t.task_id === externalTaskId || t.external_task_id === externalTaskId,
+    );
+    if (idx === -1) {
+      throw new Error(`Task not found: ${externalTaskId}`);
+    }
+
+    const now = new Date().toISOString();
+    tasks[idx].comments = [...(tasks[idx].comments ?? []), comment];
+    tasks[idx].updated_at = now;
+    tasks[idx]._local_version += 1;
+
+    await writeTasks(this.projectRoot, tasks);
+    return tasks[idx];
+  }
+
+  async listProjectTasks(projectId: string): Promise<TrackingTask[]> {
+    const tasks = await readTasks(this.projectRoot);
+    return tasks.filter(task => task.project_id === projectId);
+  }
+
   async verifyCompletion(
     externalTaskId: string,
   ): Promise<{ complete: boolean; evidence: string[] }> {
@@ -119,7 +162,7 @@ export class LocalMemoryAdapter implements TrackingAdapter {
     }
 
     const complete = task.status === 'done';
-    const evidence: string[] = [];
+    const evidence: string[] = [...(task.report_urls ?? []), ...(task.comments ?? [])];
     if (complete) {
       evidence.push(`Task "${task.title}" is in "done" status`);
       evidence.push(`Last updated: ${task.updated_at}`);

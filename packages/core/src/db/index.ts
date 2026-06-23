@@ -4,5 +4,5 @@ export {
   setDbAdapter,
   initializeDatabase,
   closeDatabase,
-} from "./client";
-export type { DbAdapter, Repository, QueryOptions } from "./client";
+} from "./client.js";
+export type { DbAdapter, Repository, QueryOptions } from "./client.js";

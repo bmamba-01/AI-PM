@@ -38,6 +38,21 @@ function makeInput() {
   };
 }
 
+function makeTrackingState() {
+  return {
+    tracking_tool: 'local_memory' as const,
+    tracking_mode: 'manual',
+    external_task_id: 'track-001',
+    external_task_url: 'file://.ai-pm/memory/state.json#track-001',
+    local_memory_task_id: 'track-001',
+    status: 'ready' as const,
+    created_at: '2026-06-22T00:00:00.000Z',
+    completed_at: null,
+    dry_run_only: false,
+    completion_payload: null,
+  };
+}
+
 function makeFullRun(): ReturnType<typeof createOrchestratorRun> {
   let run = createOrchestratorRun(makeInput());
   run = advanceOrchestratorRun(run, {
@@ -58,6 +73,7 @@ function makeFullRun(): ReturnType<typeof createOrchestratorRun> {
   run = advanceOrchestratorRun(run, {
     target_state: 'agent_assignment',
     agents: ['reporting-agent'],
+    tracking_state: makeTrackingState(),
   });
   run = advanceToNext(run); // validation
   run = advanceOrchestratorRun(run, {
@@ -253,7 +269,7 @@ describe('readAuditLog', () => {
     run1 = advanceToNext(run1); // project_resolution
     run1 = advanceToNext(run1); // context_pack
     run1 = advanceToNext(run1); // workflow_selection
-    run1 = advanceToNext(run1); // agent_assignment
+    run1 = advanceToNext(run1, { tracking_state: makeTrackingState() }); // agent_assignment
     run1 = advanceToNext(run1); // validation
     run1 = advanceToNext(run1); // approval_gate
     run1 = advanceToNext(run1); // artifact_persistence

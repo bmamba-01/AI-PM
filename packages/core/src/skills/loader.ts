@@ -7,6 +7,7 @@ export interface Skill {
   category: string;
   description: string;
   version: string;
+  owner?: 'orchestrator' | 'shared' | 'agent';
   author?: string;
   tags: string[];
   instructions: string;
@@ -49,20 +50,19 @@ export class SkillLoader {
               category: data.category || "general",
               description: data.description || "",
               version: data.version || "1.0.0",
+              owner: data.owner,
               author: data.author,
               tags: data.tags || [],
               instructions: data.instructions || instructions,
               triggers: data.triggers,
               dependencies: data.dependencies,
             });
-          } catch (err) { console.warn(`[skill-loader] failed to load ${item.name}:`, err); }
+          } catch {}
         }
       }
     }
-    console.log(`[skill-loader] loaded ${skills.length} skills`);
     return skills;
   }
 
   addSearchPath(p: string): void { this.searchPaths.push(p); }
 }
-

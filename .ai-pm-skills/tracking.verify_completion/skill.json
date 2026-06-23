@@ -1,0 +1,10 @@
+{
+  "id": "tracking.verify_completion",
+  "name": "Tracking Verify Completion",
+  "category": "tracking",
+  "description": "Re-read the tracker and confirm that the delegated task was updated with the correct id, status, and evidence.",
+  "version": "1.0.0",
+  "owner": "orchestrator",
+  "tags": ["tracking", "verification", "delegation"],
+  "triggers": ["verify completion", "check tracker update", "accept agent output"]
+}

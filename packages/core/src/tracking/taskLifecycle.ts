@@ -6,13 +6,13 @@
  * creates a tracker task before agent assignment and verifies completion after.
  */
 
-import { randomUUID } from 'node:crypto';
 import type {
   TrackingAdapter,
   TrackingConfig,
   TrackingTask,
   TaskStatus,
   TrackingSystem,
+  TrackingUpdate,
 } from './types.js';
 
 // ─── Lifecycle State ─────────────────────────────────────────────────────────
@@ -216,13 +216,21 @@ export async function verifyCompletion(
 
 export interface AgentContract {
   task_id: string;
-  external_task_id: string;
-  external_task_url: string;
-  tracking_tool: string;
-  tracking_mode: string;
-  completion_skill: string;
   workflow_id: string;
   agent_role: string;
+  tracking: {
+    tool: TrackingSystem;
+    mode: string;
+    external_task_id: string;
+    external_task_url: string;
+    status_field?: string;
+    done_status?: string;
+    update_required_on_completion: true;
+    skill_required: {
+      orchestrator_create: 'tracking.create_task';
+      agent_complete: 'tracking.complete_task';
+    };
+  };
 }
 
 /**
@@ -233,15 +241,51 @@ export function buildAgentContract(
   state: TaskLifecycleState,
   workflow_id: string,
   agent_role: string,
+  trackingConfig?: Pick<TrackingConfig, 'status_field' | 'done_status'>,
 ): AgentContract {
   return {
     task_id: state.local_memory_task_id ?? state.external_task_id ?? '',
-    external_task_id: state.external_task_id ?? '',
-    external_task_url: state.external_task_url ?? '',
-    tracking_tool: state.tracking_tool,
-    tracking_mode: state.tracking_mode,
-    completion_skill: 'tracking.complete_task',
     workflow_id,
     agent_role,
+    tracking: {
+      tool: state.tracking_tool,
+      mode: state.tracking_mode,
+      external_task_id: state.external_task_id ?? '',
+      external_task_url: state.external_task_url ?? '',
+      status_field: trackingConfig?.status_field,
+      done_status: trackingConfig?.done_status,
+      update_required_on_completion: true,
+      skill_required: {
+        orchestrator_create: 'tracking.create_task',
+        agent_complete: 'tracking.complete_task',
+      },
+    },
   };
+}
+
+export function validateTrackingUpdate(
+  state: TaskLifecycleState,
+  trackingUpdate: TrackingUpdate['tracking_update'] | CompletionPayload | null | undefined,
+): TrackingUpdate['tracking_update'] | CompletionPayload {
+  if (!trackingUpdate) {
+    throw new Error('Missing required tracking_update in agent completion payload.');
+  }
+
+  if (trackingUpdate.tool !== state.tracking_tool) {
+    throw new Error(
+      `tracking_update.tool "${trackingUpdate.tool}" does not match assigned tracker tool "${state.tracking_tool}".`,
+    );
+  }
+
+  if (!state.external_task_id || trackingUpdate.external_task_id !== state.external_task_id) {
+    throw new Error(
+      `tracking_update.external_task_id "${trackingUpdate.external_task_id}" does not match assigned tracker task "${state.external_task_id}".`,
+    );
+  }
+
+  if (!trackingUpdate.attempted) {
+    throw new Error('Agent must attempt the required tracker update before completion.');
+  }
+
+  return trackingUpdate;
 }

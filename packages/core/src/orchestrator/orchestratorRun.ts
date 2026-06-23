@@ -16,6 +16,13 @@ import {
   type RunError,
   STATE_TRANSITIONS,
 } from './types.js';
+import type { TrackingUpdate } from '../tracking/types.js';
+import {
+  type AgentContract,
+  type TaskLifecycleState,
+  buildAgentContract,
+  validateTrackingUpdate,
+} from '../tracking/taskLifecycle.js';
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 
@@ -48,6 +55,8 @@ export function createOrchestratorRun(input: CreateOrchestratorRunInput): Orches
     assigned_agents: [],
     artifacts: [],
     approvals_required: [],
+    tracking_state: null,
+    agent_task_contract: null,
     errors: [],
     started_at: now,
     updated_at: now,
@@ -63,6 +72,8 @@ export interface AdvanceInput {
   agents?: string[];
   artifacts?: RunArtifact[];
   approvals?: string[];
+  tracking_state?: TaskLifecycleState;
+  agent_task_contract?: AgentContract;
   error?: RunError;
 }
 
@@ -84,10 +95,36 @@ export function advanceOrchestratorRun(
   }
 
   const now = new Date().toISOString();
+  const nextTrackingState = input.tracking_state ?? run.tracking_state;
+  let nextAgentContract = input.agent_task_contract ?? run.agent_task_contract;
+
+  if (input.target_state === 'agent_assignment') {
+    if (!nextTrackingState) {
+      throw new Error('Tracking state must be created or bound before agent assignment.');
+    }
+
+    if (!nextAgentContract) {
+      const agentRole =
+        input.agents?.[0] ??
+        run.assigned_agents[run.assigned_agents.length - 1] ??
+        'unassigned';
+      nextAgentContract = buildAgentContract(nextTrackingState, run.workflow_id, agentRole);
+    }
+
+    if (
+      nextAgentContract.tracking.skill_required.orchestrator_create !== 'tracking.create_task' ||
+      nextAgentContract.tracking.skill_required.agent_complete !== 'tracking.complete_task'
+    ) {
+      throw new Error('Agent task contract must include required tracking skill ids.');
+    }
+  }
+
   const next: OrchestratorRun = {
     ...run,
     state: input.target_state,
     updated_at: now,
+    tracking_state: nextTrackingState,
+    agent_task_contract: nextAgentContract,
   };
 
   // Apply side effects based on target state
@@ -116,6 +153,68 @@ export function advanceOrchestratorRun(
   }
 
   return next;
+}
+
+export function bindTrackingToRun(
+  run: OrchestratorRun,
+  tracking_state: TaskLifecycleState,
+): OrchestratorRun {
+  return {
+    ...run,
+    tracking_state,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export interface PrepareAgentAssignmentInput {
+  agent: string;
+  tracking_state: TaskLifecycleState;
+  tracking_contract: AgentContract;
+}
+
+export function prepareAgentAssignment(
+  run: OrchestratorRun,
+  input: PrepareAgentAssignmentInput,
+): OrchestratorRun {
+  return advanceOrchestratorRun(bindTrackingToRun(run, input.tracking_state), {
+    target_state: 'agent_assignment',
+    agents: [input.agent],
+    agent_task_contract: input.tracking_contract,
+  });
+}
+
+export function acceptAgentCompletion(
+  run: OrchestratorRun,
+  tracking_update: TrackingUpdate['tracking_update'] | null | undefined,
+): OrchestratorRun {
+  if (!run.tracking_state) {
+    throw new Error('Cannot accept agent completion without a bound tracking state.');
+  }
+
+  const validatedUpdate = validateTrackingUpdate(run.tracking_state, tracking_update);
+  const nextTrackingState: TaskLifecycleState = {
+    ...run.tracking_state,
+    status: validatedUpdate.status_after_update as TaskLifecycleState['status'],
+    completed_at:
+      validatedUpdate.status_after_update === 'done'
+        ? new Date().toISOString()
+        : run.tracking_state.completed_at,
+    completion_payload: {
+      tool: validatedUpdate.tool,
+      external_task_id: validatedUpdate.external_task_id,
+      external_task_url: validatedUpdate.external_task_url,
+      status_after_update: validatedUpdate.status_after_update as TaskLifecycleState['status'],
+      attempted: validatedUpdate.attempted,
+      result: validatedUpdate.result,
+      evidence_refs: validatedUpdate.evidence_refs,
+      summary: 'summary' in validatedUpdate ? validatedUpdate.summary : '',
+    },
+  };
+
+  return advanceOrchestratorRun(run, {
+    target_state: 'validation',
+    tracking_state: nextTrackingState,
+  });
 }
 
 // ─── Advance to next sequential state ────────────────────────────────────────

@@ -52,6 +52,7 @@ The runtime can reuse Hermes Agent or OpenClaw-style assistants for chat, voice,
 
 - Everything is project-scoped. A command must resolve `project_id`, methodology, project type, sources, and allowed connectors before acting.
 - Delegated work must be tracker-scoped. The PM Commander must resolve the project tracking tool, create or bind a task in that tool, pass the external task id/url to the agent, and verify tracker completion before accepting the agent output.
+- Every delegable core feature must be packaged as a loadable runtime skill, not only as documentation. Skill packaging rules live in `docs/operating-model/skill-packaging-contract.md`.
 - Local-first must work offline for docs, templates, local memory, audit logs, and draft artifacts.
 - External mutations are approval-gated by default: email, chat, Jira, Linear, GitHub, Confluence, Notion, Drive, calendar, PR comments, issue updates, scope baseline changes, cost changes, and report publication.
 - Agents may draft and propose. The orchestrator must validate and route. The PM owns final approval.
@@ -272,6 +273,31 @@ Implementation plan:
 
 - `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
 
+## 8D. Skill-Packaged Delegation Surface
+
+Tracker-scoped delegation is still incomplete until the instructions become loadable skills and the PM has a short status surface to inspect them.
+
+Required runtime surfaces:
+
+- `.ai-pm-skills/` packaged skills with `skill.json` and `instructions.md`
+- CLI `ai-pm skills ...`
+- desktop skills status surface
+- chat/mobile `/skills`
+
+Required status output:
+
+- which skill created the task
+- which tracker owns the task
+- external task id and URL
+- assigned agent
+- current state
+- pending approvals
+- output artifact path
+
+Contract:
+
+- `docs/operating-model/skill-packaging-contract.md`
+
 ## 9. Revised Roadmap
 
 ### Phase 1: Stabilize and Re-anchor
@@ -347,6 +373,7 @@ Only delegate tasks that have clear file scope, success criteria, and verificati
 Current prompt set:
 
 - Wave 18 tracking skills: `docs/agent-delegation/2026-06-22-wave18-tracking-skills.md`
+- Wave 19 skill packaging and skills status surface: `docs/agent-delegation/2026-06-22-wave19-skill-packaging-and-tracking.md`
 - Tracking skills implementation plan: `docs/superpowers/plans/2026-06-22-tracking-skills-implementation.md`
 - Wave 17 verified self-test continuation: `docs/agent-delegation/2026-06-22-wave17-self-test-continuation.md`
 - AI-PM self-test stabilization wave: `docs/agent-delegation/2026-06-21-ai-pm-self-test-wave.md`

@@ -161,6 +161,64 @@ describe('validateProfile', () => {
     expect(result.valid).toBe(true);
     expect(result.profile.project.name).toBe('AI-PM Toolkit');
   });
+
+  it('accepts valid tracking config', () => {
+    const result = validateProfile({
+      version: 1,
+      project: { project_id: 'p1', name: 'Test', root: '.' },
+      tracking: { system: 'notion', mode: 'dry_run' },
+    });
+    expect(result.valid).toBe(true);
+    expect(result.profile.tracking?.system).toBe('notion');
+    expect(result.profile.tracking?.mode).toBe('dry_run');
+  });
+
+  it('rejects invalid tracking system', () => {
+    const result = validateProfile({
+      version: 1,
+      project: { project_id: 'p1', name: 'Test', root: '.' },
+      tracking: { system: 'asana', mode: 'live' },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('tracking.system'))).toBe(true);
+  });
+
+  it('rejects invalid tracking mode', () => {
+    const result = validateProfile({
+      version: 1,
+      project: { project_id: 'p1', name: 'Test', root: '.' },
+      tracking: { system: 'notion', mode: 'batch' },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('tracking.mode'))).toBe(true);
+  });
+
+  it('accepts all valid tracking systems', () => {
+    for (const system of ['notion', 'jira', 'linear', 'github', 'excel', 'local_memory'] as const) {
+      const result = validateProfile({
+        version: 1,
+        project: { project_id: 'p1', name: 'Test', root: '.' },
+        tracking: { system, mode: 'local_import' },
+      });
+      expect(result.valid).toBe(true);
+    }
+  });
+
+  it('accepts all valid tracking modes', () => {
+    for (const mode of ['live', 'dry_run', 'local_import', 'manual'] as const) {
+      const result = validateProfile({
+        version: 1,
+        project: { project_id: 'p1', name: 'Test', root: '.' },
+        tracking: { system: 'notion', mode },
+      });
+      expect(result.valid).toBe(true);
+    }
+  });
+
+  it('defaults tracking to undefined when absent', () => {
+    const p = applyProfileDefaults({});
+    expect(p.tracking).toBeUndefined();
+  });
 });
 
 // ─── loadProfile ─────────────────────────────────────────────────────────────

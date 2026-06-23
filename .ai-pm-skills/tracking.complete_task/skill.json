@@ -1,0 +1,10 @@
+{
+  "id": "tracking.complete_task",
+  "name": "Tracking Complete Task",
+  "category": "tracking",
+  "description": "Update the assigned tracker before returning completed status from an agent task.",
+  "version": "1.0.0",
+  "owner": "agent",
+  "tags": ["tracking", "completion", "delegation"],
+  "triggers": ["task completion", "mark task done", "update tracker"]
+}

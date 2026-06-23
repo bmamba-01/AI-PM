@@ -1,0 +1,10 @@
+{
+  "id": "tracking.sync_local_mirror",
+  "name": "Tracking Sync Local Mirror",
+  "category": "tracking",
+  "description": "Keep the local memory task mirror aligned with the tracker state, references, and artifacts.",
+  "version": "1.0.0",
+  "owner": "orchestrator",
+  "tags": ["tracking", "local-memory", "sync"],
+  "triggers": ["sync mirror", "update local memory", "after tracker change"]
+}

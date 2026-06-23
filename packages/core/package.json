@@ -62,6 +62,10 @@
       "import": "./dist/orchestrator/index.js",
       "types": "./dist/orchestrator/index.d.ts"
     },
+    "./tracking": {
+      "import": "./dist/tracking/index.js",
+      "types": "./dist/tracking/index.d.ts"
+    },
     "./setup": {
       "import": "./dist/setup/setupProfile.js",
       "types": "./dist/setup/setupProfile.d.ts"

@@ -15,6 +15,8 @@ import { traceabilityCommand } from '../dist/commands/traceability.js';
 import { codeQualityCommand } from '../dist/commands/code-quality.js';
 import { adoptCommand } from '../dist/commands/adopt.js';
 import { setupCommand } from '../dist/commands/setup.js';
+import { trackingCommand } from '../dist/commands/tracking.js';
+import { skillsCommand } from '../dist/commands/skills.js';
 import { Command } from 'commander';
 import chalk from 'chalk';
 
@@ -60,6 +62,8 @@ program.addCommand(traceabilityCommand);
 program.addCommand(codeQualityCommand);
 program.addCommand(adoptCommand);
 program.addCommand(setupCommand);
+program.addCommand(trackingCommand);
+program.addCommand(skillsCommand);
 
 program.on('command', () => {});
 
@@ -84,4 +88,6 @@ if (!process.argv.slice(2).length) {
   console.log(chalk.gray('  risk <subcommand>        Manage project risk register'));
   console.log(chalk.gray('  traceability build       Build scope traceability matrix'));
   console.log(chalk.gray('  code-quality review      Review local diff against requirements'));
+  console.log(chalk.gray('  tracking <subcommand>    Manage tracker-scoped delegated tasks'));
+  console.log(chalk.gray('  skills <subcommand>      Inspect packaged skills and skill status'));
 }

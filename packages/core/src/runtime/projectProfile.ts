@@ -8,6 +8,7 @@
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { VALID_TRACKING_SYSTEMS, VALID_TRACKING_MODES, type TrackingSystem, type TrackingMode, type TrackingConfig } from '../tracking/types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export interface ProjectProfile {
     notes?: string;
   };
   approval_policy?: Record<string, boolean>;
+  tracking?: TrackingConfig;
 }
 
 export interface ProfileValidationResult {
@@ -134,6 +136,21 @@ export function validateProfile(profile: unknown): ProfileValidationResult {
     for (const [key, val] of Object.entries(p.approval_policy as Record<string, unknown>)) {
       if (typeof val !== 'boolean') {
         errors.push(`approval_policy.${key} must be boolean`);
+      }
+    }
+  }
+
+  // tracking — optional, validate system and mode
+  if (p.tracking !== undefined && typeof p.tracking === 'object') {
+    const tracking = p.tracking as Record<string, unknown>;
+    if (tracking.system !== undefined && typeof tracking.system === 'string') {
+      if (!VALID_TRACKING_SYSTEMS.includes(tracking.system as TrackingSystem)) {
+        errors.push(`tracking.system must be one of: ${VALID_TRACKING_SYSTEMS.join(', ')}`);
+      }
+    }
+    if (tracking.mode !== undefined && typeof tracking.mode === 'string') {
+      if (!VALID_TRACKING_MODES.includes(tracking.mode as TrackingMode)) {
+        errors.push(`tracking.mode must be one of: ${VALID_TRACKING_MODES.join(', ')}`);
       }
     }
   }

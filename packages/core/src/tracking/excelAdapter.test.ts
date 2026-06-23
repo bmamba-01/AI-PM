@@ -40,15 +40,16 @@ describe('ExcelAdapter', () => {
     const adapter = new ExcelAdapter(root, 'local_import');
     const task = await adapter.createTask(baseInput());
 
-    expect(task.external_task_id).toContain('excel-row-');
-    expect(task.external_task_url).toContain('docs.google.com/spreadsheets');
+    expect(task.external_task_id).toMatch(/^excel-local:/);
+    expect(task.external_task_url).toMatch(/^file:\/\//);
     expect(task.status).toBe('ready');
     expect(task.title).toBe('Excel task');
+    expect(task.dry_run_only).toBe(true);
 
     const csvPath = path.join(root, 'integrations', 'excel', 'tasks.csv');
     const content = await readFile(csvPath, 'utf-8');
     expect(content).toContain('Excel task');
-    expect(content).toContain('excel-row-');
+    expect(content).toContain('excel-local:');
   });
 
   it('createTask in dry_run mode writes CSV row', async () => {
@@ -59,7 +60,8 @@ describe('ExcelAdapter', () => {
     const csvPath = path.join(root, 'integrations', 'excel', 'tasks.csv');
     const content = await readFile(csvPath, 'utf-8');
     expect(content).toContain('Excel task');
-    expect(task.external_task_id).toContain('excel-row-');
+    expect(task.external_task_id).toMatch(/^excel-local:/);
+    expect(task.dry_run_only).toBe(true);
   });
 
   it('createTask returns stable external_task_id format', async () => {
@@ -67,8 +69,8 @@ describe('ExcelAdapter', () => {
     const adapter = new ExcelAdapter(root, 'local_import');
     const task = await adapter.createTask(baseInput());
 
-    expect(task.external_task_id).toMatch(/^excel-row-[a-z0-9]+$/);
-    expect(task.external_task_url).toMatch(/^https:\/\/docs\.google\.com\/spreadsheets\/d\//);
+    expect(task.external_task_id).toMatch(/^excel-local:[a-z0-9-]+$/);
+    expect(task.external_task_url).toMatch(/^file:\/\//);
   });
 
   it('updateStatus in dry_run returns updated task', async () => {
@@ -108,7 +110,7 @@ describe('ExcelAdapter', () => {
     expect(tasks).toHaveLength(2);
     expect(tasks[0].title).toBe('Task A');
     expect(tasks[1].title).toBe('Task B');
-    expect(tasks[0].external_task_url).toContain('docs.google.com');
+    expect(tasks[0].external_task_url).toContain('tasks.csv');
   });
 
   it('listTasks returns empty for missing CSV', async () => {
@@ -121,13 +123,13 @@ describe('ExcelAdapter', () => {
   it('live mode throws on createTask', async () => {
     const root = await tempRoot();
     const adapter = new ExcelAdapter(root, 'live');
-    await expect(adapter.createTask(baseInput())).rejects.toThrow('Live Excel not implemented');
+    await expect(adapter.createTask(baseInput())).rejects.toThrow('does not support live mode');
   });
 
   it('live mode throws on updateStatus', async () => {
     const root = await tempRoot();
     const adapter = new ExcelAdapter(root, 'live');
-    await expect(adapter.updateStatus('abc', 'done')).rejects.toThrow('Live Excel not implemented');
+    await expect(adapter.updateStatus('abc', 'done')).rejects.toThrow('does not support live mode');
   });
 
   it('multiple createTask calls append to same CSV', async () => {

@@ -1,0 +1,10 @@
+{
+  "id": "tracking.resolve_project_tracker",
+  "name": "Tracking Resolve Project Tracker",
+  "category": "tracking",
+  "description": "Read the active project profile and resolve the tracker tool, mode, and completion mapping before delegation.",
+  "version": "1.0.0",
+  "owner": "orchestrator",
+  "tags": ["tracking", "delegation", "project-profile"],
+  "triggers": ["resolve tracker", "read project profile", "before delegation"]
+}

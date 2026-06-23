@@ -4,6 +4,7 @@ import path from 'node:path';
 import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, it, expect } from 'vitest';
+import { createTrackingCommand } from './tracking.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +37,28 @@ afterEach(async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+async function runTrackingCommand(root: string, argv: string[]): Promise<string> {
+  const originalCwd = process.cwd();
+  const originalExit = process.exit;
+  const logs: string[] = [];
+  const spy = (await import('vitest')).vi.spyOn(console, 'log').mockImplementation((value?: unknown) => {
+    logs.push(String(value ?? ''));
+  });
+  process.exit = (() => undefined) as never;
+  process.chdir(root);
+  try {
+    const cmd = createTrackingCommand();
+    await cmd.parseAsync(argv, { from: 'user' });
+    await new Promise(resolve => setTimeout(resolve, 25));
+  } finally {
+    spy.mockRestore();
+    process.chdir(originalCwd);
+    process.exit = originalExit;
+    process.exitCode = 0;
+  }
+  return logs.join('');
+}
 
 describe('JSON regression: setup', () => {
   it('setup doctor --json returns valid JSON', () => {
@@ -292,5 +315,143 @@ describe('JSON regression: schema', () => {
     expect(typeof data).toBe('object');
     expect(typeof data.schemas).toBe('object');
     expect(Array.isArray(data.schemas)).toBe(true);
+  });
+});
+
+describe('JSON regression: tracking command module', () => {
+  it('tracking resolve --json returns valid JSON without spinner text', async () => {
+    const root = await tempRoot();
+    await mkdir(path.join(root, '.ai-pm'), { recursive: true });
+    await writeFile(path.join(root, '.ai-pm', 'profile.yaml'), [
+      'version: 1',
+      'project:',
+      '  project_id: tracking-json',
+      '  name: Tracking Json',
+      '  root: .',
+      'tracking:',
+      '  system: local_memory',
+      '  mode: live',
+      '',
+    ].join('\n'));
+
+    const stdout = await runTrackingCommand(root, ['resolve', '--json']);
+    const data = parseJSON(stdout) as any;
+    expect(typeof data).toBe('object');
+    expect(data.tracking.system).toBe('local_memory');
+    expect(stdout).not.toContain('Loading');
+    expect(stdout).not.toContain('Running');
+  });
+
+  it('tracking create/complete/verify --json stay parseable across the flow', async () => {
+    const root = await tempRoot();
+    await mkdir(path.join(root, '.ai-pm'), { recursive: true });
+    await writeFile(path.join(root, '.ai-pm', 'profile.yaml'), [
+      'version: 1',
+      'project:',
+      '  project_id: tracking-flow',
+      '  name: Tracking Flow',
+      '  root: .',
+      'tracking:',
+      '  system: local_memory',
+      '  mode: live',
+      '',
+    ].join('\n'));
+
+    const createdRaw = await runTrackingCommand(root, [
+      'create',
+      '--title', 'JSON flow',
+      '--agent', 'reporting',
+      '--workflow', 'weekly-report',
+      '--json',
+    ]);
+    const created = parseJSON(createdRaw) as any;
+    expect(created.action).toBe('create');
+
+    const completedRaw = await runTrackingCommand(root, [
+      'complete',
+      created.task.external_task_id,
+      '--status', 'done',
+      '--report', 'reports/json-flow.md',
+      '--json',
+    ]);
+    const completed = parseJSON(completedRaw) as any;
+    expect(completed.action).toBe('complete');
+    expect(completed.completion.status_after_update).toBe('done');
+
+    const verifiedRaw = await runTrackingCommand(root, [
+      'verify',
+      created.task.external_task_id,
+      '--json',
+    ]);
+    const verified = parseJSON(verifiedRaw) as any;
+    expect(verified.action).toBe('verify');
+    expect(verified.verified).toBe(true);
+  });
+});
+
+describe('JSON regression: skills', () => {
+  it('skills list --json returns valid JSON', async () => {
+    const root = await tempRoot();
+    await mkdir(path.join(root, '.ai-pm-skills', 'tracking.resolve_project_tracker'), { recursive: true });
+    await writeFile(path.join(root, '.ai-pm-skills', 'tracking.resolve_project_tracker', 'skill.json'), JSON.stringify({
+      id: 'tracking.resolve_project_tracker',
+      name: 'Resolve Project Tracker',
+      category: 'tracking',
+      description: 'Resolve active tracker',
+      version: '1.0.0',
+      owner: 'orchestrator',
+      tags: ['tracking'],
+    }, null, 2));
+    await writeFile(path.join(root, '.ai-pm-skills', 'tracking.resolve_project_tracker', 'instructions.md'), 'resolve tracker');
+
+    const { stdout } = run('skills list --json', root);
+    const data = parseJSON(stdout) as any;
+    expect(typeof data).toBe('object');
+    expect(typeof data.total).toBe('number');
+    expect(Array.isArray(data.skills)).toBe(true);
+  });
+
+  it('skills status --json returns valid JSON', async () => {
+    const root = await tempRoot();
+    await mkdir(path.join(root, '.ai-pm-skills', 'tracking.complete_task'), { recursive: true });
+    await writeFile(path.join(root, '.ai-pm-skills', 'tracking.complete_task', 'skill.json'), JSON.stringify({
+      id: 'tracking.complete_task',
+      name: 'Complete Tracking Task',
+      category: 'tracking',
+      description: 'Complete tracking task',
+      version: '1.0.0',
+      owner: 'agent',
+      tags: ['tracking'],
+    }, null, 2));
+    await writeFile(path.join(root, '.ai-pm-skills', 'tracking.complete_task', 'instructions.md'), 'complete');
+    await mkdir(path.join(root, '.ai-pm', 'tracking'), { recursive: true });
+    await writeFile(path.join(root, '.ai-pm', 'profile.yaml'), [
+      'version: 1',
+      'project:',
+      '  project_id: skills-status-json',
+      '  name: Skills Status Json',
+      '  root: .',
+      'tracking:',
+      '  system: notion',
+      '  mode: local_import',
+      '',
+    ].join('\n'));
+    await writeFile(path.join(root, '.ai-pm', 'tracking', 'tasks.json'), JSON.stringify([{
+      task_id: 't1',
+      project_id: 'skills-status-json',
+      assigned_agent: 'reporting',
+      workflow_id: 'weekly-report',
+      status: 'ready',
+      external_task_id: 'notion-local:t1',
+      external_task_url: 'file://issues.csv#t1',
+      tracking: { tool: 'notion' },
+      skill_required: { agent_complete: 'tracking.complete_task' },
+    }], null, 2));
+
+    const { stdout } = run('skills status --json --path ' + root, root);
+    const data = parseJSON(stdout) as any;
+    expect(typeof data).toBe('object');
+    expect(data.project_id).toBe('skills-status-json');
+    expect(Array.isArray(data.skills)).toBe(true);
   });
 });

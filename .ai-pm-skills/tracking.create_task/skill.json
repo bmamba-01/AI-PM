@@ -1,0 +1,10 @@
+{
+  "id": "tracking.create_task",
+  "name": "Tracking Create Task",
+  "category": "tracking",
+  "description": "Create or bind the delegated task in the resolved tracker and local memory before assigning an agent.",
+  "version": "1.0.0",
+  "owner": "orchestrator",
+  "tags": ["tracking", "task-creation", "delegation"],
+  "triggers": ["create task", "bind task", "before agent assignment"]
+}

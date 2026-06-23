@@ -14,3 +14,5 @@ export { traceabilityCommand } from './commands/traceability.js';
 export { codeQualityCommand } from './commands/code-quality.js';
 export { adoptCommand } from './commands/adopt.js';
 export { setupCommand } from './commands/setup.js';
+export { trackingCommand } from './commands/tracking.js';
+export { skillsCommand } from './commands/skills.js';

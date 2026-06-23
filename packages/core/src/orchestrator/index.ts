@@ -5,10 +5,14 @@ export {
   advanceToNext,
   failRun,
   toAuditRecord,
+  bindTrackingToRun,
+  prepareAgentAssignment,
+  acceptAgentCompletion,
 } from './orchestratorRun.js';
 export type {
   CreateOrchestratorRunInput,
   AdvanceInput,
+  PrepareAgentAssignmentInput,
 } from './orchestratorRun.js';
 export {
   finalizeOrchestratorRun,

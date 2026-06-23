@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { resolveTrackingAdapter, getTrackingConfig } from './registry.js';
 import { LocalMemoryAdapter } from './localMemoryAdapter.js';
+import { NotionAdapter } from './notionAdapter.js';
+import { ExcelAdapter } from './excelAdapter.js';
 
 describe('Tracking Registry', () => {
   let tempDir: string;
@@ -38,29 +40,44 @@ describe('Tracking Registry', () => {
       expect(adapter.adapter_id).toBe('local_memory');
     });
 
-    it('returns LocalMemoryAdapter for notion profile (fallback)', () => {
+    it('returns NotionAdapter for notion profile', () => {
       const adapter = resolveTrackingAdapter(
         { tracking: { system: 'notion', mode: 'local_import' } },
         tempDir,
       );
-      expect(adapter).toBeInstanceOf(LocalMemoryAdapter);
-      expect(adapter.adapter_id).toBe('local_memory');
+      expect(adapter).toBeInstanceOf(NotionAdapter);
+      expect(adapter.adapter_id).toBe('notion');
+      expect(adapter.mode).toBe('local_import');
     });
 
-    it('returns LocalMemoryAdapter for jira profile (fallback)', () => {
+    it('keeps unsupported live adapters explicit', async () => {
       const adapter = resolveTrackingAdapter(
-        { tracking: { system: 'jira', mode: 'dry_run' } },
+        { tracking: { system: 'jira', mode: 'live' } },
         tempDir,
       );
-      expect(adapter).toBeInstanceOf(LocalMemoryAdapter);
+      expect(adapter.adapter_id).toBe('jira');
+      expect(adapter.mode).toBe('live');
+      await expect(
+        adapter.createTask({
+          project_id: 'test-project',
+          title: 'Test task',
+          description: 'A test task',
+          assigned_agent: 'test-agent',
+          workflow_id: 'test-workflow',
+          priority: 'high',
+          status: 'ready',
+        }),
+      ).rejects.toThrow('does not support live mode');
     });
 
-    it('returns LocalMemoryAdapter for excel profile', () => {
+    it('returns ExcelAdapter for excel profile', () => {
       const adapter = resolveTrackingAdapter(
         { tracking: { system: 'excel', mode: 'local_import' } },
         tempDir,
       );
-      expect(adapter).toBeInstanceOf(LocalMemoryAdapter);
+      expect(adapter).toBeInstanceOf(ExcelAdapter);
+      expect(adapter.adapter_id).toBe('excel');
+      expect(adapter.mode).toBe('local_import');
     });
   });
 

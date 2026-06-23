@@ -7,6 +7,8 @@
 
 import type { TrackingAdapter, TrackingSystem, TrackingConfig, TrackingMode } from './types.js';
 import { LocalMemoryAdapter } from './localMemoryAdapter.js';
+import { NotionAdapter } from './notionAdapter.js';
+import { ExcelAdapter } from './excelAdapter.js';
 
 // ─── Profile reader ─────────────────────────────────────────────────────────
 
@@ -31,6 +33,48 @@ function extractTrackingConfig(profile: ProfileTrackingSection): TrackingConfig 
 
 // ─── Adapter factory ────────────────────────────────────────────────────────
 
+class UnsupportedTrackingAdapter implements TrackingAdapter {
+  constructor(
+    readonly adapter_id: TrackingSystem,
+    readonly mode: TrackingMode,
+  ) {}
+
+  private unsupportedMessage(action: string): string {
+    if (this.mode === 'live') {
+      return `Tracking adapter "${this.adapter_id}" does not support live mode for ${action}`;
+    }
+    return `Tracking adapter "${this.adapter_id}" is not implemented for ${action}`;
+  }
+
+  async createTask(): Promise<never> {
+    throw new Error(this.unsupportedMessage('createTask'));
+  }
+
+  async getTask(): Promise<null> {
+    return null;
+  }
+
+  async updateStatus(): Promise<never> {
+    throw new Error(this.unsupportedMessage('updateStatus'));
+  }
+
+  async attachReport(): Promise<never> {
+    throw new Error(this.unsupportedMessage('attachReport'));
+  }
+
+  async addComment(): Promise<never> {
+    throw new Error(this.unsupportedMessage('addComment'));
+  }
+
+  async listProjectTasks(): Promise<[]> {
+    return [];
+  }
+
+  async verifyCompletion(): Promise<{ complete: false; evidence: string[] }> {
+    return { complete: false, evidence: [this.unsupportedMessage('verifyCompletion')] };
+  }
+}
+
 function createAdapter(
   system: TrackingSystem,
   mode: TrackingMode,
@@ -38,14 +82,15 @@ function createAdapter(
 ): TrackingAdapter {
   switch (system) {
     case 'local_memory':
+      return new LocalMemoryAdapter(projectRoot);
     case 'excel':
+      return new ExcelAdapter(projectRoot, mode);
     case 'notion':
+      return new NotionAdapter(projectRoot, mode);
     case 'jira':
     case 'linear':
     case 'github':
-      // All systems currently use local_memory adapter as fallback.
-      // Live adapters will be implemented when external connectors are added.
-      return new LocalMemoryAdapter(projectRoot);
+      return new UnsupportedTrackingAdapter(system, mode);
     default:
       return new LocalMemoryAdapter(projectRoot);
   }

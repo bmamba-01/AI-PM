@@ -40,15 +40,16 @@ describe('NotionAdapter', () => {
     const adapter = new NotionAdapter(root, 'local_import');
     const task = await adapter.createTask(baseInput());
 
-    expect(task.external_task_id).toContain('notion-page-');
-    expect(task.external_task_url).toContain('notion.so/');
+    expect(task.external_task_id).toMatch(/^notion-local:/);
+    expect(task.external_task_url).toMatch(/^file:\/\//);
     expect(task.status).toBe('ready');
     expect(task.title).toBe('Test task');
+    expect(task.dry_run_only).toBe(true);
 
     const csvPath = path.join(root, 'integrations', 'notion', 'issues.csv');
     const content = await readFile(csvPath, 'utf-8');
     expect(content).toContain('Test task');
-    expect(content).toContain('notion-page-');
+    expect(content).toContain('notion-local:');
   });
 
   it('createTask in dry_run mode writes CSV row', async () => {
@@ -59,7 +60,8 @@ describe('NotionAdapter', () => {
     const csvPath = path.join(root, 'integrations', 'notion', 'issues.csv');
     const content = await readFile(csvPath, 'utf-8');
     expect(content).toContain('Test task');
-    expect(task.external_task_id).toContain('notion-page-');
+    expect(task.external_task_id).toMatch(/^notion-local:/);
+    expect(task.dry_run_only).toBe(true);
   });
 
   it('createTask returns stable external_task_id format', async () => {
@@ -67,8 +69,8 @@ describe('NotionAdapter', () => {
     const adapter = new NotionAdapter(root, 'local_import');
     const task = await adapter.createTask(baseInput());
 
-    expect(task.external_task_id).toMatch(/^notion-page-[a-z0-9]+$/);
-    expect(task.external_task_url).toMatch(/^https:\/\/notion\.so\//);
+    expect(task.external_task_id).toMatch(/^notion-local:[a-z0-9-]+$/);
+    expect(task.external_task_url).toMatch(/^file:\/\//);
   });
 
   it('updateStatus in dry_run returns updated task', async () => {
@@ -109,7 +111,7 @@ describe('NotionAdapter', () => {
     expect(tasks).toHaveLength(2);
     expect(tasks[0].title).toBe('Task A');
     expect(tasks[1].title).toBe('Task B');
-    expect(tasks[0].external_task_url).toContain('notion.so/');
+    expect(tasks[0].external_task_url).toContain('issues.csv');
   });
 
   it('listTasks returns empty for missing CSV', async () => {
@@ -122,13 +124,13 @@ describe('NotionAdapter', () => {
   it('live mode throws on createTask', async () => {
     const root = await tempRoot();
     const adapter = new NotionAdapter(root, 'live');
-    await expect(adapter.createTask(baseInput())).rejects.toThrow('Live Notion not implemented');
+    await expect(adapter.createTask(baseInput())).rejects.toThrow('does not support live mode');
   });
 
   it('live mode throws on updateStatus', async () => {
     const root = await tempRoot();
     const adapter = new NotionAdapter(root, 'live');
-    await expect(adapter.updateStatus('abc', 'done')).rejects.toThrow('Live Notion not implemented');
+    await expect(adapter.updateStatus('abc', 'done')).rejects.toThrow('does not support live mode');
   });
 
   it('multiple createTask calls append to same CSV', async () => {

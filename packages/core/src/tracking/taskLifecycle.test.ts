@@ -4,6 +4,7 @@ import {
   completeLifecycleTask,
   verifyCompletion,
   buildAgentContract,
+  validateTrackingUpdate,
   type TaskLifecycleState,
 } from './taskLifecycle.js';
 import type { TrackingAdapter, TrackingConfig, TrackingTask, TaskStatus } from './types.js';
@@ -323,13 +324,19 @@ describe('buildAgentContract', () => {
       completion_payload: null,
     };
 
-    const contract = buildAgentContract(state, 'daily-briefing', 'pm_commander');
+    const contract = buildAgentContract(state, 'daily-briefing', 'pm_commander', {
+      status_field: 'Status',
+      done_status: 'Done',
+    });
 
-    expect(contract.external_task_id).toBe('notion-123');
-    expect(contract.external_task_url).toBe('https://notion.so/123');
-    expect(contract.tracking_tool).toBe('notion');
-    expect(contract.tracking_mode).toBe('dry_run');
-    expect(contract.completion_skill).toBe('tracking.complete_task');
+    expect(contract.tracking.external_task_id).toBe('notion-123');
+    expect(contract.tracking.external_task_url).toBe('https://notion.so/123');
+    expect(contract.tracking.tool).toBe('notion');
+    expect(contract.tracking.mode).toBe('dry_run');
+    expect(contract.tracking.status_field).toBe('Status');
+    expect(contract.tracking.done_status).toBe('Done');
+    expect(contract.tracking.skill_required.orchestrator_create).toBe('tracking.create_task');
+    expect(contract.tracking.skill_required.agent_complete).toBe('tracking.complete_task');
     expect(contract.workflow_id).toBe('daily-briefing');
     expect(contract.agent_role).toBe('pm_commander');
   });
@@ -351,6 +358,86 @@ describe('buildAgentContract', () => {
     const contract = buildAgentContract(state, 'test', 'developer');
 
     expect(contract.task_id).toBe('local-789');
-    expect(contract.external_task_id).toBe('');
+    expect(contract.tracking.external_task_id).toBe('');
+    expect(contract.tracking.skill_required.orchestrator_create).toBe('tracking.create_task');
+  });
+});
+
+describe('validateTrackingUpdate', () => {
+  const state: TaskLifecycleState = {
+    tracking_tool: 'notion',
+    tracking_mode: 'local_import',
+    external_task_id: 'notion-local:task-1',
+    external_task_url: 'file://integrations/notion/issues.csv',
+    local_memory_task_id: 'local-1',
+    status: 'ready',
+    created_at: '2026-06-22T00:00:00Z',
+    completed_at: null,
+    dry_run_only: true,
+    completion_payload: null,
+  };
+
+  it('accepts matching tracking update payloads', () => {
+    expect(() =>
+      validateTrackingUpdate(state, {
+        tool: 'notion',
+        external_task_id: 'notion-local:task-1',
+        external_task_url: 'file://integrations/notion/issues.csv',
+        attempted: true,
+        result: 'dry_run_only',
+        status_after_update: 'done',
+        report_url: 'reports/test.md',
+        evidence_refs: ['reports/test.md'],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects missing tracking update payloads', () => {
+    expect(() => validateTrackingUpdate(state, null)).toThrow('Missing required tracking_update');
+  });
+
+  it('rejects mismatched external task ids', () => {
+    expect(() =>
+      validateTrackingUpdate(state, {
+        tool: 'notion',
+        external_task_id: 'notion-local:other-task',
+        external_task_url: 'file://integrations/notion/issues.csv',
+        attempted: true,
+        result: 'dry_run_only',
+        status_after_update: 'done',
+        report_url: 'reports/test.md',
+        evidence_refs: ['reports/test.md'],
+      }),
+    ).toThrow('does not match assigned tracker task');
+  });
+
+  it('rejects mismatched tracking tools', () => {
+    expect(() =>
+      validateTrackingUpdate(state, {
+        tool: 'linear',
+        external_task_id: 'notion-local:task-1',
+        external_task_url: 'file://integrations/notion/issues.csv',
+        attempted: true,
+        result: 'dry_run_only',
+        status_after_update: 'done',
+        report_url: 'reports/test.md',
+        evidence_refs: ['reports/test.md'],
+      }),
+    ).toThrow('does not match assigned tracker tool');
+  });
+
+  it('rejects updates that were not attempted', () => {
+    expect(() =>
+      validateTrackingUpdate(state, {
+        tool: 'notion',
+        external_task_id: 'notion-local:task-1',
+        external_task_url: 'file://integrations/notion/issues.csv',
+        attempted: false,
+        result: 'blocked',
+        status_after_update: 'blocked',
+        report_url: '',
+        evidence_refs: [],
+      }),
+    ).toThrow('attempt the required tracker update');
   });
 });

@@ -34,9 +34,10 @@ describe('orchestrator CLI', () => {
 
   describe('orchestrator run', () => {
     it('runs daily-briefing workflow', async () => {
-      const { stdout } = await execFileAsync('node', [
+      const { stdout, stderr } = await execFileAsync('node', [
         cliPath, 'orchestrator', 'run', '--workflow', 'daily-briefing', '--json',
       ], { cwd: tempDir, timeout: 60000 });
+      expect(stderr).toBe('');
       const result = JSON.parse(stdout);
       expect(result.runId).toBeDefined();
       expect(result.workflowId).toBe('daily-briefing');
@@ -126,7 +127,7 @@ describe('orchestrator CLI', () => {
         cliPath, 'orchestrator', 'status', 'nonexistent-run-id',
       ], { cwd: tempDir, timeout: 10000 }).catch((e: any) => e);
       expect(result.code).toBe(1);
-    });
+    }, 15000);
   });
 
   describe('orchestrator list', () => {
@@ -165,7 +166,7 @@ describe('orchestrator CLI', () => {
       expect(roles).toContain('ba_analyst');
       expect(roles).toContain('developer');
       expect(roles).toContain('delivery_control');
-    });
+    }, 15000);
 
     it('each agent has MCP capabilities', async () => {
       const { stdout } = await execFileAsync('node', [

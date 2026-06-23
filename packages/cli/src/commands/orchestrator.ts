@@ -10,11 +10,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { randomUUID } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { dispatchWorkflow as coreDispatch, isValidWorkflow, SUPPORTED_WORKFLOWS } from '@ai-pm/core/orchestrator';
-import { createOrchestratorRun, advanceToNext, failRun, toAuditRecord, finalizeOrchestratorRun, type OrchestratorRun } from '@ai-pm/core/orchestrator';
+import { dispatchWorkflow as coreDispatch, SUPPORTED_WORKFLOWS } from '@ai-pm/core/orchestrator';
+import { createOrchestratorRun, advanceToNext, failRun, finalizeOrchestratorRun } from '@ai-pm/core/orchestrator';
+import type { TaskLifecycleState } from '@ai-pm/core/tracking';
 import { validateWorkflowOutput } from '@ai-pm/core/workflows';
 import { MemoryStore } from '@ai-pm/core/runtime';
 
@@ -78,6 +78,25 @@ function dispatchWorkflow(workflowId: string, projectRoot: string): unknown {
   }).output;
 }
 
+function createCliTrackingState(workflowId: string, projectRoot: string, runId: string): TaskLifecycleState {
+  const now = new Date().toISOString();
+  const projectId = path.basename(projectRoot);
+  const externalTaskId = `local_memory:${workflowId}:${runId}`;
+
+  return {
+    tracking_tool: 'local_memory',
+    tracking_mode: 'manual',
+    external_task_id: externalTaskId,
+    external_task_url: `file://${path.join(projectRoot, '.ai-pm', 'orchestrator', 'runs.json')}`,
+    local_memory_task_id: `${projectId}:${workflowId}:${runId}`,
+    status: 'ready',
+    created_at: now,
+    completed_at: null,
+    dry_run_only: false,
+    completion_payload: null,
+  };
+}
+
 // ─── Run command ─────────────────────────────────────────────────────────────
 
 async function runWorkflow(workflowId: string, projectRoot: string, json: boolean): Promise<OrchestratorRunResult> {
@@ -95,16 +114,16 @@ async function runWorkflow(workflowId: string, projectRoot: string, json: boolea
 
   try {
     // Walk through states using state machine
-    const stateSteps = [
-      'project_resolution', 'context_pack', 'workflow_selection',
-      'agent_assignment',
-    ] as const;
+    const stateSteps = ['project_resolution', 'context_pack', 'workflow_selection'] as const;
 
     for (const state of stateSteps) {
-      run = advanceToNext(run, {
-        agents: state === 'agent_assignment' ? [workflowId + '-agent'] : undefined,
-      });
+      run = advanceToNext(run);
     }
+
+    run = advanceToNext(run, {
+      agents: [`${workflowId}-agent`],
+      tracking_state: createCliTrackingState(workflowId, projectRoot, run.run_id),
+    });
 
     // Dispatch workflow
     output = dispatchWorkflow(workflowId, projectRoot);
@@ -295,14 +314,17 @@ orchestratorCommand
       .requiredOption('--workflow <id>', `Workflow ID (${WORKFLOW_IDS.join(', ')})`)
       .option('--json', 'Output as JSON')
       .action(async (opts) => {
-        const spinner = ora(`Running workflow: ${opts.workflow}...`).start();
+        const spinner = opts.json ? null : ora(`Running workflow: ${opts.workflow}...`).start();
         try {
           const result = await runWorkflow(opts.workflow, process.cwd(), opts.json);
-          spinner.succeed(`Workflow ${opts.workflow} completed (${result.runId.slice(0, 8)}…)`);
-
           if (opts.json) {
             console.log(JSON.stringify(result, null, 2));
           } else {
+            if (result.valid) {
+              spinner?.succeed(`Workflow ${opts.workflow} completed (${result.runId.slice(0, 8)}…)`);
+            } else {
+              spinner?.fail(`Workflow ${opts.workflow} failed (${result.runId.slice(0, 8)}…)`);
+            }
             console.log(chalk.green(`✓ Run ID: ${result.runId}`));
             console.log(chalk.gray(`  Status: ${result.status}`));
             if (result.warnings.length > 0) {
@@ -314,8 +336,18 @@ orchestratorCommand
           }
           if (!result.valid) process.exitCode = 1;
         } catch (error) {
-          spinner.fail();
-          console.error(error);
+          spinner?.fail();
+          if (opts.json) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.log(JSON.stringify({
+              valid: false,
+              workflowId: opts.workflow,
+              status: 'failed',
+              error: message,
+            }, null, 2));
+          } else {
+            console.error(error);
+          }
           process.exit(1);
         }
       })

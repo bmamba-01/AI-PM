@@ -5,6 +5,8 @@
  * This is a pure/local state machine — no external MCP calls.
  */
 
+import type { AgentContract, TaskLifecycleState } from '../tracking/taskLifecycle.js';
+
 // ─── Run States ──────────────────────────────────────────────────────────────
 
 export const ORCHESTRATOR_STATES = [
@@ -87,6 +89,8 @@ export interface OrchestratorRun {
   assigned_agents: string[];
   artifacts: RunArtifact[];
   approvals_required: string[];
+  tracking_state: TaskLifecycleState | null;
+  agent_task_contract: AgentContract | null;
   errors: RunError[];
   started_at: string;
   updated_at: string;

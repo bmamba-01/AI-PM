@@ -1,0 +1,10 @@
+{
+  "id": "tracking.prepare_agent_contract",
+  "name": "Tracking Prepare Agent Contract",
+  "category": "tracking",
+  "description": "Inject tracker references and the required completion skill into the delegated agent contract.",
+  "version": "1.0.0",
+  "owner": "orchestrator",
+  "tags": ["tracking", "subagent", "contract"],
+  "triggers": ["prepare agent contract", "subagent task", "tracking metadata"]
+}
